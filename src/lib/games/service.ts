@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { HttpError } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { ALL_PHRASES } from "@/lib/feedback";
+import { phrasesFor } from "@/lib/feedback";
 import { mediaUrl } from "@/lib/media/save";
 import { sttLocale, sttProvider } from "@/lib/stt";
 import { ensureAudio } from "@/lib/tts/generate";
@@ -214,7 +214,7 @@ export async function publishGame(schoolId: string, userId: string, id: string) 
   if (problems.length) return { ok: false as const, problems };
   const voice = g.settings.voice;
   const rate = g.settings.rate;
-  const gen = (text: string, language = g.language) => ensureAudio({ schoolId, userId, text, language, voiceId: language === g.language ? voice : undefined, rate });
+  const gen = (text: string, language = g.language) => ensureAudio({ schoolId, userId, text, language, voiceId: language === g.language ? voice : undefined, voices: g.settings.voices, rate });
   let audioGenerated = false;
   try {
     const qs = await db.question.findMany({ where: { item: { gameId: id } } });
@@ -238,11 +238,9 @@ export async function publishGame(schoolId: string, userId: string, id: string) 
       audioGenerated ||= !!(prompt || hint || model || support);
     }
     const phraseAudio: Record<string, string> = {};
-    if (g.language === "es-419") {
-      for (const text of ALL_PHRASES) {
-        const r = await gen(text);
-        if (r) phraseAudio[text] = r.asset.id;
-      }
+    for (const text of phrasesFor(g.language)) {
+      const r = await gen(text);
+      if (r) phraseAudio[text] = r.asset.id;
     }
     const instr = g.instructions.trim() ? await gen(g.instructions) : null;
     await db.game.update({

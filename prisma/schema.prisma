@@ -376,6 +376,8 @@ model GameItem {
   text         String  @default("")
   imageAssetId String?
   difficulty   Int     @default(1)
+  // Template-specific fields: flashcard back/translation, diagram point (x, y in %), box label…
+  data         Json    @default("{}")
 
   game      Game        @relation(fields: [gameId], references: [id], onDelete: Cascade)
   image     MediaAsset? @relation("ItemImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
@@ -394,6 +396,9 @@ model Question {
   // Optional support line in another language (e.g. "How do you spell your name?"), spoken first.
   supportText     String         @default("")
   supportLanguage String         @default("en-US")
+  // Language the student answers in (null = the activity language). The recognizer uses this,
+  // never the language(s) of the question.
+  answerLanguage  String?
   supportAudioId  String?
   promptAudioId   String?
   hintAudioId     String?

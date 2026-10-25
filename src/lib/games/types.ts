@@ -3,6 +3,8 @@
 export interface GameSettings {
   acceptShortAnswer: boolean;
   voice?: string;
+  /** Voices for runs in other languages ("…en español, [en]love[/en]?"). */
+  voices?: Partial<Record<"es-419" | "en-US" | "fr-FR", string>>;
   rate: number;
   /** Incorrect tries before the model answer and moving on. */
   maxTries: number;

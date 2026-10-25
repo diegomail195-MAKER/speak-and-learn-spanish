@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { evaluateAnswer } from "./evaluate";
+import { evaluateAnswer, evaluateTyped } from "./evaluate";
+import { scoreTurn } from "@/lib/games/turn";
 import { parseSpokenLetters } from "./letters";
 import { normalizeText, phoneticKey } from "./normalize";
 
@@ -103,5 +104,73 @@ describe("letter spelling", () => {
     const r = evaluateAnswer([{ text: "Diego" }], { expected: "Diego", mode: "LETTERS" });
     expect(r.outcome).toBe("UNCERTAIN");
     expect(r.reason).toBe("word_instead_of_letters");
+  });
+});
+
+describe("Test 11 — Spanish letter names in spelling", () => {
+  const said = (t: string) => parseSpokenLetters(t).letters.join("");
+  it("recognises Ñ, H, R, Y, G, J, E, I, B, V by their Spanish names and variants", () => {
+    expect(said("eñe")).toBe("Ñ");
+    expect(said("hache")).toBe("H");
+    expect(said("ere")).toBe("R");
+    expect(said("erre")).toBe("R");
+    expect(said("ye")).toBe("Y");
+    expect(said("i griega")).toBe("Y");
+    expect(said("ge")).toBe("G");
+    expect(said("jota")).toBe("J");
+    expect(said("e")).toBe("E");
+    expect(said("i")).toBe("I");
+    expect(said("i latina")).toBe("I");
+    expect(said("be")).toBe("B");
+    expect(said("be larga")).toBe("B");
+    expect(said("uve")).toBe("V");
+    expect(said("ve corta")).toBe("V");
+    expect(said("doble uve")).toBe("W");
+    expect(said("doble ve")).toBe("W");
+    expect(said("doble u")).toBe("W");
+  });
+  it("does not read English letter names as Spanish ones", () => {
+    // English "jay", "gee", "aitch", "why" are not Spanish letter names
+    expect(parseSpokenLetters("jay gee aitch why").letters).toEqual([]);
+  });
+  it("spells CASA, ÑANDÚ, HIJO and GIRAFA", () => {
+    const ok = (word: string, t: string) => evaluateAnswer([{ text: t, confidence: 0.9 }], { expected: word, mode: "LETTERS" }).outcome;
+    expect(ok("CASA", "ce a ese a")).toBe("CORRECT");
+    expect(ok("ñandú", "eñe a ene de u")).toBe("CORRECT");
+    expect(ok("hijo", "hache i jota o")).toBe("CORRECT");
+    expect(ok("girafa", "ge i erre a efe a")).toBe("CORRECT");
+    expect(ok("vaca", "be a ce a")).toBe("CORRECT"); // B and V sound the same in Latin America
+    expect(ok("hijo", "hache i ge o")).toBe("INCORRECT");
+  });
+});
+
+describe("Test 12 — uncertain is never graded as incorrect", () => {
+  it("no speech / low confidence / partial match are UNCERTAIN", () => {
+    expect(evaluateAnswer([], { expected: "Es un perro" }).outcome).toBe("UNCERTAIN");
+    expect(evaluateAnswer([{ text: "es un perro", confidence: 0.1 }], { expected: "Es un perro" }).outcome).toBe("UNCERTAIN");
+    expect(scoreTurn({ alternatives: [], tooQuiet: true, expected: "amor", accepted: [], mode: "PHRASE", acceptShortAnswer: true, incorrectSoFar: 2, maxTries: 3 })).toMatchObject({ outcome: "UNCERTAIN", endsQuestion: false });
+  });
+});
+
+describe("Test 8 — answer language after a bilingual question", () => {
+  it("accepts “amor” for ¿Cómo se dice en español, [en]love[/en]?", () => {
+    expect(evaluateAnswer([{ text: "amor", confidence: 0.9 }], { expected: "amor", accepted: ["el amor"], language: "es-419" }).outcome).toBe("CORRECT");
+    // answering in English is not accepted for a Spanish answer
+    expect(evaluateAnswer([{ text: "love", confidence: 0.9 }], { expected: "amor", language: "es-419" }).outcome).toBe("INCORRECT");
+  });
+  it("evaluates an English answer when the answer language is English", () => {
+    expect(evaluateAnswer([{ text: "apple", confidence: 0.9 }], { expected: "[en]apple[/en]", accepted: ["an apple"], language: "en-US" }).outcome).toBe("CORRECT");
+  });
+});
+
+describe("typed answers (Spell the Word, Type mode)", () => {
+  it("checks letters, order, accents, ñ and capitals", () => {
+    expect(evaluateTyped("mariposa", { expected: "MARIPOSA" })).toMatchObject({ outcome: "CORRECT" });
+    expect(evaluateTyped("arbol", { expected: "árbol" })).toMatchObject({ outcome: "INCORRECT", reason: "missing_accent" });
+    expect(evaluateTyped("nino", { expected: "niño" })).toMatchObject({ outcome: "INCORRECT", reason: "missing_enye" });
+    expect(evaluateTyped("csaa", { expected: "casa" })).toMatchObject({ outcome: "INCORRECT", reason: "wrong_order", letterIndex: 1 });
+    expect(evaluateTyped("maría", { expected: "María", caseSensitive: true })).toMatchObject({ reason: "wrong_case" });
+    expect(evaluateTyped("  Escuela. ", { expected: "escuela" }).outcome).toBe("CORRECT");
+    expect(evaluateTyped("", { expected: "perro" })).toMatchObject({ outcome: "INCORRECT", reason: "empty" });
   });
 });

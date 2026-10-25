@@ -18,6 +18,7 @@ const schema = z.object({
   text: z.string().trim().min(1).max(600),
   language: z.enum(["es-419", "en-US", "fr-FR"]),
   voice: z.string().optional(),
+  voices: z.record(z.enum(["es-419", "en-US", "fr-FR"]), z.string()).optional(),
   rate: z.number().min(0.5).max(1.5).default(0.95),
   style: z.string().max(30).nullish(),
   regenerate: z.boolean().optional(),
@@ -30,7 +31,7 @@ export const POST = handle(async (req: Request) => {
   if (!ttsProvider()) return NextResponse.json({ error: "tts_not_configured" }, { status: 503 });
   if (!rateLimit(`tts:${user.schoolId}`, 400, 60 * 60_000)) throw new HttpError(429, "Audio generation limit reached, try again later");
   try {
-    const r = await ensureAudio({ schoolId: user.schoolId, userId: user.id, text: body.text, language: body.language, voiceId: body.voice, rate: body.rate, style: body.style, regenerate: body.regenerate });
+    const r = await ensureAudio({ schoolId: user.schoolId, userId: user.id, text: body.text, language: body.language, voiceId: body.voice, voices: body.voices, rate: body.rate, style: body.style, regenerate: body.regenerate });
     if (!r) throw new HttpError(400, "No voice available for that language");
     return NextResponse.json({ audioId: r.asset.id, url: mediaUrl(r.asset.mediaAssetId), cached: r.cached, voice: r.asset.voice, text: r.asset.text });
   } catch (e) {
