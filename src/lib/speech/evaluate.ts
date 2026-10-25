@@ -2,7 +2,8 @@
 // This is *recognition scoring* (what was said). Pronunciation assessment (how it was said)
 // is a separate, provider-dependent signal and is reported separately when available.
 import { compareLetters, lettersOf, parseSpokenLetters } from "./letters";
-import { normalizeText, phoneticKey, similarity, tokens } from "./normalize";
+import { plainText } from "@/lib/text/segments";
+import { foldAccents, normalizeText, phoneticKey, similarity, tokens } from "./normalize";
 
 export type Outcome = "CORRECT" | "INCORRECT" | "UNCERTAIN";
 
@@ -18,6 +19,8 @@ export interface AnswerSpec {
   mode?: "PHRASE" | "LETTERS";
   /** Accept the key word(s) without the carrier phrase ("perro" for "Es un perro"). */
   acceptShortAnswer?: boolean;
+  /** Language the answer must be in (default Spanish). */
+  language?: "es-419" | "en-US" | "fr-FR";
 }
 
 export interface Evaluation {
@@ -41,7 +44,14 @@ export type EvaluationReason =
   | "english_answer"
   | "word_instead_of_letters"
   | "wrong_letter"
-  | "unclear_letters";
+  | "unclear_letters"
+  // typed answers
+  | "empty"
+  | "missing_accent"
+  | "missing_enye"
+  | "wrong_case"
+  | "wrong_order"
+  | "spelling";
 
 export const REASON_TEXT: Record<EvaluationReason, string> = {
   match: "La respuesta coincide con una respuesta aceptada.",
@@ -54,6 +64,12 @@ export const REASON_TEXT: Record<EvaluationReason, string> = {
   word_instead_of_letters: "Se reconoció una palabra completa en lugar de letras.",
   wrong_letter: "Hay letras que no coinciden.",
   unclear_letters: "No se pudieron identificar suficientes letras.",
+  empty: "No escribió nada.",
+  missing_accent: "La palabra está bien escrita pero falta o sobra una tilde.",
+  missing_enye: "Escribió n en lugar de ñ.",
+  wrong_case: "Las letras son correctas pero no las mayúsculas.",
+  wrong_order: "Tiene las letras correctas en otro orden.",
+  spelling: "Hay letras distintas.",
 };
 
 const CORRECT_AT = 0.86;
@@ -109,7 +125,9 @@ function looksEnglish(text: string): boolean {
   return en / t.length >= 0.5 && es === 0;
 }
 
-export function evaluateAnswer(alternatives: RecognitionAlternative[], spec: AnswerSpec): Evaluation {
+export function evaluateAnswer(alternatives: RecognitionAlternative[], rawSpec: AnswerSpec): Evaluation {
+  // Language tags ("[en]love[/en]") only matter for speech; answers are checked as plain text.
+  const spec = { ...rawSpec, expected: plainText(rawSpec.expected), accepted: rawSpec.accepted?.map(plainText) };
   const alts = alternatives.filter((a) => normalizeText(a.text ?? "").length > 0);
   if (alts.length === 0) {
     return { outcome: "UNCERTAIN", score: 0, reason: "no_speech", transcript: "" };
@@ -150,7 +168,7 @@ export function evaluateAnswer(alternatives: RecognitionAlternative[], spec: Ans
     if (conf != null && conf < MIN_CONFIDENCE) return { ...b, outcome: "UNCERTAIN", reason: "low_confidence" };
     return { ...b, outcome: "CORRECT", reason: b.score === 1 ? "match" : "close_match" };
   }
-  if (looksEnglish(top.text)) {
+  if ((spec.language ?? "es-419") === "es-419" && looksEnglish(top.text)) {
     return { ...b, outcome: "INCORRECT", reason: "english_answer", transcript: top.text };
   }
   if (b.score >= MAYBE_AT) {
@@ -199,4 +217,45 @@ function evaluateLetters(alts: RecognitionAlternative[], spec: AnswerSpec): Eval
     if (!best || rank(cand) > rank(best)) best = cand;
   }
   return best!;
+}
+
+export interface TypedSpec {
+  expected: string;
+  accepted?: string[];
+  /** Capital letters must match (e.g. names, "Lunes" vs "lunes" usually doesn't matter). */
+  caseSensitive?: boolean;
+}
+
+const cleanTyped = (s: string) => plainText(s).normalize("NFC").trim().replace(/\s+/g, " ").replace(/^[¿¡"“'«\s]+|[?!.,;:"”'»\s]+$/g, "");
+
+/**
+ * Typed answers are checked exactly: letters, order, accents and ñ (and capitals when the
+ * teacher asks), with a precise reason so the child knows what to fix. Never UNCERTAIN.
+ */
+export function evaluateTyped(typed: string, spec: TypedSpec): Evaluation {
+  const t = cleanTyped(typed);
+  if (!t) return { outcome: "INCORRECT", score: 0, reason: "empty", transcript: "" };
+  const targets = [spec.expected, ...(spec.accepted ?? [])].map(cleanTyped).filter(Boolean);
+  const cmp = (a: string) => (spec.caseSensitive ? a : a.toLowerCase());
+  for (const target of targets) {
+    if (cmp(t) === cmp(target)) return { outcome: "CORRECT", score: 1, reason: "match", transcript: t, matchedAnswer: target, confidence: 1 };
+  }
+  const target = targets[0] ?? "";
+  const base: Evaluation = { outcome: "INCORRECT", score: 0, reason: "spelling", transcript: t, matchedAnswer: target, confidence: 1 };
+  for (const x of targets) {
+    if (spec.caseSensitive && t.toLowerCase() === x.toLowerCase()) return { ...base, reason: "wrong_case", score: 0.95, matchedAnswer: x };
+    const fa = (s: string) => foldAccents(s.toLowerCase());
+    if (fa(t) === fa(x)) return { ...base, reason: "missing_accent", score: 0.9, matchedAnswer: x, letterIndex: firstDiff(t.toLowerCase(), x.toLowerCase()) };
+    if (fa(t) === fa(x).replace(/ñ/g, "n")) return { ...base, reason: "missing_enye", score: 0.9, matchedAnswer: x, letterIndex: firstDiff(fa(t), fa(x)) };
+  }
+  const sorted = (s: string) => [...foldAccents(s.toLowerCase()).replace(/\s/g, "")].sort().join("");
+  if (sorted(t) === sorted(target)) return { ...base, reason: "wrong_order", score: 0.7, letterIndex: firstDiff(t.toLowerCase(), target.toLowerCase()) };
+  return { ...base, score: similarity(foldAccents(t.toLowerCase()), foldAccents(target.toLowerCase())), letterIndex: firstDiff(t.toLowerCase(), target.toLowerCase()) };
+}
+
+function firstDiff(a: string, b: string) {
+  const A = [...a];
+  const B = [...b];
+  for (let i = 0; i < Math.max(A.length, B.length); i++) if (A[i] !== B[i]) return i;
+  return -1;
 }

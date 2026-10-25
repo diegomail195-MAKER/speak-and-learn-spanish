@@ -3,6 +3,7 @@
 import { useCallback, useRef } from "react";
 import type { PlayGame, PlayQuestion } from "@/lib/games/types";
 import { GamePlayer } from "./GamePlayer";
+import type { TurnResult } from "./useVoiceSession";
 
 async function postJson(url: string, body: unknown, retries = 2): Promise<Response> {
   for (let i = 0; ; i++) {
@@ -17,7 +18,7 @@ async function postJson(url: string, body: unknown, retries = 2): Promise<Respon
   }
 }
 
-export function StudentPlay({ game, assignmentId, videoId, startIndex, exitHref }: { game: PlayGame; assignmentId: string; videoId: string | null; startIndex: number; exitHref: string }) {
+export function StudentPlay({ game, assignmentId, videoId, done, exitHref }: { game: PlayGame; assignmentId: string; videoId: string | null; done: Record<string, "NONE" | "HINT" | "MODEL" | null>; exitHref: string }) {
   const attemptId = useRef<string | null>(null);
 
   const ensureAttempt = useCallback(async () => {
@@ -30,7 +31,7 @@ export function StudentPlay({ game, assignmentId, videoId, startIndex, exitHref 
   }, [assignmentId, videoId]);
 
   const submitTurn = useCallback(
-    async (q: PlayQuestion, body: Record<string, unknown>) => {
+    async (q: PlayQuestion, body: Record<string, unknown>): Promise<TurnResult> => {
       const id = await ensureAttempt();
       const res = await postJson(`/api/attempts/${id}/responses`, { questionId: q.id, ...body });
       if (!res.ok) throw new Error("save failed");
@@ -47,5 +48,5 @@ export function StudentPlay({ game, assignmentId, videoId, startIndex, exitHref 
     [ensureAttempt],
   );
 
-  return <GamePlayer game={game} mode="student" startIndex={startIndex} submitTurn={submitTurn} onFinish={onFinish} exitHref={exitHref} />;
+  return <GamePlayer game={game} mode="student" done={done} submitTurn={submitTurn} onFinish={onFinish} exitHref={exitHref} />;
 }

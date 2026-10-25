@@ -13,6 +13,7 @@ export function AudioControl({
   text,
   language,
   voice,
+  voices,
   rate,
   audio,
   onAudio,
@@ -21,6 +22,8 @@ export function AudioControl({
   text: string;
   language: AppLanguage;
   voice?: string;
+  /** Voices for runs marked in other languages. */
+  voices?: Partial<Record<AppLanguage, string>>;
   rate: number;
   audio: { id: string | null; text?: string | null; url?: string | null };
   onAudio: (a: { id: string; text: string; url: string } | null) => void;
@@ -39,7 +42,7 @@ export function AudioControl({
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, language, voice: voice || undefined, rate, regenerate }),
+        body: JSON.stringify({ text, language, voice: voice || undefined, voices, rate, regenerate }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message ?? json.error);

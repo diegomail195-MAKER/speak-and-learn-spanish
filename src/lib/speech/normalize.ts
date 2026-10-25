@@ -45,9 +45,11 @@ export function normalizeText(input: string): string {
 export function foldAccents(s: string): string {
   return s
     .replace(/ñ/g, "\u0000")
+    .replace(/Ñ/g, "\u0001") // capital Ñ is a letter of its own too
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
-    .replace(/\u0000/g, "ñ");
+    .replace(/\u0000/g, "ñ")
+    .replace(/\u0001/g, "Ñ");
 }
 
 export function tokens(s: string): string[] {

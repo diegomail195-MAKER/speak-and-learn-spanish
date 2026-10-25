@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StudentPlay } from "@/components/player/StudentPlay";
-import { finishedQuestionIds } from "@/lib/attempts/service";
+import { finishedQuestions } from "@/lib/attempts/service";
 import { requireStudentPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { buildPlayGame, splitSpellingName } from "@/lib/games/service";
@@ -31,11 +31,6 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
   }
   const game = await buildPlayGame(student.schoolId, gameId, splitSpellingName(student.spellingName, student.firstName));
   if (a.instructions) game.instructions = [a.instructions, game.instructions].filter(Boolean).join(" ");
-  let startIndex = 0;
-  if (open) {
-    const done = await finishedQuestionIds(open.id);
-    startIndex = Math.max(0, game.questions.findIndex((q) => !done.has(q.id)));
-    if (game.questions.every((q) => done.has(q.id))) startIndex = game.questions.length - 1;
-  }
-  return <StudentPlay game={game} assignmentId={a.id} videoId={videoId ?? null} startIndex={startIndex} exitHref={exitHref} />;
+  const done = open ? await finishedQuestions(open.id) : {};
+  return <StudentPlay game={game} assignmentId={a.id} videoId={videoId ?? null} done={done} exitHref={exitHref} />;
 }

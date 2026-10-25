@@ -1,5 +1,6 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
+import { questionStatus } from "@/lib/attempts/outcome";
 import { db } from "@/lib/db";
 
 /** All active students an assignment reaches, through any recipient type. */
@@ -54,9 +55,7 @@ export async function assignmentReport(assignmentId: string) {
       latest.responses.forEach((r) => byQ.set(r.questionId, [...(byQ.get(r.questionId) ?? []), r]));
       let n = 0;
       byQ.forEach((rs) => {
-        const c = rs.find((r) => r.outcome === "CORRECT");
-        const st = c ? (c.support === "NONE" ? "INDEPENDENT" : "GUIDED") : rs.some((r) => r.endsQuestion) ? "NEEDS_PRACTICE" : null;
-        if (st === status) n++;
+        if (questionStatus(rs) === status) n++;
       });
       return n;
     };
@@ -85,10 +84,10 @@ export async function assignmentReport(assignmentId: string) {
     rs.forEach((r) => byAttempt.set(r.attemptId, [...(byAttempt.get(r.attemptId) ?? []), r]));
     let independent = 0, guided = 0, practice = 0;
     byAttempt.forEach((x) => {
-      const c = x.find((r) => r.outcome === "CORRECT");
-      if (c && c.support === "NONE") independent++;
-      else if (c) guided++;
-      else if (x.some((r) => r.endsQuestion)) practice++;
+      const st = questionStatus(x);
+      if (st === "INDEPENDENT") independent++;
+      else if (st === "GUIDED") guided++;
+      else if (st === "NEEDS_PRACTICE") practice++;
     });
     return { id: q.id, prompt: q.prompt || q.expectedAnswer, expected: q.expectedAnswer, answered: byAttempt.size, independent, guided, practice, responses: rs };
   });

@@ -21,6 +21,7 @@ export const extFor: Record<string, string> = {
   "image/gif": "gif",
   "image/webp": "webp",
   "audio/mpeg": "mp3",
+  "audio/wav": "wav",
   "video/mp4": "mp4",
   "video/webm": "webm",
   "text/vtt": "vtt",
