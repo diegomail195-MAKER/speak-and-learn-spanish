@@ -59,6 +59,7 @@ export function MatchBoard({ s, questions, exitHref }: { s: VoiceSession; questi
       setSpeaking(null);
       if (r === "aborted") return;
       s.record(pictureQ.id, r === "skipped" ? (speakRequired ? null : support) : r);
+      await sleep(900); // leave the feedback on screen for a moment
       s.setFeedback(null);
       await done(m);
     } finally {

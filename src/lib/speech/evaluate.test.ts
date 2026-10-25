@@ -138,6 +138,10 @@ describe("Test 11 — Spanish letter names in spelling", () => {
     expect(ok("CASA", "ce a ese a")).toBe("CORRECT");
     expect(ok("ñandú", "eñe a ene de u")).toBe("CORRECT");
     expect(ok("hijo", "hache i jota o")).toBe("CORRECT");
+    // Capital Ñ stays Ñ (alphabet cards, names written in capitals)
+    expect(ok("Ñ", "eñe")).toBe("CORRECT");
+    expect(ok("ÑANDÚ", "eñe a ene de u")).toBe("CORRECT");
+    expect(ok("Ñ", "ene")).not.toBe("CORRECT");
     expect(ok("girafa", "ge i erre a efe a")).toBe("CORRECT");
     expect(ok("vaca", "be a ce a")).toBe("CORRECT"); // B and V sound the same in Latin America
     expect(ok("hijo", "hache i ge o")).toBe("INCORRECT");

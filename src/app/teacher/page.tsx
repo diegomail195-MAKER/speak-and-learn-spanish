@@ -29,13 +29,13 @@ export default async function Dashboard() {
   const steps = [
     { done: classes > 0, label: "Create a class", href: "/teacher/classes" },
     { done: students > 0, label: "Add students and groups", href: "/teacher/classes" },
-    { done: published > 0, label: "Create and publish a game", href: "/teacher/games/new" },
+    { done: published > 0, label: "Create and publish an activity", href: "/teacher/games/new" },
     { done: assignments > 0, label: "Assign it to a group", href: "/teacher/assignments/new" },
   ];
 
   return (
     <>
-      <PageHeader eyebrow="Teacher Dashboard" title={`Hola, ${user.displayName.split(" ")[0]}`} actions={<ButtonLink href="/teacher/games/new">Create Game</ButtonLink>} />
+      <PageHeader eyebrow="Teacher Dashboard" title={`Hola, ${user.displayName.split(" ")[0]}`} actions={<ButtonLink href="/teacher/games/new">+ Create Activity</ButtonLink>} />
 
       {steps.some((s) => !s.done) && (
         <Panel className="mb-6">

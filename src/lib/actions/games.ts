@@ -7,7 +7,7 @@ import { schoolGame } from "@/lib/access";
 import { audit } from "@/lib/audit";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { templateByKey } from "@/lib/games/templates";
+import { templateByKey, templateOptions } from "@/lib/games/templates";
 import { DEFAULT_SETTINGS } from "@/lib/games/types";
 
 export async function createGame(form: FormData) {
@@ -20,7 +20,7 @@ export async function createGame(form: FormData) {
       teacherId: teacher.id,
       templateKey: t.key,
       title: "",
-      settings: { ...DEFAULT_SETTINGS, acceptShortAnswer: t.defaults.acceptShortAnswer },
+      settings: { ...DEFAULT_SETTINGS, acceptShortAnswer: t.defaults.acceptShortAnswer, options: templateOptions(t, undefined) },
     },
   });
   await audit(user.schoolId, user.id, "game.create", "Game", game.id);
@@ -64,6 +64,7 @@ export async function duplicateGame(form: FormData) {
           text: it.text,
           imageAssetId: it.imageAssetId,
           difficulty: it.difficulty,
+          data: it.data ?? {},
           questions: {
             create: it.questions.map((q) => ({
               prompt: q.prompt,
@@ -72,6 +73,7 @@ export async function duplicateGame(form: FormData) {
               hint: q.hint,
               supportText: q.supportText,
               supportLanguage: q.supportLanguage,
+              answerLanguage: q.answerLanguage,
               promptAudioId: q.promptAudioId,
               supportAudioId: q.supportAudioId,
               hintAudioId: q.hintAudioId,

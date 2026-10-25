@@ -30,7 +30,7 @@ export default async function GamesPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader eyebrow="Interactive Games" title="Games" subtitle="Voice-first activities your students answer by speaking." actions={<ButtonLink href="/teacher/games/new">Create game</ButtonLink>} />
+      <PageHeader eyebrow="Interactive Games" title="Activities" subtitle="Voice-first activities: flashcards, spelling, wheels, diagrams, boxes and more." actions={<ButtonLink href="/teacher/games/new">+ Create Activity</ButtonLink>} />
       <form className="mb-4 flex flex-wrap gap-2 text-sm">
         <input name="q" defaultValue={sp.q} placeholder="Search title or topic" className="h-10 min-w-56 flex-1 rounded-full border border-line bg-card px-4" aria-label="Search" />
         <select name="status" defaultValue={sp.status ?? ""} className="h-10 rounded-full border border-line bg-card px-3" aria-label="Status">
@@ -50,7 +50,7 @@ export default async function GamesPage({ searchParams }: { searchParams: Promis
         <button className="h-10 rounded-full bg-ink px-5 font-bold text-white">Filter</button>
       </form>
       {games.length === 0 ? (
-        <EmptyState title="No games here yet" body="Create a Speak & Answer game: add a picture, a question and the correct answer." action={<ButtonLink href="/teacher/games/new">Create game</ButtonLink>} />
+        <EmptyState title="No games here yet" body="Choose a template, add pictures, questions and answers, then assign it." action={<ButtonLink href="/teacher/games/new">+ Create Activity</ButtonLink>} />
       ) : (
         <ul className="divide-y divide-line overflow-hidden rounded-xl2 border border-line bg-card">
           {games.map((g) => (

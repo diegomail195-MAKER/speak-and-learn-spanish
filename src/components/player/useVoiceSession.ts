@@ -140,9 +140,12 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
       setPhase("speaking");
       if (q.supportText) await say(q.supportText, q.supportAudioUrl, q.supportLanguage);
       if (q.prompt) await say(q.prompt, q.promptAudioUrl);
-      else if (game.settings.showAnswerText || extra?.repeatModel) await say(q.expected, q.modelAudioUrl, q.answerLanguage);
+      else if (game.settings.showAnswerText || extra?.repeatModel) {
+        if (q.mode === "LETTERS") await say(spellOut(q.expected), null, "es-419"); // letter names, not the word
+        else await say(q.expected, q.modelAudioUrl, q.answerLanguage);
+      }
     },
-    [say, game.settings.showAnswerText],
+    [say, spellOut, game.settings.showAnswerText],
   );
 
   const addDiag = useCallback((d: Diagnostic) => setDiag((x) => [d, ...x].slice(0, 30)), []);

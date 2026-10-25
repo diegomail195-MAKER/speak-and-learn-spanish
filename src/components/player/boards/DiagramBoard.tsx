@@ -185,11 +185,12 @@ export function DiagramBoard({ s, questions, exitHref }: { s: VoiceSession; ques
               <button
                 key={q.id}
                 type="button"
-                draggable
+                draggable={!busy}
+                disabled={busy}
                 onDragStart={(e) => e.dataTransfer.setData("text/plain", q.id)}
                 onClick={() => setSelected((x) => (x === q.id ? null : q.id))}
                 aria-pressed={selected === q.id}
-                className={`cursor-grab rounded-full border-2 px-4 py-2 font-display text-lg font-semibold ${selected === q.id ? "border-teal bg-teal-soft text-teal-dark" : "border-line bg-card"}`}
+                className={`cursor-grab rounded-full border-2 px-4 py-2 font-display text-lg font-semibold disabled:opacity-50 ${selected === q.id ? "border-teal bg-teal-soft text-teal-dark" : "border-line bg-card"}`}
               >
                 {label(q)}
               </button>
