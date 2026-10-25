@@ -68,27 +68,46 @@ export function VideoForm({ initial, categories, games }: { initial: VideoFormVa
       if (Number.isFinite(probe.duration)) setV((x) => ({ ...x, durationSec: x.durationSec ?? Math.round(probe.duration) }));
       URL.revokeObjectURL(probe.src);
     };
-    const req = new XMLHttpRequest();
-    xhr.current = req;
-    req.open("POST", "/api/videos/upload");
-    req.setRequestHeader("Content-Type", "application/octet-stream");
-    req.setRequestHeader("X-File-Name", encodeURIComponent(f.name));
-    req.upload.onprogress = (e) => e.lengthComputable && setUpload({ pct: Math.round((e.loaded / e.total) * 100), name: f.name });
-    req.onload = () => {
-      const json = JSON.parse(req.responseText || "{}");
-      if (req.status >= 300) {
-        setError(json.error ?? "Upload failed");
-        setUpload(null);
-        return;
-      }
+    const fail = (msg: string) => {
+      setError(msg);
+      setUpload(null);
+    };
+    const done = (json: { id: string; name: string; url: string }) => {
       setV((x) => ({ ...x, fileAssetId: json.id, fileName: json.name, fileUrl: json.url, title: x.title || f.name.replace(/\.[^.]+$/, "") }));
       setUpload(null);
     };
-    req.onerror = () => {
-      setError("Upload interrupted. Check the connection and try again.");
-      setUpload(null);
-    };
-    req.send(f);
+    // With cloud storage the file goes straight from the browser to storage; otherwise to our server.
+    fetch("/api/videos/direct-upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: f.name, size: f.size }) })
+      .then(async (res) => {
+        const plan = await res.json();
+        if (!res.ok) return fail(plan.error ?? "Upload failed");
+        const req = new XMLHttpRequest();
+        xhr.current = req;
+        if (plan.mode === "direct") {
+          req.open("PUT", plan.uploadUrl);
+          req.setRequestHeader("Content-Type", f.type || "application/octet-stream");
+          req.setRequestHeader("x-upsert", "false");
+        } else {
+          req.open("POST", "/api/videos/upload");
+          req.setRequestHeader("Content-Type", "application/octet-stream");
+          req.setRequestHeader("X-File-Name", encodeURIComponent(f.name));
+        }
+        req.upload.onprogress = (e) => e.lengthComputable && setUpload({ pct: Math.round((e.loaded / e.total) * 100), name: f.name });
+        req.onload = async () => {
+          if (req.status >= 300) {
+            const json = JSON.parse(req.responseText || "{}");
+            return fail(json.error ?? (req.status === 413 ? "This video is larger than the storage plan allows." : "Upload failed"));
+          }
+          if (plan.mode !== "direct") return done(JSON.parse(req.responseText));
+          const r = await fetch("/api/videos/direct-upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: plan.key, name: f.name }) });
+          const json = await r.json();
+          if (!r.ok) return fail(json.error ?? "Upload failed");
+          done(json);
+        };
+        req.onerror = () => fail("Upload interrupted. Check the connection and try again.");
+        req.send(f);
+      })
+      .catch(() => fail("Upload interrupted. Check the connection and try again."));
   }
 
   async function uploadCaptions(f: File) {

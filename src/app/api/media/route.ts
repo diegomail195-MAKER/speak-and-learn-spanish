@@ -10,7 +10,7 @@ export const POST = handle(async (req: Request) => {
   const form = await req.formData();
   const file = form.get("file");
   if (!(file instanceof File)) throw new HttpError(400, "No file");
-  if (file.size > IMAGE_MAX_BYTES) throw new HttpError(413, "Images must be 5 MB or smaller");
+  if (file.size > IMAGE_MAX_BYTES) throw new HttpError(413, "Images must be 4 MB or smaller");
   const data = Buffer.from(await file.arrayBuffer());
   const mime = sniffImage(data);
   if (!mime) throw new HttpError(415, "Only PNG, JPEG, GIF or WebP images are allowed");

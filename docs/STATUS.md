@@ -29,6 +29,13 @@ server path). The e2e test covers acceptance criteria 1, 2, 5, 6, 7, 9, 10, 11, 
   by voice → teacher results show *Watched* and *Practice: 1/1 independent*.
 - Anonymous progress writes are refused (401).
 
+### Hosting on Supabase + Vercel (`docs/DEPLOY.md`)
+
+- `STORAGE_DRIVER=supabase`: private bucket, signed download URLs after the access check, videos
+  uploaded straight from the browser to a one-time signed URL and verified by the server.
+- Both e2e tests pass with this driver against a local mock of the Supabase Storage API.
+  Not yet run against a real Supabase project.
+
 ## Built, not covered by automated tests
 
 - YouTube playback itself (YouTube is not reachable from the test environment). The player uses
@@ -52,7 +59,7 @@ server path). The e2e test covers acceptance criteria 1, 2, 5, 6, 7, 9, 10, 11, 
 | Natural Spanish/English/French voices saved for reuse | `TTS_PROVIDER` + Azure or Google key |
 | Server speech recognition + pronunciation scores | `STT_PROVIDER` + Azure (or Google) key |
 | Grammar suggestions beyond the built-in Spanish rules | `LANGUAGETOOL_API_URL` |
-| Hosting | A Postgres (e.g. Supabase) + a Node host; for serverless hosting implement the storage driver for Supabase Storage/S3 (`src/lib/storage`) |
+| Hosting | Supabase project + Vercel project, steps in `docs/DEPLOY.md` |
 
 ## Not tested yet (must be done before classroom use)
 

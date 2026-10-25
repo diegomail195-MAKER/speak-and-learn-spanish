@@ -1,7 +1,8 @@
 // Validates uploads by their actual bytes, not by the file name or the browser's claimed type.
 // SVG is rejected on purpose (it can carry scripts).
 
-export const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+// 4 MB keeps uploads under the request limit of serverless hosts (Vercel: 4.5 MB).
+export const IMAGE_MAX_BYTES = 4 * 1024 * 1024;
 
 export function sniffImage(buf: Uint8Array): "image/png" | "image/jpeg" | "image/gif" | "image/webp" | null {
   if (buf.length < 12) return null;
