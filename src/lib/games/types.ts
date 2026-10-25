@@ -3,11 +3,26 @@
 export interface GameSettings {
   acceptShortAnswer: boolean;
   voice?: string;
+  /** Voices for runs in other languages ("…en español, [en]love[/en]?"). */
+  voices?: Partial<Record<"es-419" | "en-US" | "fr-FR", string>>;
   rate: number;
   /** Incorrect tries before the model answer and moving on. */
   maxTries: number;
   /** AudioAsset ids for the feedback phrases, generated on publish. */
   phraseAudio?: Record<string, string>;
+  /** Template options (see TemplateDef.options). */
+  options?: Record<string, string | number | boolean>;
+  /** Label the Diagram: the picture for the whole activity. */
+  diagramImageId?: string | null;
+}
+
+/** Template-specific item fields. */
+export interface ItemData {
+  translation?: string;
+  translationLanguage?: "es-419" | "en-US" | "fr-FR";
+  /** Label the Diagram: point position in % of the picture. */
+  x?: number;
+  y?: number;
 }
 
 export const DEFAULT_SETTINGS: GameSettings = { acceptShortAnswer: true, rate: 0.95, maxTries: 3 };
@@ -30,6 +45,8 @@ export interface EditorQuestion {
   supportAudioUrl?: string | null;
   evaluationMode: "PHRASE" | "LETTERS";
   spellTarget?: SpellTarget;
+  /** null = the activity language. */
+  answerLanguage: "es-419" | "en-US" | "fr-FR" | null;
 }
 
 export interface EditorItem {
@@ -38,6 +55,7 @@ export interface EditorItem {
   imageUrl?: string | null;
   text: string;
   difficulty: number;
+  data: ItemData;
   question: EditorQuestion;
 }
 
@@ -56,6 +74,7 @@ export interface EditorGame {
   estimatedMinutes: number | null;
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   settings: GameSettings;
+  diagramImageUrl?: string | null;
   items: EditorItem[];
   updatedAt: string;
 }
@@ -76,6 +95,8 @@ export interface PlayQuestion {
   hint: string;
   hintAudioUrl: string | null;
   modelAudioUrl: string | null;
+  answerLanguage: "es-419" | "en-US" | "fr-FR";
+  data: ItemData;
 }
 
 export interface PlayGame {
@@ -85,7 +106,12 @@ export interface PlayGame {
   templateKey: string;
   language: "es-419" | "en-US" | "fr-FR";
   sttLocale: string;
+  /** Recognition locale for each answer language. */
+  sttLocales: Record<"es-419" | "en-US" | "fr-FR", string>;
   sttProvider: string | null;
+  board: "sequence" | "flashcards" | "spell" | "wheel" | "diagram" | "boxes" | "match";
+  options: Record<string, string | number | boolean>;
+  diagramImageUrl: string | null;
   settings: { acceptShortAnswer: boolean; maxTries: number; showAnswerText: boolean; rate: number };
   phraseAudio: Record<string, string>;
   questions: PlayQuestion[];

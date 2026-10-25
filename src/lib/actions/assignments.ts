@@ -11,7 +11,8 @@ import { db } from "@/lib/db";
 export type AssignState = { error?: string } | undefined;
 
 const schema = z.object({
-  gameId: z.string().min(1, "Choose a game."),
+  // "game:ID" | "video:ID" | "collection:ID"
+  activity: z.string().regex(/^(game|video|collection):\S+$/, "Choose an activity."),
   instructions: z.string().max(1000).default(""),
   startsAt: z.string().optional(),
   dueAt: z.string().optional(),
@@ -23,8 +24,23 @@ export async function createAssignment(_: AssignState, form: FormData): Promise<
   const parsed = schema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
-  const game = await schoolGame(user.schoolId, d.gameId);
-  if (game.status !== "PUBLISHED") return { error: "Publish the game before assigning it." };
+  const [kind, activityId] = d.activity.split(":") as ["game" | "video" | "collection", string];
+  const target: { gameId?: string; videoId?: string; collectionId?: string } = {};
+  if (kind === "game") {
+    const game = await schoolGame(user.schoolId, activityId);
+    if (game.status !== "PUBLISHED") return { error: "Publish the game before assigning it." };
+    target.gameId = game.id;
+  } else if (kind === "video") {
+    const video = await db.video.findFirst({ where: { id: activityId, schoolId: user.schoolId } });
+    if (!video) return { error: "Video not found." };
+    if (video.status !== "PUBLISHED") return { error: "Publish the video before assigning it." };
+    target.videoId = video.id;
+  } else {
+    const c = await db.collection.findFirst({ where: { id: activityId, schoolId: user.schoolId }, include: { videos: { include: { video: { select: { status: true } } } } } });
+    if (!c) return { error: "Collection not found." };
+    if (!c.videos.some((v) => v.video.status === "PUBLISHED")) return { error: "Add at least one published video to the collection first." };
+    target.collectionId = c.id;
+  }
 
   // Recipients arrive as "TYPE:id" values; each is ownership-checked.
   const raw = form.getAll("recipient").map(String);
@@ -46,7 +62,7 @@ export async function createAssignment(_: AssignState, form: FormData): Promise<
     data: {
       schoolId: user.schoolId,
       teacherId: teacher.id,
-      gameId: game.id,
+      ...target,
       instructions: d.instructions.trim(),
       startsAt,
       dueAt,

@@ -117,15 +117,15 @@ try {
   const audioCtl = q1.locator("text=/Generate audio|Preview \\(browser voice\\)/").first();
   log("audio control:", await audioCtl.textContent());
 
-  await page.waitForSelector("text=All changes saved", { timeout: 15000 });
+  await page.waitForSelector("text=/All changes saved|Saved \\d/", { timeout: 15000 });
   await page.evaluate(() => window.scrollTo(0, 0));
   await shot(page, "02-game-editor");
-  await page.click("text=Publish");
-  await page.waitForSelector("a:text('Assign')", { timeout: 20000 });
+  await page.click("button:text-is('Publish')");
+  await page.waitForSelector("button:text-is('Update published')", { timeout: 20000 });
   log("published");
 
   // 4. Assign to LE2 Group A
-  await page.click("a:text('Assign')");
+  await page.click("button:text-is('Assign')");
   await page.waitForURL(/assignments\/new/);
   await page.check("label:has-text('LE2 Group A') input");
   await page.click("text=Assign activity");
@@ -158,7 +158,7 @@ try {
   await s.waitForSelector("text=Te escucho", { timeout: 15000 });
   log("microphone open, listening without any click");
   await shot(s, "04-student-activity");
-  await s.waitForSelector("text=/¡Muy bien!|¡Lo lograste!|¡Excelente!|¡Así se dice!|¡Perfecto!/", { timeout: 40000 });
+  await s.waitForSelector("text=/¡Muy bien!|¡Lo lograste!|¡Excelente!|¡Buen trabajo!|¡Así se dice!|¡Perfecto!/", { timeout: 40000 });
   log("Q1 correct");
   await s.waitForSelector("text=Hace miau.", { timeout: 60000 });
   log("Q2 wrong answer → hint shown");

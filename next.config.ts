@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+// With Supabase Storage, media is read from (and big videos uploaded to) the project's domain.
+const storageOrigin = process.env.STORAGE_DRIVER === "supabase" && process.env.SUPABASE_URL ? ` ${new URL(process.env.SUPABASE_URL).origin}` : "";
+
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
@@ -11,14 +14,14 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' blob:" + (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""),
+      "script-src 'self' 'unsafe-inline' blob: https://www.youtube.com https://s.ytimg.com" + (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""),
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
-      "media-src 'self' blob:",
+      "img-src 'self' data: blob: https://i.ytimg.com" + storageOrigin,
+      "media-src 'self' blob:" + storageOrigin,
       "font-src 'self'",
-      "connect-src 'self'",
+      "connect-src 'self'" + storageOrigin,
       "worker-src 'self' blob:",
-      "frame-src https://www.youtube-nocookie.com",
+      "frame-src https://www.youtube-nocookie.com https://www.youtube.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

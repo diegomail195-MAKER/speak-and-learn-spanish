@@ -3,12 +3,16 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { HttpError } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { ALL_PHRASES } from "@/lib/feedback";
+import { phrasesFor } from "@/lib/feedback";
 import { mediaUrl } from "@/lib/media/save";
 import { sttLocale, sttProvider } from "@/lib/stt";
 import { ensureAudio } from "@/lib/tts/generate";
-import { templateByKey } from "./templates";
-import { DEFAULT_SETTINGS, SPELL_TOKENS, type EditorGame, type GameSettings, type PlayGame } from "./types";
+import { templateByKey, templateOptions } from "./templates";
+import { DEFAULT_SETTINGS, SPELL_TOKENS, type EditorGame, type GameSettings, type ItemData, type PlayGame } from "./types";
+
+export function readItemData(json: Prisma.JsonValue): ItemData {
+  return json && typeof json === "object" && !Array.isArray(json) ? (json as ItemData) : {};
+}
 
 const gameInclude = {
   items: {
@@ -42,6 +46,7 @@ export async function loadEditorGame(schoolId: string, id: string): Promise<Edit
     estimatedMinutes: g.estimatedMinutes,
     status: g.status,
     settings: readSettings(g.settings),
+    diagramImageUrl: readSettings(g.settings).diagramImageId ? mediaUrl(readSettings(g.settings).diagramImageId!) : null,
     updatedAt: g.updatedAt.toISOString(),
     items: g.items.map((it) => {
       const q = it.questions[0];
@@ -52,6 +57,7 @@ export async function loadEditorGame(schoolId: string, id: string): Promise<Edit
         imageUrl: it.imageAssetId ? mediaUrl(it.imageAssetId) : null,
         text: it.text,
         difficulty: it.difficulty,
+        data: readItemData(it.data),
         question: {
           id: q?.id,
           prompt: q?.prompt ?? "",
@@ -68,6 +74,7 @@ export async function loadEditorGame(schoolId: string, id: string): Promise<Edit
           supportAudioUrl: q?.supportAudio ? mediaUrl(q.supportAudio.mediaAssetId) : null,
           evaluationMode: q?.evaluationMode ?? "PHRASE",
           spellTarget,
+          answerLanguage: (q?.answerLanguage ?? null) as EditorGame["language"] | null,
         },
       };
     }),
@@ -86,7 +93,15 @@ export const saveSchema = z.object({
   language: lang,
   difficulty: z.number().int().min(1).max(3),
   estimatedMinutes: z.number().int().min(1).max(120).nullable(),
-  settings: z.object({ acceptShortAnswer: z.boolean(), voice: z.string().optional(), rate: z.number().min(0.5).max(1.5), maxTries: z.number().int().min(1).max(5) }),
+  settings: z.object({
+    acceptShortAnswer: z.boolean(),
+    voice: z.string().optional(),
+    voices: z.record(lang, z.string()).optional(),
+    rate: z.number().min(0.5).max(1.5),
+    maxTries: z.number().int().min(1).max(5),
+    options: z.record(z.string().max(40), z.union([z.string().max(40), z.number(), z.boolean()])).optional(),
+    diagramImageId: z.string().nullable().optional(),
+  }),
   items: z
     .array(
       z.object({
@@ -94,6 +109,14 @@ export const saveSchema = z.object({
         imageAssetId: z.string().nullable(),
         text: z.string().max(200),
         difficulty: z.number().int().min(1).max(3),
+        data: z
+          .object({
+            translation: z.string().max(200).optional(),
+            translationLanguage: lang.optional(),
+            x: z.number().min(0).max(100).optional(),
+            y: z.number().min(0).max(100).optional(),
+          })
+          .default({}),
         question: z.object({
           id: z.string().optional(),
           prompt: z.string().max(400),
@@ -105,6 +128,7 @@ export const saveSchema = z.object({
           supportLanguage: lang,
           supportAudioId: z.string().nullable(),
           evaluationMode: z.enum(["PHRASE", "LETTERS"]),
+          answerLanguage: lang.nullable().default(null),
         }),
       }),
     )
@@ -116,7 +140,7 @@ export async function saveEditorGame(schoolId: string, id: string, input: z.infe
   if (!game) throw new HttpError(404, "Game not found");
 
   // Referenced media must belong to this school.
-  const assetIds = input.items.map((i) => i.imageAssetId).filter(Boolean) as string[];
+  const assetIds = [...input.items.map((i) => i.imageAssetId), input.settings.diagramImageId].filter(Boolean) as string[];
   if (assetIds.length) {
     const n = await db.mediaAsset.count({ where: { id: { in: assetIds }, schoolId } });
     if (n !== new Set(assetIds).size) throw new HttpError(400, "Unknown image");
@@ -144,12 +168,13 @@ export async function saveEditorGame(schoolId: string, id: string, input: z.infe
         hint: q.hint,
         supportText: q.supportText,
         supportLanguage: q.supportLanguage,
+        answerLanguage: q.answerLanguage,
         promptAudioId: validAudio(q.promptAudioId, q.prompt),
         supportAudioId: validAudio(q.supportAudioId, q.supportText),
       };
       const existing = it.id ? game.items.find((x) => x.id === it.id) : undefined;
       if (existing) {
-        await tx.gameItem.update({ where: { id: existing.id }, data: { position, text: it.text, imageAssetId: it.imageAssetId, difficulty: it.difficulty } });
+        await tx.gameItem.update({ where: { id: existing.id }, data: { position, text: it.text, imageAssetId: it.imageAssetId, difficulty: it.difficulty, data: it.data } });
         const qid = existing.questions.find((x) => x.id === q.id)?.id ?? existing.questions[0]?.id;
         if (qid) {
           await tx.question.update({ where: { id: qid }, data: qData });
@@ -166,6 +191,7 @@ export async function saveEditorGame(schoolId: string, id: string, input: z.infe
             text: it.text,
             imageAssetId: it.imageAssetId,
             difficulty: it.difficulty,
+            data: it.data,
             questions: { create: { ...qData, acceptedAnswers: { create: q.accepted.filter((a) => a.trim()).map((text) => ({ text: text.trim() })) } } },
           },
         });
@@ -196,13 +222,18 @@ export function publishProblems(g: EditorGame): string[] {
   const p: string[] = [];
   if (!t?.available) p.push("This template is not available yet.");
   if (!g.title.trim()) p.push("Add a title.");
-  if (g.items.length === 0) p.push("Add at least one question.");
+  const noun = t?.itemNoun ?? "question";
+  const Noun = noun[0].toUpperCase() + noun.slice(1);
+  if (g.items.length < (t?.minItems ?? 1)) p.push(`Add at least ${t?.minItems ?? 1} ${noun}${(t?.minItems ?? 1) > 1 ? (noun.endsWith("x") ? "es" : "s") : ""}.`);
+  if (t?.activityImage && !g.settings.diagramImageId) p.push("Upload the picture to label.");
   g.items.forEach((it, i) => {
-    const n = i + 1;
-    if (t?.fields.image === "required" && !it.imageAssetId) p.push(`Question ${n}: add an image.`);
-    if (t?.fields.prompt && !it.question.prompt.trim()) p.push(`Question ${n}: write the question.`);
-    if (it.question.evaluationMode === "PHRASE" && !it.question.expectedAnswer.trim()) p.push(`Question ${n}: write the correct answer.`);
-    if (it.question.evaluationMode === "LETTERS" && !it.question.expectedAnswer.trim()) p.push(`Question ${n}: choose what to spell.`);
+    const n = `${Noun} ${i + 1}`;
+    if (t?.fields.image === "required" && !it.imageAssetId) p.push(`${n}: add an image.`);
+    if (t?.fields.prompt && !it.question.prompt.trim() && t.board !== "diagram" && t.board !== "boxes" && t.board !== "flashcards") p.push(`${n}: write the question.`);
+    if (t?.fields.itemText?.required && !it.text.trim()) p.push(`${n}: write the ${t.fields.itemText.label.toLowerCase()}.`);
+    if (t?.fields.point && (it.data.x == null || it.data.y == null)) p.push(`${n}: place it on the picture.`);
+    if (it.question.evaluationMode === "PHRASE" && !it.question.expectedAnswer.trim()) p.push(`${n}: write the correct answer.`);
+    if (it.question.evaluationMode === "LETTERS" && !it.question.expectedAnswer.trim()) p.push(`${n}: choose what to spell.`);
   });
   return p;
 }
@@ -214,7 +245,7 @@ export async function publishGame(schoolId: string, userId: string, id: string) 
   if (problems.length) return { ok: false as const, problems };
   const voice = g.settings.voice;
   const rate = g.settings.rate;
-  const gen = (text: string, language = g.language) => ensureAudio({ schoolId, userId, text, language, voiceId: language === g.language ? voice : undefined, rate });
+  const gen = (text: string, language = g.language) => ensureAudio({ schoolId, userId, text, language, voiceId: language === g.language ? voice : undefined, voices: g.settings.voices, rate });
   let audioGenerated = false;
   try {
     const qs = await db.question.findMany({ where: { item: { gameId: id } } });
@@ -223,7 +254,7 @@ export async function publishGame(schoolId: string, userId: string, id: string) 
       const [prompt, hint, model, support] = await Promise.all([
         q.promptAudioId ? null : gen(q.prompt),
         q.hint ? gen(q.hint) : null,
-        q.evaluationMode === "PHRASE" && !isToken ? gen(q.expectedAnswer) : null,
+        !isToken && q.expectedAnswer ? gen(q.expectedAnswer, (q.answerLanguage ?? g.language) as EditorGame["language"]) : null,
         q.supportText && !q.supportAudioId ? gen(q.supportText, q.supportLanguage as EditorGame["language"]) : null,
       ]);
       await db.question.update({
@@ -238,11 +269,9 @@ export async function publishGame(schoolId: string, userId: string, id: string) 
       audioGenerated ||= !!(prompt || hint || model || support);
     }
     const phraseAudio: Record<string, string> = {};
-    if (g.language === "es-419") {
-      for (const text of ALL_PHRASES) {
-        const r = await gen(text);
-        if (r) phraseAudio[text] = r.asset.id;
-      }
+    for (const text of phrasesFor(g.language)) {
+      const r = await gen(text);
+      if (r) phraseAudio[text] = r.asset.id;
     }
     const instr = g.instructions.trim() ? await gen(g.instructions) : null;
     await db.game.update({
@@ -304,6 +333,8 @@ export async function buildPlayGame(schoolId: string, gameId: string, names: { f
           hint: q.hint,
           hintAudioUrl: url(q.hintAudio),
           modelAudioUrl: url(q.modelAudio),
+          answerLanguage: (q.answerLanguage ?? g.language) as PlayGame["language"],
+          data: readItemData(it.data),
         };
       })
       // A spelling question for a name the teacher hasn't entered is skipped rather than guessed.
@@ -316,7 +347,11 @@ export async function buildPlayGame(schoolId: string, gameId: string, names: { f
     templateKey: g.templateKey,
     language: g.language as PlayGame["language"],
     sttLocale: sttLocale(g.language),
+    sttLocales: { "es-419": sttLocale("es-419"), "en-US": sttLocale("en-US"), "fr-FR": sttLocale("fr-FR") },
     sttProvider: sttProvider(),
+    board: tpl?.board ?? "sequence",
+    options: templateOptions(tpl, settings.options),
+    diagramImageUrl: settings.diagramImageId ? mediaUrl(settings.diagramImageId) : null,
     settings: { acceptShortAnswer: settings.acceptShortAnswer, maxTries: settings.maxTries, showAnswerText: tpl?.defaults.showAnswerText ?? false, rate: settings.rate },
     phraseAudio,
     questions,

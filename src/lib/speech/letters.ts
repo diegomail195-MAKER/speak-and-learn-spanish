@@ -4,6 +4,8 @@ import { foldAccents, levenshtein, normalizeText } from "./normalize";
 
 // Multi-word names first so "i griega" wins over "i".
 const MULTI: Array<[string[], string]> = [
+  [["doble", "uve"], "W"],
+  [["i", "latina"], "I"],
   [["i", "griega"], "Y"],
   [["y", "griega"], "Y"],
   [["doble", "ve"], "W"],
