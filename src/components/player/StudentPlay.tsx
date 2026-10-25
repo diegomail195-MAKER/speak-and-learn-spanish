@@ -17,17 +17,17 @@ async function postJson(url: string, body: unknown, retries = 2): Promise<Respon
   }
 }
 
-export function StudentPlay({ game, assignmentId, startIndex }: { game: PlayGame; assignmentId: string; startIndex: number }) {
+export function StudentPlay({ game, assignmentId, videoId, startIndex, exitHref }: { game: PlayGame; assignmentId: string; videoId: string | null; startIndex: number; exitHref: string }) {
   const attemptId = useRef<string | null>(null);
 
   const ensureAttempt = useCallback(async () => {
     if (attemptId.current) return attemptId.current;
-    const res = await postJson("/api/attempts", { assignmentId });
+    const res = await postJson("/api/attempts", { assignmentId, videoId });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error);
     attemptId.current = json.attemptId as string;
     return attemptId.current;
-  }, [assignmentId]);
+  }, [assignmentId, videoId]);
 
   const submitTurn = useCallback(
     async (q: PlayQuestion, body: Record<string, unknown>) => {
@@ -47,5 +47,5 @@ export function StudentPlay({ game, assignmentId, startIndex }: { game: PlayGame
     [ensureAttempt],
   );
 
-  return <GamePlayer game={game} mode="student" startIndex={startIndex} submitTurn={submitTurn} onFinish={onFinish} exitHref="/learn" />;
+  return <GamePlayer game={game} mode="student" startIndex={startIndex} submitTurn={submitTurn} onFinish={onFinish} exitHref={exitHref} />;
 }

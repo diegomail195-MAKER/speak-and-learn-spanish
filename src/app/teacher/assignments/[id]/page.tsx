@@ -5,18 +5,87 @@ import { Badge, EmptyState, PageHeader, Panel } from "@/components/ui/Panel";
 import { setAssignmentActive } from "@/lib/actions/assignments";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { assignmentReport, pct } from "@/lib/reports";
+import { assignmentReport, pct, videoAssignmentReport } from "@/lib/reports";
 import { REASON_TEXT, type EvaluationReason } from "@/lib/speech/evaluate";
 
 export const metadata = { title: "Results" };
 
 const fmtTime = (ms: number | null) => (ms == null ? "—" : `${Math.floor(ms / 60000)}:${String(Math.round((ms % 60000) / 1000)).padStart(2, "0")}`);
 
+function Actions({ a }: { a: { id: string; active: boolean } }) {
+  return (
+    <div className="no-print flex gap-2">
+      <PrintButton />
+      <form action={setAssignmentActive}>
+        <input type="hidden" name="assignmentId" value={a.id} />
+        <input type="hidden" name="active" value={String(!a.active)} />
+        <Button variant="secondary" size="md">{a.active ? "Close assignment" : "Reopen"}</Button>
+      </form>
+    </div>
+  );
+}
+
+async function VideoResults({ id }: { id: string }) {
+  const { assignment: a, videos, rows } = await videoAssignmentReport(id);
+  return (
+    <>
+      <PageHeader
+        eyebrow={a.collection ? "Collection results" : "Video results"}
+        title={a.collection?.title ?? a.video?.title ?? "Video"}
+        subtitle={<>{rows.length} students · {videos.length} video{videos.length === 1 ? "" : "s"} · {a.dueAt ? `due ${a.dueAt.toLocaleString("en-US")}` : "no due date"}</>}
+        actions={<Actions a={a} />}
+      />
+      <Panel className="overflow-x-auto">
+        {rows.length === 0 ? (
+          <EmptyState title="No students receive this assignment" body="The selected groups have no students yet." />
+        ) : (
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead className="text-xs uppercase tracking-wider text-muted">
+              <tr>
+                <th className="py-2">Student</th>
+                {videos.map((v) => (
+                  <th key={v.id} className="px-2 normal-case tracking-normal">
+                    <span className="block font-bold text-ink">{v.title}</span>
+                    <span className="block font-normal">{v.practiceGame ? `Practice: ${v.practiceGame.title}` : "No practice game"}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {rows.map((r) => (
+                <tr key={r.studentId}>
+                  <td className="py-2.5 font-bold">{r.name}</td>
+                  {r.cells.map((c, i) => (
+                    <td key={videos[i].id} className="px-2 py-2.5 align-top">
+                      {c.watchedPct == null ? (
+                        <span className="text-muted">Not started</span>
+                      ) : (
+                        <Badge tone={c.completed ? "leaf" : "sun"}>{c.completed ? "Watched" : `Watched ${c.watchedPct}%`}</Badge>
+                      )}
+                      {c.practice && (
+                        <span className="mt-1 block text-xs text-ink-2">
+                          Practice: {c.practice.completed ? `${c.practice.independent}/${c.practice.presented} independent` : "in progress"}
+                        </span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <p className="mt-3 text-xs text-muted">Watched time counts real playback only; skipping ahead doesn&apos;t count. A video counts as watched at 90%.</p>
+      </Panel>
+    </>
+  );
+}
+
 export default async function AssignmentResults({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { teacher } = await requireTeacherPage();
-  const owned = await db.assignment.findFirst({ where: { id, teacherId: teacher.id }, select: { id: true } });
+  const owned = await db.assignment.findFirst({ where: { id, teacherId: teacher.id }, select: { id: true, gameId: true } });
   if (!owned) notFound();
+  if (!owned.gameId) return <VideoResults id={id} />;
   const { assignment: a, rows, questionStats } = await assignmentReport(id);
   const completed = rows.filter((r) => r.status === "completed").length;
 
@@ -26,16 +95,7 @@ export default async function AssignmentResults({ params }: { params: Promise<{ 
         eyebrow="Results"
         title={a.game?.title ?? "Activity"}
         subtitle={<>{rows.length} students · {completed} completed · {a.dueAt ? `due ${a.dueAt.toLocaleString("en-US")}` : "no due date"} · {a.maxAttempts ? `${a.maxAttempts} attempts allowed` : "unlimited attempts"}</>}
-        actions={
-          <div className="no-print flex gap-2">
-            <PrintButton />
-            <form action={setAssignmentActive}>
-              <input type="hidden" name="assignmentId" value={a.id} />
-              <input type="hidden" name="active" value={String(!a.active)} />
-              <Button variant="secondary" size="md">{a.active ? "Close assignment" : "Reopen"}</Button>
-            </form>
-          </div>
-        }
+        actions={<Actions a={a} />}
       />
       <Panel className="mb-6 overflow-x-auto">
         <h2 className="mb-3 font-display text-xl font-semibold">Students</h2>

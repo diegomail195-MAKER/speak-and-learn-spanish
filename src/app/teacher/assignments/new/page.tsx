@@ -5,11 +5,14 @@ import { db } from "@/lib/db";
 
 export const metadata = { title: "Assign" };
 
-export default async function NewAssignment({ searchParams }: { searchParams: Promise<{ gameId?: string }> }) {
-  const { gameId } = await searchParams;
+export default async function NewAssignment({ searchParams }: { searchParams: Promise<{ gameId?: string; videoId?: string; collectionId?: string }> }) {
+  const { gameId, videoId, collectionId } = await searchParams;
+  const initial = gameId ? `game:${gameId}` : videoId ? `video:${videoId}` : collectionId ? `collection:${collectionId}` : undefined;
   const { user, teacher } = await requireTeacherPage();
-  const [games, classes] = await Promise.all([
+  const [games, videos, collections, classes] = await Promise.all([
     db.game.findMany({ where: { schoolId: user.schoolId, status: "PUBLISHED" }, select: { id: true, title: true }, orderBy: { updatedAt: "desc" } }),
+    db.video.findMany({ where: { schoolId: user.schoolId, status: "PUBLISHED" }, select: { id: true, title: true }, orderBy: { updatedAt: "desc" } }),
+    db.collection.findMany({ where: { schoolId: user.schoolId, videos: { some: { video: { status: "PUBLISHED" } } } }, select: { id: true, title: true }, orderBy: { createdAt: "desc" } }),
     db.classroom.findMany({
       where: { teacherId: teacher.id },
       include: {
@@ -26,8 +29,8 @@ export default async function NewAssignment({ searchParams }: { searchParams: Pr
   }));
   return (
     <>
-      <PageHeader eyebrow="Assign" title="Assign an activity" subtitle="Send it to a whole class, a level, a group or individual students. They'll find it under My Activities." />
-      <AssignForm games={games} tree={tree} gameId={gameId} />
+      <PageHeader eyebrow="Assign" title="Assign an activity" subtitle="Send it to a whole class, a level, a group or individual students. Games show up under My Activities, videos under My Videos." />
+      <AssignForm games={games} videos={videos} collections={collections} tree={tree} initial={initial} />
     </>
   );
 }

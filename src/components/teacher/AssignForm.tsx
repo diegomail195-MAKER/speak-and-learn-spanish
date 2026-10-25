@@ -14,17 +14,21 @@ type Tree = Array<{
   students: Array<{ id: string; name: string }>;
 }>;
 
-export function AssignForm({ games, tree, gameId }: { games: Array<{ id: string; title: string }>; tree: Tree; gameId?: string }) {
+type Option = { id: string; title: string };
+
+export function AssignForm({ games, videos, collections, tree, initial }: { games: Option[]; videos: Option[]; collections: Option[]; tree: Tree; initial?: string }) {
   const [state, action, pending] = useActionState(createAssignment, undefined);
   const [instructions, setInstructions] = useState("");
   const chip = "flex items-center gap-2 rounded-full border border-line bg-card px-3 py-1.5 text-sm font-semibold has-[:checked]:border-teal has-[:checked]:bg-teal-soft has-[:checked]:text-teal-dark";
   return (
     <form action={action} className="space-y-6">
       <div className="max-w-xl">
-        <Label htmlFor="gameId">Activity</Label>
-        <Select id="gameId" name="gameId" defaultValue={gameId ?? ""} required>
-          <option value="" disabled>Choose a published game</option>
-          {games.map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
+        <Label htmlFor="activity">Activity</Label>
+        <Select id="activity" name="activity" defaultValue={initial ?? ""} required>
+          <option value="" disabled>Choose a published game, video or collection</option>
+          {games.length > 0 && <optgroup label="Interactive games">{games.map((g) => <option key={g.id} value={`game:${g.id}`}>{g.title}</option>)}</optgroup>}
+          {videos.length > 0 && <optgroup label="Videos">{videos.map((v) => <option key={v.id} value={`video:${v.id}`}>{v.title}</option>)}</optgroup>}
+          {collections.length > 0 && <optgroup label="Video collections">{collections.map((c) => <option key={c.id} value={`collection:${c.id}`}>{c.title}</option>)}</optgroup>}
         </Select>
       </div>
 

@@ -96,3 +96,43 @@ export async function assignmentReport(assignmentId: string) {
 }
 
 export const pct = (n: number | null, d: number | null) => (n == null || !d ? null : Math.round((n / d) * 100));
+
+export type VideoCell = {
+  watchedPct: number | null; // null = no progress saved yet
+  completed: boolean;
+  practice: { independent: number; presented: number; completed: boolean } | null;
+};
+
+/** Watching and Watch & Practice results for a video or collection assignment. */
+export async function videoAssignmentReport(assignmentId: string) {
+  const a = await db.assignment.findUniqueOrThrow({
+    where: { id: assignmentId },
+    include: {
+      video: { include: { practiceGame: { select: { id: true, title: true } } } },
+      collection: { include: { videos: { orderBy: { position: "asc" }, include: { video: { include: { practiceGame: { select: { id: true, title: true } } } } } } } },
+    },
+  });
+  const videos = a.video ? [a.video] : (a.collection?.videos.map((cv) => cv.video) ?? []);
+  const students = await assignmentStudents(assignmentId);
+  const sIds = students.map((s) => s.id);
+  const [progress, attempts] = await Promise.all([
+    db.videoProgress.findMany({ where: { studentId: { in: sIds }, videoId: { in: videos.map((v) => v.id) } } }),
+    db.studentAttempt.findMany({ where: { assignmentId, studentId: { in: sIds } }, orderBy: { startedAt: "desc" } }),
+  ]);
+  const rows = students.map((s) => ({
+    studentId: s.id,
+    name: `${s.firstName} ${s.lastInitial ? s.lastInitial + "." : ""}`.trim(),
+    cells: videos.map((v): VideoCell => {
+      const p = progress.find((x) => x.studentId === s.id && x.videoId === v.id);
+      const dur = p?.durationSec ?? v.durationSec;
+      const mine = v.practiceGameId ? attempts.filter((t) => t.studentId === s.id && t.gameId === v.practiceGameId) : [];
+      const t = mine.find((x) => x.completedAt) ?? mine[0];
+      return {
+        watchedPct: p ? (dur ? Math.min(100, Math.round((p.watchedSec / dur) * 100)) : 0) : null,
+        completed: p?.completed ?? false,
+        practice: t ? { independent: t.independentCount, presented: t.questionsPresented, completed: !!t.completedAt } : null,
+      };
+    }),
+  }));
+  return { assignment: a, videos, rows };
+}

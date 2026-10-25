@@ -33,6 +33,7 @@ Tests:
 npm test                        # unit tests: answer evaluation, letters, VAD, Spanish checker
 npm run build && npx next start -p 3100   # with STT_PROVIDER=scripted-test, see e2e/flow.e2e.mjs
 BASE_URL=http://localhost:3100 E2E_STT_SCRIPT_FILE=/tmp/stt.json node e2e/flow.e2e.mjs
+BASE_URL=http://localhost:3100 E2E_STT_SCRIPT_FILE=/tmp/stt.json node e2e/videos.e2e.mjs
 ```
 
 ## How the oral activity works

@@ -6,6 +6,7 @@ import { NavLinks } from "./NavLinks";
 
 const LINKS = [
   { href: "/teacher", label: "Dashboard", exact: true },
+  { href: "/teacher/videos", label: "Videos" },
   { href: "/teacher/games", label: "Interactive Games" },
   { href: "/teacher/classes", label: "Classes" },
   { href: "/teacher/assignments", label: "Results" },

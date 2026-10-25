@@ -77,6 +77,7 @@ model School {
   audio       AudioAsset[]
   games       Game[]
   videos      Video[]
+  collections Collection[]
   assignments Assignment[]
   students    Student[]
   auditLogs   AuditLog[]
@@ -146,13 +147,14 @@ model Student {
   lockedUntil  DateTime?
   createdAt    DateTime  @default(now())
 
-  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  school      School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  classroom   Classroom             @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  memberships GroupMembership[]
-  recipients  AssignmentRecipient[]
-  attempts    StudentAttempt[]
-  progress    ProgressRecord[]
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school        School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classroom     Classroom             @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  memberships   GroupMembership[]
+  recipients    AssignmentRecipient[]
+  attempts      StudentAttempt[]
+  progress      ProgressRecord[]
+  videoProgress VideoProgress[]
 
   @@unique([classroomId, username])
   @@index([schoolId])
@@ -248,11 +250,12 @@ model MediaAsset {
   sha256       String
   createdAt    DateTime  @default(now())
 
-  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  audio       AudioAsset[]
-  itemImages  GameItem[]   @relation("ItemImage")
-  videoFiles  Video[]      @relation("VideoFile")
-  videoCovers Video[]      @relation("VideoCover")
+  school        School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  audio         AudioAsset[]
+  itemImages    GameItem[]   @relation("ItemImage")
+  videoFiles    Video[]      @relation("VideoFile")
+  videoCovers   Video[]      @relation("VideoCover")
+  videoCaptions Video[]      @relation("VideoCaptions")
 
   @@index([schoolId, kind])
   @@index([schoolId, sha256])
@@ -286,29 +289,38 @@ model AudioAsset {
 }
 
 model Video {
-  id           String        @id @default(cuid())
-  schoolId     String
-  teacherId    String
-  title        String
-  description  String        @default("")
-  source       VideoSource
-  fileAssetId  String?
-  youtubeId    String?
-  coverAssetId String?
-  categoryId   String?
-  level        String        @default("")
-  keywords     String[]
-  durationSec  Int?
-  status       ContentStatus @default(DRAFT)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id               String        @id @default(cuid())
+  schoolId         String
+  teacherId        String
+  title            String
+  description      String        @default("")
+  source           VideoSource
+  fileAssetId      String?
+  youtubeId        String?
+  coverAssetId     String?
+  categoryId       String?
+  level            String        @default("")
+  keywords         String[]
+  durationSec      Int?
+  status           ContentStatus @default(DRAFT)
+  // Optional WebVTT subtitles (hosted videos). YouTube uses its own captions.
+  captionsAssetId  String?
+  captionsLanguage String        @default("es")
+  // "Watch & Practice": game opened right after the video.
+  practiceGameId   String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  teacher     Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  file        MediaAsset?  @relation("VideoFile", fields: [fileAssetId], references: [id], onDelete: SetNull)
-  cover       MediaAsset?  @relation("VideoCover", fields: [coverAssetId], references: [id], onDelete: SetNull)
-  category    Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  assignments Assignment[]
+  school       School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teacher      Teacher           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  file         MediaAsset?       @relation("VideoFile", fields: [fileAssetId], references: [id], onDelete: SetNull)
+  cover        MediaAsset?       @relation("VideoCover", fields: [coverAssetId], references: [id], onDelete: SetNull)
+  captions     MediaAsset?       @relation("VideoCaptions", fields: [captionsAssetId], references: [id], onDelete: SetNull)
+  category     Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  practiceGame Game?             @relation("PracticeGame", fields: [practiceGameId], references: [id], onDelete: SetNull)
+  assignments  Assignment[]
+  collections  CollectionVideo[]
+  progress     VideoProgress[]
 
   @@index([schoolId, status])
 }
@@ -351,6 +363,7 @@ model Game {
   items            GameItem[]
   assignments      Assignment[]
   attempts         StudentAttempt[]
+  practiceFor      Video[]          @relation("PracticeGame")
 
   @@index([schoolId, status])
   @@index([teacherId])
@@ -414,6 +427,7 @@ model Assignment {
   teacherId    String
   gameId       String?
   videoId      String?
+  collectionId String?
   instructions String    @default("")
   startsAt     DateTime  @default(now())
   dueAt        DateTime?
@@ -425,6 +439,7 @@ model Assignment {
   teacher    Teacher               @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   game       Game?                 @relation(fields: [gameId], references: [id], onDelete: Cascade)
   video      Video?                @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  collection Collection?           @relation(fields: [collectionId], references: [id], onDelete: Cascade)
   recipients AssignmentRecipient[]
   attempts   StudentAttempt[]
 
@@ -544,4 +559,46 @@ model KeepWord {
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, word])
+}
+
+// Ordered set of videos a teacher groups together (e.g. "Unit 3: Animals").
+model Collection {
+  id          String   @id @default(cuid())
+  schoolId    String
+  title       String
+  description String   @default("")
+  createdAt   DateTime @default(now())
+
+  school      School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  videos      CollectionVideo[]
+  assignments Assignment[]
+
+  @@index([schoolId])
+}
+
+model CollectionVideo {
+  collectionId String
+  videoId      String
+  position     Int
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  video      Video      @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, videoId])
+}
+
+// Where a student is in a video, so they can continue, and whether they finished it.
+model VideoProgress {
+  studentId   String
+  videoId     String
+  positionSec Float    @default(0)
+  watchedSec  Float    @default(0)
+  durationSec Float?
+  completed   Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  video   Video   @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, videoId])
 }

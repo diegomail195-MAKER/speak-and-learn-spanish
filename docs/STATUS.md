@@ -1,8 +1,8 @@
-# Status — Phase 1 + end-to-end oral activity (section 19)
+# Status — Phase 1 (oral activity, section 19) + Phase 2 (video library)
 
 ## Working and tested
 
-Automated: `npm test` (30 unit tests) and `e2e/flow.e2e.mjs` (real Chromium, 1366×768 Chromebook
+Automated: `npm test` (33 unit tests), `e2e/videos.e2e.mjs` (phase 2, see below) and `e2e/flow.e2e.mjs` (real Chromium, 1366×768 Chromebook
 viewport, fake microphone playing a generated Spanish voice through the real capture → VAD → WAV →
 server path). The e2e test covers acceptance criteria 1, 2, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15,
 16 and 18:
@@ -17,7 +17,25 @@ server path). The e2e test covers acceptance criteria 1, 2, 5, 6, 7, 9, 10, 11, 
 - Results saved to PostgreSQL; teacher sees 1/2 independent, 1 guided, transcripts per question.
 - Permissions: student of another group can't see/open it; other school can't read game/results/media.
 
+### Phase 2 — video library (`e2e/videos.e2e.mjs`)
+
+- Upload of a real WebM through the browser (streamed to disk, content-sniffed; a fake `.mp4` is
+  refused), WebVTT subtitles, duration read from the file, Watch & Practice game, publish.
+- Streaming with HTTP ranges (206) for seeking; subtitles track served.
+- YouTube link: invalid link refused, valid one saved as draft.
+- Collection created and a video added.
+- Video assigned to LE2 Group A → student opens **My Videos** → watches half → leaves → comes back
+  and is offered to continue → finishes at 1.25× → "¡A practicar!" opens the practice game → answers
+  by voice → teacher results show *Watched* and *Practice: 1/1 independent*.
+- Anonymous progress writes are refused (401).
+
 ## Built, not covered by automated tests
+
+- YouTube playback itself (YouTube is not reachable from the test environment). The player uses
+  YouTube's official IFrame API on `youtube-nocookie.com`; ads and restrictions are YouTube's.
+- MP4 playback in the test browser (open-source Chromium has no H.264; Chrome on Chromebooks does).
+- Collection reordering/removal, assigning a whole collection, video edit/unpublish/archive/delete,
+  library filters.
 
 - Templates Listen & Speak, Image & Vocabulary, Question & Answer, Spell Your Name (letter scorer is
   unit-tested; the full UI path is not).
@@ -44,8 +62,6 @@ server path). The e2e test covers acceptance criteria 1, 2, 5, 6, 7, 9, 10, 11, 
 
 ## Next phases
 
-- Phase 2 — Video library: upload/YouTube (`youtube-nocookie`), collections, player with resume,
-  Watch & Practice. (Schema for videos already exists.)
 - Phase 3 — Templates Fly & Speak, Memory & Speak, Match & Learn, Spin & Speak, Watch-Listen-Answer
   on the same engine; media library management screen.
 - Phase 4 — Provider tuning with real voices, letter-name phrase lists, child-voice test set.

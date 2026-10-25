@@ -33,7 +33,7 @@ export default async function MyActivities() {
       <section className="mt-8">
         <h2 className="mb-3 text-sm font-bold uppercase tracking-[0.16em] text-teal">My Activities</h2>
         {todo.length === 0 ? (
-          <p className="rounded-xl2 border border-dashed border-line p-8 text-center text-ink-2">No new activities. 🎉</p>
+          <p className="rounded-xl2 border border-dashed border-line p-8 text-center text-ink-2">No new activities.</p>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2">
             {todo.map(({ a, state }) => (
