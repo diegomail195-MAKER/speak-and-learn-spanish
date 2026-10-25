@@ -2,6 +2,7 @@ import "server-only";
 import type { MasteryStatus } from "@prisma/client";
 import { HttpError } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
+import { questionResult, questionStatus } from "./outcome";
 
 /** Recomputes an attempt's counters and the student's mastery for each question it touched. */
 export async function finalizeAttempt(attemptId: string, studentId: string, extra?: { durationMs?: number; presented?: number }) {
@@ -13,9 +14,8 @@ export async function finalizeAttempt(attemptId: string, studentId: string, extr
 
   let independent = 0;
   for (const [questionId, rs] of byQuestion) {
-    const correct = rs.find((r) => r.outcome === "CORRECT");
     // Independent mastery only if correct with no hint or model before it.
-    const status: MasteryStatus = correct ? (correct.support === "NONE" ? "INDEPENDENT" : "GUIDED") : "NEEDS_PRACTICE";
+    const status: MasteryStatus = questionStatus(rs) ?? "NEEDS_PRACTICE";
     if (status === "INDEPENDENT") independent++;
     await db.progressRecord.upsert({
       where: { studentId_questionId: { studentId, questionId } },
@@ -51,8 +51,15 @@ export async function finalizeAttempt(attemptId: string, studentId: string, extr
   });
 }
 
-/** Questions already finished in an attempt (to continue an incomplete activity). */
-export async function finishedQuestionIds(attemptId: string) {
-  const rs = await db.studentResponse.findMany({ where: { attemptId, endsQuestion: true }, select: { questionId: true } });
-  return new Set(rs.map((r) => r.questionId));
+/** Questions already finished in an attempt and how (to continue an incomplete activity). */
+export async function finishedQuestions(attemptId: string): Promise<Record<string, "NONE" | "HINT" | "MODEL" | null>> {
+  const rs = await db.studentResponse.findMany({ where: { attemptId }, orderBy: { createdAt: "asc" } });
+  const by = new Map<string, typeof rs>();
+  for (const r of rs) by.set(r.questionId, [...(by.get(r.questionId) ?? []), r]);
+  const out: Record<string, "NONE" | "HINT" | "MODEL" | null> = {};
+  for (const [id, list] of by) {
+    const res = questionResult(list);
+    if (res !== undefined) out[id] = res;
+  }
+  return out;
 }

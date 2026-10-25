@@ -43,12 +43,14 @@ export async function recognize(provider: SttProviderName, wav: Buffer, opts: { 
   return provider === "azure" ? azure(wav, opts) : google(wav, opts);
 }
 
-async function scripted(wav: Buffer, opts: { locale: string }): Promise<SttResult> {
-  const { readFile, writeFile } = await import("node:fs/promises");
+async function scripted(wav: Buffer, opts: { locale: string; mode: string }): Promise<SttResult> {
+  const { appendFile, readFile, writeFile } = await import("node:fs/promises");
   const file = process.env.E2E_STT_SCRIPT_FILE!;
   const queue = JSON.parse(await readFile(file, "utf8")) as Array<{ text: string; confidence?: number }>;
   const next = queue.shift();
   await writeFile(file, JSON.stringify(queue));
+  // Lets the tests check which locale each answer was recognized in (never auto-switched).
+  if (process.env.E2E_STT_LOG) await appendFile(process.env.E2E_STT_LOG, JSON.stringify({ locale: opts.locale, mode: opts.mode, text: next?.text ?? null }) + "\n");
   const samples = (wav.length - 44) / 2;
   const seconds = samples / 16000;
   const status = !next || seconds < 0.2 ? "NoMatch" : "Success";

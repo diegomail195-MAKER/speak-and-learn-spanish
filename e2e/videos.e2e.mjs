@@ -58,9 +58,9 @@ try {
   await q1.locator("input[placeholder='Es un perro.']").fill("Es un perro.");
   await q1.locator("input[type=file]").setInputFiles(fx("dog.png"));
   await q1.locator("img").waitFor();
-  await page.waitForSelector("text=All changes saved", { timeout: 15000 });
-  await page.click("text=Publish");
-  await page.waitForSelector("a:text('Assign')", { timeout: 20000 });
+  await page.waitForSelector("text=/All changes saved|Saved \\d/", { timeout: 15000 });
+  await page.click("button:text-is('Publish')");
+  await page.waitForSelector("button:text-is('Update published')", { timeout: 20000 });
   log("practice game published");
 
   // 3. Upload: a fake ".mp4" is rejected by content sniffing

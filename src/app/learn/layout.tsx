@@ -14,7 +14,7 @@ export default async function LearnLayout({ children }: { children: React.ReactN
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3">
           <Link href="/learn" aria-label="My Learning"><Logo compact /></Link>
           <div className="order-3 w-full sm:order-none sm:w-auto sm:flex-1">
-            <NavLinks tone="teal" links={[{ href: "/learn", label: "My Activities", exact: true }, { href: "/learn/videos", label: "My Videos" }, { href: "/learn/progress", label: "My Progress" }]} />
+            <NavLinks tone="teal" links={[{ href: "/learn", label: "My Activities", exact: true }, { href: "/learn/videos", label: "My Videos" }, { href: "/learn/alphabet", label: "ABC" }, { href: "/learn/progress", label: "My Progress" }]} />
           </div>
           <div className="ml-auto flex items-center gap-2">
             <Avatar name={student.firstName} kind={student.avatar} size={34} />
