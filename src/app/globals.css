@@ -1,26 +1,73 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Speak & Learn Spanish — design tokens.
+   Warm paper background, deep ink text, coral for actions, teal for anything voice-related. */
+@theme {
+  --color-paper: #faf6ee;
+  --color-paper-2: #f3ede1;
+  --color-card: #ffffff;
+  --color-line: #e6dfd0;
+  --color-ink: #1e2340;
+  --color-ink-2: #3b4060;
+  --color-muted: #6c6f82;
+  --color-coral: #e4553c;
+  --color-coral-dark: #bf3d27;
+  --color-coral-soft: #fde6df;
+  --color-teal: #12827a;
+  --color-teal-dark: #0c625c;
+  --color-teal-soft: #dcf1ee;
+  --color-sun: #f2b33d;
+  --color-sun-soft: #fdf0d3;
+  --color-leaf: #2b8f55;
+  --color-leaf-soft: #dff2e5;
+  --color-sky: #3a74c9;
+  --color-sky-soft: #e1ebf8;
+
+  --font-sans: var(--font-body), ui-rounded, "Nunito", system-ui, sans-serif;
+  --font-display: var(--font-display-face), ui-rounded, system-ui, sans-serif;
+
+  --radius-xl2: 1.25rem;
+  --shadow-soft: 0 1px 0 rgba(30, 35, 64, 0.06), 0 6px 18px -8px rgba(30, 35, 64, 0.18);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-sky);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@keyframes pop-in {
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.animate-pop-in { animation: pop-in 220ms ease-out both; }
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+.animate-breathe { animation: breathe 1.8s ease-in-out infinite; }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
 }

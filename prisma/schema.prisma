@@ -1,0 +1,547 @@
+// Speak & Learn Spanish — relational schema.
+// Every tenant-owned row carries schoolId so data from different schools never mixes.
+// Authorization is enforced in src/lib/auth + src/lib/access (server only).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+  AUDIO
+}
+
+enum VideoSource {
+  HOSTED
+  YOUTUBE
+}
+
+enum EvaluationMode {
+  PHRASE // full phrase or accepted alternative
+  LETTERS // spelled letter by letter (Spanish letter names)
+}
+
+enum RecipientType {
+  CLASSROOM
+  LEVEL
+  GROUP
+  STUDENT
+}
+
+enum ResponseOutcome {
+  CORRECT
+  INCORRECT
+  UNCERTAIN
+}
+
+enum SupportLevel {
+  NONE // answered with no help
+  HINT // after a hint
+  MODEL // after hearing the correct model
+}
+
+enum MasteryStatus {
+  INDEPENDENT
+  GUIDED
+  NEEDS_PRACTICE
+}
+
+model School {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  users       User[]
+  classrooms  Classroom[]
+  categories  Category[]
+  media       MediaAsset[]
+  audio       AudioAsset[]
+  games       Game[]
+  videos      Video[]
+  assignments Assignment[]
+  students    Student[]
+  auditLogs   AuditLog[]
+  keepWords   KeepWord[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  schoolId     String
+  role         Role
+  email        String?  @unique
+  passwordHash String?
+  displayName  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  school   School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sessions Session[]
+  teacher  Teacher?
+  student  Student?
+
+  @@index([schoolId, role])
+}
+
+model Session {
+  id        String   @id // sha256 of the cookie token, never the token itself
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userAgent String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Teacher {
+  id       String @id @default(cuid())
+  userId   String @unique
+  schoolId String
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classrooms  Classroom[]
+  games       Game[]
+  videos      Video[]
+  assignments Assignment[]
+
+  @@index([schoolId])
+}
+
+// Students get minimal personal data: first name + last initial, a username and a PIN.
+model Student {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  schoolId     String
+  classroomId  String
+  firstName    String
+  lastInitial  String    @default("")
+  // Optional, only used by the "Spell your name" activity.
+  spellingName String    @default("")
+  username     String
+  pinHash      String
+  avatar       String    @default("sun")
+  active       Boolean   @default(true)
+  failedLogins Int       @default(0)
+  lockedUntil  DateTime?
+  createdAt    DateTime  @default(now())
+
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school      School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classroom   Classroom             @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  memberships GroupMembership[]
+  recipients  AssignmentRecipient[]
+  attempts    StudentAttempt[]
+  progress    ProgressRecord[]
+
+  @@unique([classroomId, username])
+  @@index([schoolId])
+}
+
+// A teacher's class. Students sign in with the class code.
+model Classroom {
+  id        String   @id @default(cuid())
+  schoolId  String
+  teacherId String
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now())
+
+  school     School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teacher    Teacher               @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  levels     Level[]
+  students   Student[]
+  recipients AssignmentRecipient[]
+
+  @@index([schoolId])
+  @@index([teacherId])
+}
+
+model Level {
+  id          String   @id @default(cuid())
+  classroomId String
+  name        String
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  classroom  Classroom             @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  groups     Group[]
+  recipients AssignmentRecipient[]
+
+  @@unique([classroomId, name])
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  levelId   String
+  name      String
+  createdAt DateTime @default(now())
+
+  level       Level                 @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  memberships GroupMembership[]
+  recipients  AssignmentRecipient[]
+
+  @@unique([levelId, name])
+}
+
+model GroupMembership {
+  groupId   String
+  studentId String
+  createdAt DateTime @default(now())
+
+  group   Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, studentId])
+  @@index([studentId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  schoolId  String
+  parentId  String?
+  nameEn    String
+  nameEs    String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  school   School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+  games    Game[]
+  videos   Video[]
+
+  @@index([schoolId, parentId])
+}
+
+// Reusable uploaded file (image, video, audio). Files live in private storage and are
+// streamed through an authorized route, never from a public bucket.
+model MediaAsset {
+  id           String    @id @default(cuid())
+  schoolId     String
+  ownerUserId  String?
+  kind         MediaKind
+  storageKey   String    @unique
+  mimeType     String
+  sizeBytes    Int
+  originalName String
+  sha256       String
+  createdAt    DateTime  @default(now())
+
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  audio       AudioAsset[]
+  itemImages  GameItem[]   @relation("ItemImage")
+  videoFiles  Video[]      @relation("VideoFile")
+  videoCovers Video[]      @relation("VideoCover")
+
+  @@index([schoolId, kind])
+  @@index([schoolId, sha256])
+}
+
+// Generated speech. cacheKey = hash(provider, voice, rate, style, text) so identical
+// text is synthesized once per school.
+model AudioAsset {
+  id           String   @id @default(cuid())
+  schoolId     String
+  mediaAssetId String
+  text         String
+  language     String
+  voice        String
+  rate         Float    @default(1)
+  style        String?
+  provider     String
+  cacheKey     String
+  createdAt    DateTime @default(now())
+
+  school School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  media  MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+
+  promptFor   Question[] @relation("PromptAudio")
+  hintFor     Question[] @relation("HintAudio")
+  modelFor    Question[] @relation("ModelAudio")
+  supportFor  Question[] @relation("SupportAudio")
+  instructFor Game[]     @relation("InstructionAudio")
+
+  @@unique([schoolId, cacheKey])
+}
+
+model Video {
+  id           String        @id @default(cuid())
+  schoolId     String
+  teacherId    String
+  title        String
+  description  String        @default("")
+  source       VideoSource
+  fileAssetId  String?
+  youtubeId    String?
+  coverAssetId String?
+  categoryId   String?
+  level        String        @default("")
+  keywords     String[]
+  durationSec  Int?
+  status       ContentStatus @default(DRAFT)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teacher     Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  file        MediaAsset?  @relation("VideoFile", fields: [fileAssetId], references: [id], onDelete: SetNull)
+  cover       MediaAsset?  @relation("VideoCover", fields: [coverAssetId], references: [id], onDelete: SetNull)
+  category    Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  assignments Assignment[]
+
+  @@index([schoolId, status])
+}
+
+model GameTemplate {
+  key         String  @id // e.g. SPEAK_AND_ANSWER
+  name        String
+  description String
+  available   Boolean @default(true)
+  games       Game[]
+}
+
+model Game {
+  id                 String        @id @default(cuid())
+  schoolId           String
+  teacherId          String
+  templateKey        String
+  title              String
+  description        String        @default("")
+  categoryId         String?
+  topic              String        @default("")
+  objective          String        @default("")
+  level              String        @default("")
+  instructions       String        @default("")
+  instructionAudioId String?
+  language           String        @default("es-419")
+  difficulty         Int           @default(1)
+  estimatedMinutes   Int?
+  status             ContentStatus @default(DRAFT)
+  settings           Json          @default("{}")
+  publishedAt        DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  school           School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teacher          Teacher          @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  template         GameTemplate     @relation(fields: [templateKey], references: [key])
+  category         Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  instructionAudio AudioAsset?      @relation("InstructionAudio", fields: [instructionAudioId], references: [id], onDelete: SetNull)
+  items            GameItem[]
+  assignments      Assignment[]
+  attempts         StudentAttempt[]
+
+  @@index([schoolId, status])
+  @@index([teacherId])
+}
+
+model GameItem {
+  id           String  @id @default(cuid())
+  gameId       String
+  position     Int
+  text         String  @default("")
+  imageAssetId String?
+  difficulty   Int     @default(1)
+
+  game      Game        @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  image     MediaAsset? @relation("ItemImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
+  questions Question[]
+
+  @@index([gameId, position])
+}
+
+model Question {
+  id              String         @id @default(cuid())
+  itemId          String
+  prompt          String
+  expectedAnswer  String
+  evaluationMode  EvaluationMode @default(PHRASE)
+  hint            String         @default("")
+  // Optional support line in another language (e.g. "How do you spell your name?"), spoken first.
+  supportText     String         @default("")
+  supportLanguage String         @default("en-US")
+  supportAudioId  String?
+  promptAudioId   String?
+  hintAudioId     String?
+  modelAudioId    String?
+
+  item            GameItem          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  promptAudio     AudioAsset?       @relation("PromptAudio", fields: [promptAudioId], references: [id], onDelete: SetNull)
+  hintAudio       AudioAsset?       @relation("HintAudio", fields: [hintAudioId], references: [id], onDelete: SetNull)
+  modelAudio      AudioAsset?       @relation("ModelAudio", fields: [modelAudioId], references: [id], onDelete: SetNull)
+  supportAudio    AudioAsset?       @relation("SupportAudio", fields: [supportAudioId], references: [id], onDelete: SetNull)
+  acceptedAnswers AcceptedAnswer[]
+  responses       StudentResponse[]
+  progress        ProgressRecord[]
+
+  @@index([itemId])
+}
+
+model AcceptedAnswer {
+  id         String @id @default(cuid())
+  questionId String
+  text       String
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+model Assignment {
+  id           String    @id @default(cuid())
+  schoolId     String
+  teacherId    String
+  gameId       String?
+  videoId      String?
+  instructions String    @default("")
+  startsAt     DateTime  @default(now())
+  dueAt        DateTime?
+  maxAttempts  Int?
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+
+  school     School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teacher    Teacher               @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  game       Game?                 @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  video      Video?                @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  recipients AssignmentRecipient[]
+  attempts   StudentAttempt[]
+
+  @@index([schoolId, active])
+}
+
+model AssignmentRecipient {
+  id           String        @id @default(cuid())
+  assignmentId String
+  type         RecipientType
+  classroomId  String?
+  levelId      String?
+  groupId      String?
+  studentId    String?
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  classroom  Classroom? @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  level      Level?     @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  group      Group?     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student    Student?   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId])
+  @@index([classroomId])
+  @@index([levelId])
+  @@index([groupId])
+  @@index([studentId])
+}
+
+model StudentAttempt {
+  id                 String    @id @default(cuid())
+  studentId          String
+  gameId             String
+  assignmentId       String?
+  startedAt          DateTime  @default(now())
+  completedAt        DateTime?
+  durationMs         Int?
+  questionsPresented Int       @default(0)
+  correctCount       Int       @default(0)
+  incorrectCount     Int       @default(0)
+  uncertainCount     Int       @default(0)
+  hintsUsed          Int       @default(0)
+  independentCount   Int       @default(0)
+
+  student    Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  game       Game              @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  assignment Assignment?       @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  responses  StudentResponse[]
+
+  @@index([studentId, assignmentId])
+  @@index([assignmentId])
+}
+
+// One evaluated spoken answer. Audio is NOT stored; only the transcript and scoring data.
+model StudentResponse {
+  id           String          @id @default(cuid())
+  attemptId    String
+  questionId   String
+  tryNumber    Int
+  outcome      ResponseOutcome
+  support      SupportLevel
+  transcript   String          @default("")
+  confidence   Float?
+  language     String
+  provider     String
+  reason       String          @default("")
+  score        Float?
+  // True for the response that closed the question (correct, or moved on after the last try).
+  endsQuestion Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+
+  attempt  StudentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
+  @@index([questionId])
+}
+
+// Latest mastery state of a student for one question / vocabulary item.
+model ProgressRecord {
+  id               String        @id @default(cuid())
+  studentId        String
+  questionId       String
+  status           MasteryStatus
+  independentCount Int           @default(0)
+  guidedCount      Int           @default(0)
+  practiceCount    Int           @default(0)
+  lastSeenAt       DateTime      @default(now())
+
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, questionId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  schoolId   String
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  meta       Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, createdAt])
+}
+
+// Words the spell checker must leave alone (proper names, invented words, specific vocabulary).
+model KeepWord {
+  id        String   @id @default(cuid())
+  schoolId  String
+  word      String
+  createdAt DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, word])
+}

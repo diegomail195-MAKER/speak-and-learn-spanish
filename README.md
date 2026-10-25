@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Speak & Learn Spanish
 
-## Getting Started
+**Interactive Spanish Learning for Kids — Speak. Play. Learn.**
 
-First, run the development server:
+A web platform for US elementary schools where teachers build voice-first Spanish activities and
+students (ages 6–12) answer **out loud**. The microphone stays ready for the whole activity: no
+clicking to talk.
+
+## Stack
+
+| Layer | Choice |
+|---|---|
+| App | Next.js 15 (App Router) + React 19 + TypeScript |
+| UI | Tailwind CSS v4 with a custom token set (`src/app/globals.css`), Nunito + Fredoka |
+| Data | PostgreSQL via Prisma (works with Supabase Postgres) |
+| Auth | Own session auth: httpOnly cookie, hashed token in DB, bcrypt passwords/PINs |
+| Speech in | Browser capture (AudioWorklet) + own VAD → server STT (Azure/Google) or Chrome Web Speech |
+| Speech out | Azure Neural / Google Neural2 TTS, cached per school; device voice fallback |
+
+## Run locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env            # set DATABASE_URL / DIRECT_URL
+npm install
+npx prisma migrate deploy
+npm run db:seed                 # game templates
+npm run dev                     # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Tests:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm test                        # unit tests: answer evaluation, letters, VAD, Spanish checker
+npm run build && npx next start -p 3100   # with STT_PROVIDER=scripted-test, see e2e/flow.e2e.mjs
+BASE_URL=http://localhost:3100 E2E_STT_SCRIPT_FILE=/tmp/stt.json node e2e/flow.e2e.mjs
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## How the oral activity works
 
-## Learn More
+1. Student presses **Start** once → browser asks for the microphone (echo cancellation, noise
+   suppression, auto gain on).
+2. The stream stays open for the activity. A voice-activity detector (`src/lib/client/vad.ts`)
+   with an adaptive noise floor detects when the child starts and stops talking.
+3. While the app speaks, the detector is **disarmed**, so the app's own voice is never taken as an
+   answer (`src/lib/client/mic-session.ts`).
+4. The utterance (16 kHz WAV) goes to `/api/stt` → Azure/Google with a **fixed Spanish locale**
+   (never auto-switches to English). Without a server key, Chrome's recognizer is used per answer.
+5. The answer is scored **on the server** (`src/lib/speech/evaluate.ts`): normalization, digits →
+   words, Latin-American phonetic equivalences (seseo, b/v, ll/y, silent h), accepted alternatives,
+   optional carrier words ("perro" for "Es un perro"), English detection, a dedicated letter-name
+   scorer for spelling. Result: **CORRECT / INCORRECT / UNCERTAIN** — silence, noise and low
+   confidence are UNCERTAIN and never counted as mistakes.
+6. Feedback: correct → praise + auto-advance; incorrect → hint, then the model answer, then move on;
+   uncertain → "¿Puedes repetirlo?". Two silences in a row pause listening until the child returns.
+7. Every response is stored (transcript, outcome, support level, confidence, engine) — **no audio**.
+   Mastery: **Independent** (no help), **Guided** (after hint/model), **Needs practice**.
 
-To learn more about Next.js, take a look at the following resources:
+Teacher preview runs the same engine with a **diagnostics panel** (expected answer, transcript and
+alternatives, locale, engine, confidence, result, reason, mic state, noise floor).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project map
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+prisma/schema.prisma        all tables, relations, indexes
+src/lib/speech/             normalization, evaluation, Spanish letter names (+ tests)
+src/lib/client/             mic session, VAD, WAV encoder, recognizers, speaker
+src/lib/games/              templates, editor/player data, publish (audio generation)
+src/lib/tts, src/lib/stt    provider adapters (server only)
+src/lib/text/               Spanish spelling/accent/punctuation suggestions (+ tests)
+src/lib/access.ts           ownership + student visibility rules
+src/components/editor/      game editor, Spanish character bar, audio + image pickers
+src/components/player/      the activity engine used by every template
+src/app/teacher/*           dashboard, games, classes, assignments/results, categories
+src/app/learn/*, /play/*    student portal and activity player
+e2e/flow.e2e.mjs            end-to-end test of the full flow in Chromium with a fake microphone
+```
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See `docs/STATUS.md` for what is done, tested and pending, and `docs/PRIVACY.md` for the student
+data notes (COPPA/FERPA items that need legal review).
