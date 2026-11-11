@@ -3,11 +3,14 @@ import { redirect } from "next/navigation";
 import { PublicHeader } from "@/components/shell/PublicHeader";
 import { ButtonLink } from "@/components/ui/Button";
 import { getSessionUser } from "@/lib/auth/session";
+import { ToolCards } from "@/components/shell/ToolCards";
+import { platformTools } from "@/lib/tools";
 
 export default async function Home() {
   const user = await getSessionUser();
   if (user?.role === "STUDENT") redirect("/learn");
   if (user?.teacher) redirect("/teacher");
+  const tools = platformTools();
 
   return (
     <div className="min-h-dvh">
@@ -64,6 +67,18 @@ export default async function Home() {
             <li><strong className="text-ink">Privacy by design.</strong> Students sign in with a class code and PIN. Voice recordings are not stored.</li>
           </ul>
         </section>
+
+        {tools.length > 0 && (
+          <section id="tools" className="border-t border-line bg-paper-2/40">
+            <div className="mx-auto max-w-6xl px-5 py-14">
+              <h2 className="font-display text-2xl font-semibold">More classroom tools</h2>
+              <p className="mt-2 max-w-2xl text-ink-2">Part of the Speak &amp; Learn platform.</p>
+              <div className="mt-6">
+                <ToolCards tools={tools} />
+              </div>
+            </div>
+          </section>
+        )}
       </main>
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-6 text-sm text-muted">

@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/teacher/classes", label: "Classes" },
   { href: "/teacher/assignments", label: "Results" },
   { href: "/teacher/categories", label: "Categories" },
+  { href: "/teacher/tools", label: "Tools" },
 ];
 
 export function TeacherShell({ name, school, children }: { name: string; school: string; children: ReactNode }) {
