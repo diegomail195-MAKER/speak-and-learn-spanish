@@ -94,10 +94,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  school   School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  sessions Session[]
-  teacher  Teacher?
-  student  Student?
+  school         School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sessions       Session[]
+  passwordResets PasswordResetToken[]
+  teacher        Teacher?
+  student        Student?
 
   @@index([schoolId, role])
 }
@@ -606,4 +607,27 @@ model VideoProgress {
   video   Video   @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
   @@id([studentId, videoId])
+}
+
+// One-time "forgot password" links. Only the SHA-256 of the token is stored; links expire
+// after 30 minutes and are deleted when used.
+model PasswordResetToken {
+  id        String   @id // sha256 of the emailed token
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Shared counters for sign-in / reset / speech limits, so limits hold across all server
+// instances. The key is a SHA-256 hash (no raw emails or IP addresses are stored).
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
 }

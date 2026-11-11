@@ -43,8 +43,18 @@ Voces naturales y reconocimiento en el servidor son opcionales: agrega después 
 `TTS_PROVIDER`, `STT_PROVIDER` y la clave de Azure o Google (ver `.env.example`). Sin ellas, la
 plataforma usa la voz y el reconocimiento de Chrome.
 
+## Correo para "¿Olvidaste tu contraseña?"
+
+1. Crea una cuenta gratis en <https://resend.com> y en **Domains** agrega `speakandlearnspanish.com`.
+   Resend te muestra unos registros DNS: agrégalos en **Vercel → Domains → speakandlearnspanish.com → DNS Records**.
+2. En Resend, **API Keys → Create** (permiso *Sending access*).
+3. En Vercel agrega `RESEND_API_KEY` (la clave) y
+   `EMAIL_FROM` = `Speak & Learn Spanish <no-reply@speakandlearnspanish.com>`, y vuelve a desplegar.
+
+Sin estas variables, la página dice que el restablecimiento por correo todavía no está activado.
+
 ## Límites conocidos en Vercel
 
 - Las imágenes se suben hasta 4 MB; los videos van directo del navegador a Supabase Storage.
-- El límite de intentos de inicio de sesión se guarda en memoria de cada servidor; en Vercel es
-  menos estricto que en un solo servidor.
+- Los límites de intentos se guardan en la base de datos (tabla `RateLimit`), así que valen para
+  todos los servidores de Vercel.

@@ -17,7 +17,12 @@ before use with students.**
   404, other school → 404, students → 401 on teacher APIs).
 - **Auth**: bcrypt-hashed passwords and PINs; random 256-bit session tokens stored only as SHA-256;
   httpOnly, SameSite=Lax, Secure (in production) cookies; student sessions last one school day;
-  student accounts lock for 5 min after 5 wrong PINs; teacher sign-in is rate limited.
+  student accounts lock after wrong PINs (5 → 5 min, 10 → 30 min, 15+ → 2 h); teacher sign-in,
+  sign-up, password reset and speech requests are rate limited through a shared database table
+  (hashed keys, no raw emails or IPs); "forgot password" uses single-use links that expire in 30
+  minutes and sign the teacher out everywhere.
+- **Cross-site protection**: server actions are origin-checked by Next.js; API writes must come
+  from the same origin (`src/middleware.ts`), which also blocks other subdomains.
 - **Files**: uploads validated by magic bytes (PNG/JPEG/GIF/WebP, ≤5 MB, SVG refused), stored
   outside the public folder, served only to signed-in users of the same school with `nosniff`.
 - **Headers**: CSP, `Permissions-Policy: microphone=(self)`, no framing, HSTS.
@@ -34,6 +39,7 @@ before use with students.**
 | Google (Chrome Web Speech API) | if no server STT is configured | student voice audio, sent by Chrome |
 | Azure / Google TTS | when teachers generate audio | teacher-written text only |
 | LanguageTool | if `LANGUAGETOOL_API_URL` set | teacher-written text only |
+| Resend | if `RESEND_API_KEY` set | teacher email address + reset link (password reset only) |
 
 Prefer a server provider with a signed data processing agreement over the Chrome fallback for
 classroom use.
@@ -48,4 +54,3 @@ classroom use.
   after the school year ends; a teacher-triggered "delete student and all data" exists via cascade
   but needs a UI with confirmation).
 - State laws (e.g. California SOPIPA, New York Ed Law 2-d) and each provider's DPA.
-- Multi-instance rate limiting needs a shared store (currently in-memory for teacher login/TTS/STT).
