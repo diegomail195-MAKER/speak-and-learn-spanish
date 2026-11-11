@@ -32,22 +32,22 @@ export default async function GamesPage({ searchParams }: { searchParams: Promis
     <>
       <PageHeader eyebrow="Interactive Games" title="Activities" subtitle="Voice-first activities: flashcards, spelling, wheels, diagrams, boxes and more." actions={<ButtonLink href="/teacher/games/new">+ Create Activity</ButtonLink>} />
       <form className="mb-4 flex flex-wrap gap-2 text-sm">
-        <input name="q" defaultValue={sp.q} placeholder="Search title or topic" className="h-10 min-w-56 flex-1 rounded-full border border-line bg-card px-4" aria-label="Search" />
-        <select name="status" defaultValue={sp.status ?? ""} className="h-10 rounded-full border border-line bg-card px-3" aria-label="Status">
+        <input name="q" defaultValue={sp.q} placeholder="Search title or topic" className="h-11 min-w-56 flex-1 rounded-xl border-[1.5px] border-line-strong bg-card px-4" aria-label="Search" />
+        <select name="status" defaultValue={sp.status ?? ""} className="h-11 rounded-xl border-[1.5px] border-line-strong bg-card px-3" aria-label="Status">
           <option value="">Drafts &amp; published</option>
           <option value="DRAFT">Drafts</option>
           <option value="PUBLISHED">Published</option>
           <option value="ARCHIVED">Archived</option>
         </select>
-        <select name="category" defaultValue={sp.category ?? ""} className="h-10 rounded-full border border-line bg-card px-3" aria-label="Category">
+        <select name="category" defaultValue={sp.category ?? ""} className="h-11 rounded-xl border-[1.5px] border-line-strong bg-card px-3" aria-label="Category">
           <option value="">All categories</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.nameEn}</option>)}
         </select>
-        <select name="sort" defaultValue={sp.sort ?? ""} className="h-10 rounded-full border border-line bg-card px-3" aria-label="Sort">
+        <select name="sort" defaultValue={sp.sort ?? ""} className="h-11 rounded-xl border-[1.5px] border-line-strong bg-card px-3" aria-label="Sort">
           <option value="">Recently edited</option>
           <option value="title">Title A–Z</option>
         </select>
-        <button className="h-10 rounded-full bg-ink px-5 font-bold text-white">Filter</button>
+        <button className="press h-11 rounded-xl border-2 border-ink bg-indigo px-5 font-bold text-white shadow-[2px_2px_0_var(--color-ink)] hover:bg-indigo-dark">Filter</button>
       </form>
       {games.length === 0 ? (
         <EmptyState title="No games here yet" body="Choose a template, add pictures, questions and answers, then assign it." action={<ButtonLink href="/teacher/games/new">+ Create Activity</ButtonLink>} />

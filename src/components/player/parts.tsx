@@ -2,6 +2,7 @@
 
 import type { ReactNode, RefObject } from "react";
 import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import type { MicState } from "@/lib/client/mic-session";
 import type { PlayGame, PlayQuestion } from "@/lib/games/types";
 import { lettersOf } from "@/lib/speech/letters";
@@ -25,18 +26,13 @@ export function PlayerFrame({ s, exitHref, rootRef, children, order, diagnostics
   }
   return (
     <div ref={rootRef} className="flex min-h-dvh flex-col bg-paper">
-      <header className="flex items-center gap-3 px-4 py-3 sm:px-6">
-        <a href={exitHref} className="rounded-full px-3 py-2 text-sm font-bold text-muted hover:bg-paper-2 hover:text-ink" onClick={() => s.stopMic()}>
-          ✕ <span className="sr-only sm:not-sr-only">Exit</span>
+      <header className="flex items-center gap-3 border-b border-line bg-card px-3 py-2.5 sm:px-6">
+        <a href={exitHref} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-bold text-muted hover:bg-paper-2 hover:text-ink" onClick={() => s.stopMic()}>
+          <Icon name="close" size={18} /> <span className="sr-only sm:not-sr-only">Exit</span>
         </a>
-        <div className="flex flex-1 flex-wrap items-center justify-center gap-1.5" aria-label={`${Object.keys(s.results).length} of ${questions.length} done`}>
-          {questions.map((q) => {
-            const r = s.results[q.id];
-            return <span key={q.id} className={`h-2.5 w-2.5 rounded-full ${r === undefined ? "bg-line" : r === "NONE" ? "bg-leaf" : r === null ? "bg-coral/60" : "bg-sun"}`} />;
-          })}
-        </div>
-        <button onClick={toggleFullscreen} className="rounded-full px-3 py-2 text-sm font-bold text-muted hover:bg-paper-2 hover:text-ink" aria-label="Full screen">
-          ⛶
+        <ProgressTrack questions={questions} results={s.results} title={s.game.title} />
+        <button onClick={toggleFullscreen} className="inline-grid min-h-11 min-w-11 place-items-center rounded-lg text-muted hover:bg-paper-2 hover:text-ink" aria-label="Full screen">
+          <Icon name="expand" size={20} />
         </button>
       </header>
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center px-4 pb-6 sm:px-6">{children}</main>
@@ -45,16 +41,45 @@ export function PlayerFrame({ s, exitHref, rootRef, children, order, diagnostics
   );
 }
 
+/**
+ * What am I learning + how far along am I. One segment per item; finished segments carry a mark
+ * (not only a colour): ✓ on my own, • with help, ↻ to practise. The count is always written out.
+ */
+function ProgressTrack({ questions, results, title }: { questions: PlayQuestion[]; results: VoiceSession["results"]; title: string }) {
+  const done = questions.filter((q) => results[q.id] !== undefined).length;
+  return (
+    <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
+      <p className="max-w-full truncate text-xs font-bold uppercase tracking-[0.14em] text-muted">{title}</p>
+      <div className="flex w-full max-w-md items-center gap-2.5">
+        <div className="flex flex-1 gap-1" aria-hidden="true">
+          {questions.map((q) => {
+            const r = results[q.id];
+            const tone = r === undefined ? "bg-paper-2 border-line-strong/50" : r === "NONE" ? "bg-leaf border-leaf" : r === null ? "bg-coral-soft border-coral/50" : "bg-sun border-sun-ink/30";
+            return <span key={q.id} className={`h-2.5 min-w-1.5 flex-1 rounded-full border transition-colors duration-300 ${tone}`} />;
+          })}
+        </div>
+        <span className="font-display text-sm font-bold tabular-nums text-ink" aria-label={`${done} of ${questions.length} done`}>
+          {done}/{questions.length}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function StartScreen({ s, onStart, preview, withMic }: { s: VoiceSession; onStart: () => void; preview: boolean; withMic: boolean }) {
   const { game, micState, error } = s;
   return (
-    <div className="my-auto max-w-md text-center">
+    <div className="animate-rise-in my-auto w-full max-w-lg text-center">
       {preview && <p className="mb-3 inline-block rounded-full bg-sky-soft px-3 py-1 text-xs font-bold text-sky">Teacher preview — answers are not saved</p>}
-      <h1 className="font-display text-4xl font-semibold">{game.title}</h1>
-      {game.instructions && <p className="mt-2 text-lg text-ink-2">{plainText(game.instructions)}</p>}
-      <p className="mt-4 text-sm text-muted">
-        {game.questions.length} {game.questions.length === 1 ? "item" : "items"} ·{" "}
-        {withMic ? "You'll answer out loud. The microphone listens only during this activity." : "You'll answer by typing or moving labels."}
+      <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">{game.title}</h1>
+      {game.instructions && (
+        <p className="mx-auto mt-4 max-w-md rounded-xl border-l-4 border-coral-bright bg-card px-4 py-3 text-left text-lg text-ink-2">{plainText(game.instructions)}</p>
+      )}
+      <p className="mt-5 flex items-center justify-center gap-2 text-sm text-muted">
+        <span className="rounded-full bg-indigo-soft px-2.5 py-0.5 font-bold text-indigo">
+          {game.questions.length} {game.questions.length === 1 ? "item" : "items"}
+        </span>
+        <span className="text-left">{withMic ? "You'll answer out loud. The microphone listens only during this activity." : "You'll answer by typing or moving labels."}</span>
       </p>
       {micState === "denied" ? (
         <div className="mt-6 rounded-xl2 bg-coral-soft p-4 text-left text-sm text-coral-dark">
@@ -65,20 +90,43 @@ export function StartScreen({ s, onStart, preview, withMic }: { s: VoiceSession;
         <p className="mt-6 rounded-xl2 bg-coral-soft p-4 text-sm text-coral-dark">No microphone was found. Plug one in or check the device settings.</p>
       ) : null}
       {error && <p className="mt-6 rounded-xl2 bg-coral-soft p-4 text-sm text-coral-dark">{error}</p>}
-      <Button variant="voice" size="lg" className="mt-8 h-16 px-10 text-xl" onClick={onStart} disabled={micState === "requesting"}>
-        {micState === "requesting" ? "Allow the microphone…" : withMic ? "🎤 Start" : "Start"}
+      <Button variant="voice" size="lg" className="mt-8 min-h-16 px-10 text-xl" onClick={onStart} disabled={micState === "requesting"}>
+        {micState === "requesting" ? (
+          "Allow the microphone…"
+        ) : (
+          <>
+            {withMic && <Icon name="mic" size={24} />}
+            Start
+          </>
+        )}
       </Button>
     </div>
   );
 }
 
+/**
+ * Feedback is told three ways: words, a mark and a colour. Correct lands like a stamp; "try again"
+ * and "I didn't hear you" simply appear (no shaking, nothing that singles the child out).
+ */
+const FEEDBACK_STYLE = {
+  good: { box: "bg-leaf text-white border-ink shadow-[3px_3px_0_var(--color-ink)] animate-stamp", icon: "check", mark: "bg-white text-leaf" },
+  retry: { box: "bg-sun-soft text-sun-ink border-sun-ink/30 animate-pop-in", icon: "retry", mark: "bg-sun text-ink" },
+  unsure: { box: "bg-sky-soft text-sky border-sky/30 animate-pop-in", icon: "ear", mark: "bg-white text-sky" },
+  info: { box: "bg-paper-2 text-ink-2 border-line animate-pop-in", icon: "hint", mark: "bg-white text-ink-2" },
+} as const;
+
 export function FeedbackBubble({ feedback }: { feedback: Feedback }) {
   if (!feedback) return <div className="h-14" />;
-  const tone = { good: "bg-leaf text-white", retry: "bg-sun-soft text-[#6b4700]", unsure: "bg-sky-soft text-sky", info: "bg-paper-2 text-ink-2" }[feedback.tone];
+  const st = FEEDBACK_STYLE[feedback.tone];
   return (
-    <div key={feedback.text + (feedback.model ?? "")} className={`animate-pop-in rounded-2xl px-5 py-3 text-center font-display text-2xl font-semibold ${tone}`} role="status" aria-live="polite">
-      {feedback.text}
-      {feedback.model && <span className="mt-1 block text-lg font-medium">“{feedback.model}”</span>}
+    <div key={feedback.text + (feedback.model ?? "")} className={`flex items-center gap-3 rounded-2xl border-2 px-4 py-2.5 font-display text-2xl font-bold ${st.box}`} role="status" aria-live="polite">
+      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${st.mark}`}>
+        <Icon name={st.icon} size={22} strokeWidth={feedback.tone === "good" ? 3 : 2.4} />
+      </span>
+      <span className="text-left">
+        {feedback.text}
+        {feedback.model && <span className="block text-lg font-medium">“{feedback.model}”</span>}
+      </span>
     </div>
   );
 }
@@ -86,16 +134,30 @@ export function FeedbackBubble({ feedback }: { feedback: Feedback }) {
 export function MicIndicator({ phase, micState, level }: { phase: Phase; micState: MicState; level: number }) {
   const listening = micState === "listening" || micState === "hearing";
   const label = phase === "speaking" || phase === "intro" ? "Escucha…" : (MIC_LABEL[micState] ?? "");
+  const thinking = micState === "processing";
+  const appSpeaking = phase === "speaking" || phase === "intro";
   return (
-    <div className="flex items-center gap-3 rounded-full border border-line bg-card px-4 py-2" role="status" aria-live="polite">
-      <span className={`relative grid h-10 w-10 place-items-center rounded-full ${listening ? "bg-teal text-white" : "bg-paper-2 text-muted"}`}>
-        {listening && <span className="absolute inset-0 rounded-full bg-teal/30" style={{ transform: `scale(${1 + level * 0.8})`, transition: "transform 80ms linear" }} />}
-        <svg viewBox="0 0 24 24" className="relative h-5 w-5" fill="currentColor" aria-hidden="true">
-          <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12z" />
-        </svg>
+    <div className={`flex items-center gap-3 rounded-2xl border-2 px-3 py-2 transition-colors ${listening ? "border-teal bg-teal-soft" : "border-line bg-card"}`} role="status" aria-live="polite">
+      <span className={`relative grid h-11 w-11 place-items-center rounded-full ${listening ? "bg-teal text-white" : appSpeaking ? "bg-indigo-soft text-indigo" : "bg-paper-2 text-muted"}`}>
+        {listening && <span className="absolute inset-0 rounded-full border-[3px] border-teal/40" style={{ transform: `scale(${1 + level * 0.7})`, transition: "transform 80ms linear" }} />}
+        <Icon name={appSpeaking ? "speaker" : "mic"} size={22} className="relative" />
       </span>
-      <span className="min-w-28 font-bold text-ink-2">{label}</span>
-      <span className="text-[11px] font-bold uppercase tracking-wider text-teal">{micState !== "stopped" && micState !== "idle" ? "● mic on" : ""}</span>
+      <span className="flex min-w-28 items-center gap-1.5 font-bold text-ink">
+        {label}
+        {thinking && (
+          <span className="inline-flex gap-0.5" aria-hidden="true">
+            <span className="think-dot h-1.5 w-1.5 rounded-full bg-ink-2" />
+            <span className="think-dot h-1.5 w-1.5 rounded-full bg-ink-2" />
+            <span className="think-dot h-1.5 w-1.5 rounded-full bg-ink-2" />
+          </span>
+        )}
+      </span>
+      {micState !== "stopped" && micState !== "idle" && (
+        <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-teal-dark">
+          <span className="h-2 w-2 rounded-full bg-teal" aria-hidden="true" />
+          mic on
+        </span>
+      )}
     </div>
   );
 }
@@ -128,9 +190,9 @@ export function VoiceDock({ s, children, showControls = true }: { s: VoiceSessio
         {children}
         {showControls && s.usesMic && (
           <>
-            <Button variant="secondary" onClick={s.repeat} disabled={s.phase !== "listening"}>🔊 Escuchar otra vez</Button>
-            <Button variant="ghost" onClick={s.skip}>Siguiente →</Button>
-            <Button variant="ghost" onClick={s.stopMic} aria-label="Stop the microphone">■ Stop mic</Button>
+            <Button variant="secondary" onClick={s.repeat} disabled={s.phase !== "listening"}><Icon name="speaker" /> Escuchar otra vez</Button>
+            <Button variant="ghost" onClick={s.skip}>Siguiente <Icon name="next" size={18} /></Button>
+            <Button variant="ghost" onClick={s.stopMic} aria-label="Stop the microphone"><Icon name="stop" size={14} /> Stop mic</Button>
           </>
         )}
       </div>
@@ -143,16 +205,27 @@ export function QuestionView({ s, q, showAnswer, compact }: { s: VoiceSession; q
   return (
     <div className="flex w-full flex-col items-center">
       {q.imageUrl && (
-        <div key={q.id} className={`animate-pop-in mt-2 w-full overflow-hidden rounded-[1.75rem] border border-line bg-card p-3 ${compact ? "max-w-xs" : "max-w-lg"}`}>
+        <div key={q.id} className={`animate-rise-in mt-3 w-full overflow-hidden rounded-2xl border-2 border-ink bg-card p-2.5 shadow-[4px_4px_0_var(--color-aqua)] ${compact ? "max-w-xs" : "max-w-lg"}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={q.imageUrl} alt={q.displayText || "Activity image"} className="mx-auto aspect-[4/3] w-full rounded-2xl object-contain" />
+          <img src={q.imageUrl} alt={q.displayText || "Activity image"} className="mx-auto aspect-[4/3] w-full rounded-xl object-contain" />
         </div>
       )}
-      {q.supportText && <p className="mt-5 text-center text-lg text-muted">{plainText(q.supportText)}</p>}
-      {q.prompt && <h1 className="mt-2 text-center font-display text-4xl font-semibold tracking-tight sm:text-5xl">{plainText(q.prompt)}</h1>}
-      {!q.prompt && (showAnswer || s.game.settings.showAnswerText) && <h1 className="mt-5 text-center font-display text-4xl font-semibold tracking-tight sm:text-5xl">{plainText(q.expected)}</h1>}
-      {s.showHint && q.hint && <p className="mt-3 rounded-full bg-sun-soft px-4 py-1.5 text-center font-semibold text-[#7a5200]">💡 {plainText(q.hint)}</p>}
+      {q.supportText && <p className="mt-5 text-center text-lg font-medium text-ink-2">{plainText(q.supportText)}</p>}
+      {q.prompt && <h1 key={`p${q.id}`} className="animate-rise-in mt-2 text-center font-display text-4xl font-bold tracking-tight sm:text-5xl">{plainText(q.prompt)}</h1>}
+      {!q.prompt && (showAnswer || s.game.settings.showAnswerText) && <h1 className="mt-5 text-center font-display text-4xl font-bold tracking-tight sm:text-5xl">{plainText(q.expected)}</h1>}
+      {s.showHint && q.hint && <HintNote className="mt-3">{plainText(q.hint)}</HintNote>}
     </div>
+  );
+}
+
+/** A hint: mango note with a bulb mark, clearly apart from the question and from feedback. */
+export function HintNote({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <p className={`animate-pop-in inline-flex items-center gap-2 rounded-xl border-[1.5px] border-sun-ink/25 bg-sun-soft px-3.5 py-1.5 text-center font-semibold text-sun-ink ${className}`}>
+      <Icon name="hint" size={18} />
+      <span className="sr-only">Hint: </span>
+      {children}
+    </p>
   );
 }
 
@@ -164,9 +237,9 @@ export function LetterTiles({ expected, heard, reveal }: { expected: string; hea
     <div className="mt-4 flex flex-wrap justify-center gap-1.5" aria-label="Letters">
       {exp.map((l, i) => {
         const h = heard?.[i];
-        const tone = h ? (same(l, h) ? "bg-leaf-soft text-leaf border-leaf/40" : "bg-coral-soft text-coral-dark border-coral/40") : "bg-card text-muted border-line";
+        const tone = h ? (same(l, h) ? "bg-leaf-soft text-leaf border-leaf" : "bg-coral-soft text-coral-dark border-coral/50 border-dashed") : "bg-card text-muted border-line-strong/60";
         return (
-          <span key={i} className={`grid h-14 w-12 place-items-center rounded-xl border-2 font-display text-2xl font-semibold ${tone}`}>
+          <span key={i} className={`grid h-14 w-12 place-items-center rounded-xl border-2 font-display text-2xl font-bold ${tone}`}>
             {h ?? (reveal ? <span className="opacity-40">{l}</span> : "")}
           </span>
         );
@@ -180,13 +253,23 @@ export function DoneScreen({ s, exitHref, extra }: { s: VoiceSession; exitHref: 
   const vals = Object.values(s.results);
   const independent = vals.filter((r) => r === "NONE").length;
   return (
-    <div className="animate-pop-in my-auto text-center">
-      <p className="font-display text-5xl font-semibold">¡Terminaste!</p>
+    <div className="animate-rise-in my-auto text-center">
+      <div className="relative mx-auto mb-4 h-20 w-24" aria-hidden="true">
+        {[["left-0 top-6", "0ms", 22], ["left-9 top-0", "120ms", 34], ["right-0 top-5", "240ms", 24]].map(([pos, delay, size]) => (
+          <span key={pos as string} className={`absolute ${pos} text-sun`}>
+            <Icon name="star" size={size as number} className="text-sun" stroke="var(--color-ink)" />
+            <span className="animate-star-rise absolute inset-0 text-sun" style={{ animationDelay: delay as string }}>
+              <Icon name="star" size={(size as number) * 0.5} />
+            </span>
+          </span>
+        ))}
+      </div>
+      <p className="font-display text-5xl font-bold tracking-tight">¡<span className="tilde-underline">Terminaste</span>!</p>
       <p className="mt-3 text-lg text-ink-2">{vals.length > 0 ? <>You answered <strong>{independent}</strong> of {vals.length} on your own.</> : "Activity finished."}</p>
       {s.usesMic && <p className="mt-1 text-sm text-muted">The microphone is off.</p>}
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         {extra}
-        <a href={exitHref} className="inline-flex h-14 items-center rounded-full bg-coral px-7 text-lg font-bold text-white">Done</a>
+        <a href={exitHref} className="press inline-flex min-h-14 items-center gap-2 rounded-xl border-2 border-ink bg-indigo px-7 text-lg font-bold text-white shadow-[2px_2px_0_var(--color-ink)] hover:bg-indigo-dark">Done</a>
       </div>
     </div>
   );
@@ -216,7 +299,7 @@ export function CharKeys({ target, language }: { target: RefObject<HTMLInputElem
             el.dispatchEvent(new Event("input", { bubbles: true }));
             el.focus();
           }}
-          className="h-10 min-w-10 rounded-lg border border-line bg-card px-2 text-lg font-semibold hover:border-sky hover:bg-sky-soft"
+          className="h-11 min-w-11 rounded-lg border-[1.5px] border-line-strong bg-card px-2 text-lg font-semibold hover:border-indigo hover:bg-indigo-soft active:translate-y-px"
           aria-label={`Insert ${c}`}
         >
           {c}

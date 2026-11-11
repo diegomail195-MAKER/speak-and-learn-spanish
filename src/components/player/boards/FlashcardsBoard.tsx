@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import type { PlayQuestion } from "@/lib/games/types";
 import { plainText } from "@/lib/text/segments";
-import { DoneScreen, VoiceDock, shuffled } from "../parts";
+import { DoneScreen, HintNote, VoiceDock, shuffled } from "../parts";
 import type { VoiceSession } from "../useVoiceSession";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -72,7 +73,7 @@ export function FlashcardsBoard({ s, questions, exitHref }: { s: VoiceSession; q
   if (roundDone) {
     return (
       <div className="animate-pop-in my-auto text-center">
-        <p className="font-display text-4xl font-semibold">¡Ronda terminada!</p>
+        <p className="font-display text-4xl font-bold tracking-tight">¡Ronda terminada!</p>
         <p className="mt-2 text-ink-2">{missed.length} {missed.length === 1 ? "card" : "cards"} to practise again.</p>
         <div className="mt-6 flex justify-center gap-3">
           <Button variant="voice" size="lg" onClick={() => { const m = shuffled(missed); setOrder(m); play(0, m); }}>Practice missed cards</Button>
@@ -91,7 +92,7 @@ export function FlashcardsBoard({ s, questions, exitHref }: { s: VoiceSession; q
 
   return (
     <div className="flex w-full flex-1 flex-col items-center">
-      <p className="mt-1 text-sm font-bold text-muted">
+      <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-indigo-soft px-3.5 py-1 text-sm font-bold text-indigo">
         Card {pos + 1} of {order.length}
       </p>
       <div className="mt-3 w-full max-w-md [perspective:1200px]">
@@ -102,26 +103,26 @@ export function FlashcardsBoard({ s, questions, exitHref }: { s: VoiceSession; q
           className="relative block aspect-[4/5] w-full transition-transform duration-500 [transform-style:preserve-3d]"
           style={{ transform: flipped ? "rotateY(180deg)" : undefined }}
         >
-          <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-[2rem] border-2 border-line bg-card p-6 shadow-soft [backface-visibility:hidden]">
+          <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-ink bg-card p-6 shadow-[5px_5px_0_var(--color-aqua)] [backface-visibility:hidden]">
             {q.imageUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={q.imageUrl} alt={q.displayText || "Card picture"} className="max-h-[55%] w-full rounded-2xl object-contain" />
+              <img src={q.imageUrl} alt={q.displayText || "Card picture"} className="max-h-[55%] w-full rounded-xl object-contain" />
             )}
-            {q.displayText && <span className="font-display text-3xl font-semibold">{plainText(q.displayText)}</span>}
+            {q.displayText && <span className="font-display text-3xl font-bold">{plainText(q.displayText)}</span>}
             {q.prompt && <span className="text-center font-display text-2xl text-ink-2">{plainText(q.prompt)}</span>}
             <span className="absolute bottom-3 right-4 text-xs font-bold uppercase tracking-wider text-muted">Front</span>
           </span>
-          <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-[2rem] border-2 border-teal/40 bg-teal-soft p-6 shadow-soft [backface-visibility:hidden] [transform:rotateY(180deg)]">
-            <span className="text-center font-display text-4xl font-semibold text-teal-dark">{plainText(q.expected)}</span>
+          <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-ink bg-aqua p-6 shadow-[5px_5px_0_var(--color-sun)] [backface-visibility:hidden] [transform:rotateY(180deg)]">
+            <span className="text-center font-display text-4xl font-bold text-ink">{plainText(q.expected)}</span>
             {q.data.translation && <span className="text-center text-xl text-ink-2">{plainText(q.data.translation)}</span>}
-            <span className="absolute bottom-3 right-4 text-xs font-bold uppercase tracking-wider text-teal-dark">Back</span>
+            <span className="absolute bottom-3 right-4 text-xs font-bold uppercase tracking-wider text-ink-2">Back</span>
           </span>
         </button>
       </div>
-      {s.showHint && q.hint && <p className="mt-3 rounded-full bg-sun-soft px-4 py-1.5 font-semibold text-[#7a5200]">💡 {plainText(q.hint)}</p>}
+      {s.showHint && q.hint && <HintNote className="mt-3">{plainText(q.hint)}</HintNote>}
       <VoiceDock s={s} showControls={false}>
-        <Button variant="secondary" onClick={() => (s.repeat() ? null : s.say(q.prompt || q.displayText || q.expected, q.prompt ? q.promptAudioUrl : null))}>🔊 Listen</Button>
-        <Button variant="secondary" onClick={flip}>↻ Flip</Button>
+        <Button variant="secondary" onClick={() => (s.repeat() ? null : s.say(q.prompt || q.displayText || q.expected, q.prompt ? q.promptAudioUrl : null))}><Icon name="speaker" /> Listen</Button>
+        <Button variant="secondary" onClick={flip}><Icon name="retry" size={18} /> Flip</Button>
         <Button
           variant="secondary"
           onClick={async () => {
@@ -134,7 +135,7 @@ export function FlashcardsBoard({ s, questions, exitHref }: { s: VoiceSession; q
         >
           🔁 Repeat
         </Button>
-        {!asking && <Button variant="voice" onClick={() => play(pos, order)}>🎤 Speak</Button>}
+        {!asking && <Button variant="voice" onClick={() => play(pos, order)}><Icon name="mic" /> Speak</Button>}
         <Button variant="ghost" onClick={() => play(pos + 1, order)}>Next card →</Button>
         <Button variant="ghost" onClick={() => { const rest = shuffled(order.slice(pos)); const o = [...order.slice(0, pos), ...rest]; setOrder(o); play(pos, o); }}>🔀 Shuffle</Button>
         <Button variant="ghost" onClick={s.stopMic} aria-label="Stop the microphone">■ Stop mic</Button>

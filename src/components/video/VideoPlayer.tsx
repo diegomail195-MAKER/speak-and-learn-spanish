@@ -227,7 +227,7 @@ export function VideoPlayer({
 
   return (
     <div>
-      <div className="overflow-hidden rounded-2xl bg-ink">
+      <div className="overflow-hidden rounded-2xl border-2 border-ink bg-ink shadow-[5px_5px_0_var(--color-aqua)]">
         {video.source === "HOSTED" ? (
           <video ref={videoRef} src={video.url ?? undefined} controls playsInline preload="metadata" poster={video.coverUrl ?? undefined} className="aspect-video w-full bg-black" crossOrigin="anonymous">
             {video.captionsUrl && <track kind="subtitles" src={video.captionsUrl} srcLang={video.captionsLanguage} label={video.captionsLanguage === "es" ? "Español" : video.captionsLanguage} default />}
@@ -239,7 +239,7 @@ export function VideoPlayer({
         )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-        <div className="h-2 min-w-40 flex-1 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label="Video progress">
+        <div className="h-2.5 min-w-40 flex-1 overflow-hidden rounded-full border border-line-strong/50 bg-paper-2" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label="Video progress">
           <div className="h-full rounded-full bg-teal transition-[width]" style={{ width: `${pct}%` }} />
         </div>
         <span className="tabular-nums text-muted">
@@ -247,7 +247,7 @@ export function VideoPlayer({
         </span>
         <label className="flex items-center gap-1.5 font-bold text-ink-2">
           Speed
-          <select value={speed} onChange={(e) => changeSpeed(Number(e.target.value))} className="rounded-lg border border-line bg-card px-2 py-1">
+          <select value={speed} onChange={(e) => changeSpeed(Number(e.target.value))} className="min-h-10 rounded-lg border-[1.5px] border-line-strong bg-card px-2 py-1">
             {SPEEDS.map((s) => (
               <option key={s} value={s}>
                 {s}×

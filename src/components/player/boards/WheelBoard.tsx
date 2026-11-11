@@ -7,7 +7,8 @@ import { plainText } from "@/lib/text/segments";
 import { DoneScreen, QuestionView, VoiceDock } from "../parts";
 import type { VoiceSession } from "../useVoiceSession";
 
-const COLORS = ["#e4553c", "#12827a", "#f2b33d", "#3a74c9", "#2b8f55", "#b5539a", "#e98a2c", "#5b6bd6"];
+// Brand palette slices, each with a label colour that stays readable on it.
+const COLORS: Array<[string, string]> = [["#303477", "#ffffff"], ["#f3c55d", "#24283b"], ["#1d6f6b", "#ffffff"], ["#f16b50", "#24283b"], ["#bee7e5", "#24283b"], ["#2e7550", "#ffffff"], ["#9e3420", "#ffffff"], ["#fcefcf", "#24283b"]];
 const SPIN_MS = 4200;
 
 function slicePath(i: number, n: number, r: number) {
@@ -95,11 +96,11 @@ export function WheelBoard({ s, questions, exitHref }: { s: VoiceSession; questi
     <div className="flex w-full flex-1 flex-col items-center">
       {current ? (
         <div className="flex w-full flex-col items-center">
-          {current.displayText && <p className="mt-1 rounded-full bg-paper-2 px-4 py-1 font-display text-xl font-semibold">{plainText(current.displayText)}</p>}
+          {current.displayText && <p className="mt-1 rounded-lg border-2 border-ink bg-sun px-4 py-1 font-display text-xl font-bold">{plainText(current.displayText)}</p>}
           <QuestionView s={s} q={current} compact />
           {left !== null && (
-            <p className={`mt-3 font-display text-3xl font-semibold tabular-nums ${left <= 5 ? "text-coral" : "text-ink-2"}`} aria-live="polite">
-              ⏱ {left}
+            <p className={`mt-3 rounded-full border-2 px-4 py-0.5 font-display text-3xl font-bold tabular-nums ${left <= 5 ? "border-coral text-coral" : "border-line-strong text-ink-2"}`} aria-live="polite">
+              {left}<span className="text-lg"> s</span>
             </p>
           )}
         </div>
@@ -114,25 +115,26 @@ export function WheelBoard({ s, questions, exitHref }: { s: VoiceSession; questi
                   const done = status[q.id] !== "pending";
                   return (
                     <g key={q.id}>
-                      <path d={slicePath(i, n, R)} fill={done ? "#d9d3c5" : COLORS[i % COLORS.length]} stroke="#fff" strokeWidth={3} />
+                      <path d={slicePath(i, n, R)} fill={done ? "#ece3d3" : COLORS[i % COLORS.length][0]} stroke="#24283b" strokeWidth={2.5} strokeLinejoin="round" />
                       <text
                         transform={`rotate(${mid}) translate(${R * 0.6} 0) ${mid > 90 && mid < 270 ? "rotate(180)" : ""}`}
                         textAnchor="middle"
                         dominantBaseline="middle"
-                        className="fill-white font-display"
-                        style={{ fontSize: n > 8 ? 12 : 16, fontWeight: 700 }}
+                        className="font-display"
+                        style={{ fontSize: n > 8 ? 12 : 16, fontWeight: 700, fill: done ? "#5d6178" : COLORS[i % COLORS.length][1] }}
                       >
                         {(plainText(q.displayText) || String(i + 1)).slice(0, 14)}
                       </text>
                     </g>
                   );
                 })}
-                <circle r={22} fill="#1e2340" />
+                <circle r={22} fill="#24283b" stroke="#fff8ee" strokeWidth={4} />
+                <circle r={6} fill="#f3c55d" />
               </g>
-              <path d="M -14 -168 L 14 -168 L 0 -140 Z" fill="#1e2340" />
+              <path d="M -15 -169 L 15 -169 L 0 -138 Z" fill="#f16b50" stroke="#24283b" strokeWidth={2.5} strokeLinejoin="round" />
             </svg>
           </div>
-          <Button variant="voice" size="lg" className="mt-4 h-16 px-10 text-xl" onClick={spin} disabled={spinning || pending.length === 0}>
+          <Button variant="voice" size="lg" className="mt-4 min-h-16 px-10 text-xl" onClick={spin} disabled={spinning || pending.length === 0}>
             {spinning ? "…" : "Spin! · ¡Gira!"}
           </Button>
           <p className="mt-2 text-sm text-muted">{pending.length} left</p>

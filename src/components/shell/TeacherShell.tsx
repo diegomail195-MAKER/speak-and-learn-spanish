@@ -17,7 +17,7 @@ const LINKS = [
 export function TeacherShell({ name, school, children }: { name: string; school: string; children: ReactNode }) {
   return (
     <div className="min-h-dvh">
-      <header className="no-print border-b border-line bg-paper">
+      <header className="no-print border-b border-line bg-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3">
           <Link href="/teacher" aria-label="Teacher dashboard">
             <Logo compact />
@@ -31,7 +31,7 @@ export function TeacherShell({ name, school, children }: { name: string; school:
               <span className="block text-xs text-muted">{school}</span>
             </span>
             <form action={signOut}>
-              <button className="rounded-full px-3 py-1.5 font-bold text-muted hover:bg-paper-2 hover:text-ink">Sign out</button>
+              <button className="min-h-10 rounded-lg px-3 font-bold text-muted hover:bg-paper-2 hover:text-ink">Sign out</button>
             </form>
           </div>
         </div>

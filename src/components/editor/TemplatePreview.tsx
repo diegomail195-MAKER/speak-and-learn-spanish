@@ -1,7 +1,7 @@
 // Small animated illustrations of how each activity template plays (gallery cards).
 // Drawn here, in the app's own palette; motion stops with prefers-reduced-motion.
 
-const C = { ink: "#1e2340", coral: "#e4553c", teal: "#12827a", sun: "#f2b33d", leaf: "#2b8f55", sky: "#3a74c9", paper: "#faf6ee", line: "#e6dfd0", white: "#fff" };
+const C = { ink: "#24283b", coral: "#f16b50", teal: "#1d6f6b", sun: "#f3c55d", leaf: "#2e7550", sky: "#303477", paper: "#fff8ee", line: "#e8dcc7", white: "#fff" };
 
 function Mic({ x, y }: { x: number; y: number }) {
   return (
@@ -172,17 +172,17 @@ function Generic({ glyph, color }: { glyph: string; color: string }) {
 }
 
 export const PREVIEW_BG: Record<string, string> = {
-  FLASHCARDS: "#fde6df",
-  SPELL_THE_WORD: "#dff2e5",
-  SPIN_THE_WHEEL: "#fdf0d3",
-  LABEL_THE_DIAGRAM: "#e1ebf8",
-  OPEN_THE_BOX: "#f3ede1",
-  LISTEN_AND_SPEAK: "#dcf1ee",
-  SPEAK_AND_ANSWER: "#fdf0d3",
-  MATCH_AND_SPEAK: "#e1ebf8",
-  IMAGE_AND_VOCABULARY: "#fde6df",
-  QUESTION_AND_ANSWER: "#dcf1ee",
-  SPELL_YOUR_NAME: "#dff2e5",
+  FLASHCARDS: "#fde7e0",
+  SPELL_THE_WORD: "#e3f1e7",
+  SPIN_THE_WHEEL: "#fcefcf",
+  LABEL_THE_DIAGRAM: "#e7e8f5",
+  OPEN_THE_BOX: "#f6ecdc",
+  LISTEN_AND_SPEAK: "#dff2f1",
+  SPEAK_AND_ANSWER: "#fcefcf",
+  MATCH_AND_SPEAK: "#e7e8f5",
+  IMAGE_AND_VOCABULARY: "#fde7e0",
+  QUESTION_AND_ANSWER: "#dff2f1",
+  SPELL_YOUR_NAME: "#e3f1e7",
 };
 
 export function TemplatePreview({ k }: { k: string }) {

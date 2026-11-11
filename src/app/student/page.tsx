@@ -15,7 +15,7 @@ export default function StudentStart() {
     <div className="min-h-dvh">
       <PublicHeader />
       <main className="mx-auto max-w-lg px-5 pb-16 pt-8 text-center">
-        <h1 className="font-display text-4xl font-semibold">¡Hola!</h1>
+        <h1 className="font-display text-5xl font-bold tracking-tight">¡<span className="tilde-underline">Hola</span>!</h1>
         <p className="mt-2 text-lg text-ink-2">Type your class code.</p>
         <form action={goToClass} className="mt-8 space-y-4">
           <label htmlFor="code" className="sr-only">Class code</label>
@@ -29,7 +29,7 @@ export default function StudentStart() {
             spellCheck={false}
             maxLength={12}
             placeholder="ABC123"
-            className="w-full rounded-2xl border-2 border-line bg-card px-5 py-4 text-center font-display text-4xl font-semibold uppercase tracking-[0.3em] text-ink placeholder:text-line focus:border-teal focus:outline-none"
+            className="w-full rounded-2xl border-2 border-ink bg-card px-5 py-4 text-center font-display text-4xl font-bold uppercase tracking-[0.3em] text-ink shadow-[4px_4px_0_var(--color-aqua)] placeholder:text-line-strong focus:border-indigo focus:shadow-[4px_4px_0_var(--color-sun)] focus:outline-none"
           />
           <Button type="submit" variant="voice" size="lg" className="w-full">
             Next

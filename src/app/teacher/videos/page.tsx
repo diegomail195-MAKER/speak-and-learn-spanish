@@ -43,23 +43,23 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
         }
       />
       <form className="mb-4 flex flex-wrap gap-2 text-sm">
-        <input name="q" defaultValue={sp.q} placeholder="Search title, keyword" className="h-10 min-w-56 flex-1 rounded-full border border-line bg-card px-4" aria-label="Search" />
-        <select name="source" defaultValue={sp.source ?? ""} className="h-10 rounded-full border border-line bg-card px-3" aria-label="Source">
+        <input name="q" defaultValue={sp.q} placeholder="Search title, keyword" className="h-11 min-w-56 flex-1 rounded-xl border-[1.5px] border-line-strong bg-card px-4" aria-label="Search" />
+        <select name="source" defaultValue={sp.source ?? ""} className="h-11 rounded-xl border-[1.5px] border-line-strong bg-card px-3" aria-label="Source">
           <option value="">All sources</option>
           <option value="HOSTED">Uploaded</option>
           <option value="YOUTUBE">YouTube</option>
         </select>
-        <select name="status" defaultValue={sp.status ?? ""} className="h-10 rounded-full border border-line bg-card px-3" aria-label="Status">
+        <select name="status" defaultValue={sp.status ?? ""} className="h-11 rounded-xl border-[1.5px] border-line-strong bg-card px-3" aria-label="Status">
           <option value="">Drafts &amp; published</option>
           <option value="DRAFT">Drafts</option>
           <option value="PUBLISHED">Published</option>
           <option value="ARCHIVED">Archived</option>
         </select>
-        <select name="category" defaultValue={sp.category ?? ""} className="h-10 rounded-full border border-line bg-card px-3" aria-label="Category">
+        <select name="category" defaultValue={sp.category ?? ""} className="h-11 rounded-xl border-[1.5px] border-line-strong bg-card px-3" aria-label="Category">
           <option value="">All categories</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.nameEn}</option>)}
         </select>
-        <button className="h-10 rounded-full bg-ink px-5 font-bold text-white">Filter</button>
+        <button className="press h-11 rounded-xl border-2 border-ink bg-indigo px-5 font-bold text-white shadow-[2px_2px_0_var(--color-ink)] hover:bg-indigo-dark">Filter</button>
       </form>
       {videos.length === 0 ? (
         <EmptyState title="No videos yet" body="Upload an MP4 from your computer or paste a YouTube link." action={<ButtonLink href="/teacher/videos/new">Add video</ButtonLink>} />

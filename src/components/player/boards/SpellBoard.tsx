@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import { ALPHABET, letterName, type LetterNameStyle } from "@/lib/alphabet";
 import type { PlayQuestion } from "@/lib/games/types";
 import { plainText } from "@/lib/text/segments";
-import { CharKeys, DoneScreen, LetterTiles, VoiceDock } from "../parts";
+import { CharKeys, DoneScreen, HintNote, LetterTiles, VoiceDock } from "../parts";
 import type { VoiceSession } from "../useVoiceSession";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -84,18 +85,18 @@ export function SpellBoard({ s, questions, exitHref }: { s: VoiceSession; questi
 
   return (
     <div className="flex w-full flex-1 flex-col items-center">
-      <p className="mt-1 text-sm font-bold text-muted">
+      <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-indigo-soft px-3.5 py-1 text-sm font-bold text-indigo">
         Word {index + 1} of {questions.length}
       </p>
       {q.imageUrl && (
-        <div key={q.id} className="animate-pop-in mt-2 w-full max-w-xs overflow-hidden rounded-[1.75rem] border border-line bg-card p-3">
+        <div key={q.id} className="animate-rise-in mt-3 w-full max-w-xs overflow-hidden rounded-2xl border-2 border-ink bg-card p-2.5 shadow-[4px_4px_0_var(--color-aqua)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={q.imageUrl} alt="Picture of the word" className="mx-auto aspect-[4/3] w-full rounded-2xl object-contain" />
+          <img src={q.imageUrl} alt="Picture of the word" className="mx-auto aspect-[4/3] w-full rounded-xl object-contain" />
         </div>
       )}
-      {q.prompt && <p className="mt-3 text-center font-display text-3xl font-semibold">{plainText(q.prompt)}</p>}
-      {(showWord || revealed) && <p className="mt-2 font-display text-4xl font-semibold tracking-wide">{plainText(q.expected)}</p>}
-      <Button variant="secondary" className="mt-3" onClick={() => sayWord(q)}>🔊 Hear the word</Button>
+      {q.prompt && <p className="mt-3 text-center font-display text-3xl font-bold">{plainText(q.prompt)}</p>}
+      {(showWord || revealed) && <p className="mt-2 font-display text-4xl font-bold tracking-wide">{plainText(q.expected)}</p>}
+      <Button variant="secondary" className="mt-3" onClick={() => sayWord(q)}><Icon name="speaker" /> Hear the word</Button>
 
       {typeMode ? (
         <form
@@ -115,7 +116,7 @@ export function SpellBoard({ s, questions, exitHref }: { s: VoiceSession; questi
             autoCapitalize="off"
             spellCheck={false}
             lang={s.game.language === "es-419" ? "es" : s.game.language}
-            className="h-16 w-full rounded-2xl border-2 border-line bg-card px-4 text-center font-display text-3xl tracking-wider focus:border-sky focus:outline-none"
+            className="h-16 w-full rounded-xl border-2 border-ink bg-card px-4 text-center font-display text-3xl tracking-wider shadow-[3px_3px_0_var(--color-aqua)] focus:border-indigo focus:shadow-[3px_3px_0_var(--color-sun)] focus:outline-none"
           />
           <CharKeys target={inputRef} language={s.game.language} />
           <Button type="submit" variant="voice" size="lg" disabled={busy || !typed.trim()}>Check</Button>
@@ -126,10 +127,10 @@ export function SpellBoard({ s, questions, exitHref }: { s: VoiceSession; questi
 
       {!typeMode && (
         <details className="mt-4 w-full max-w-2xl">
-          <summary className="cursor-pointer text-center text-sm font-bold text-muted">🔤 Hear the letter names</summary>
+          <summary className="cursor-pointer text-center text-sm font-bold text-muted">Hear the letter names</summary>
           <div className="mt-2 flex flex-wrap justify-center gap-1.5">
             {ALPHABET.map((l) => (
-              <button key={l.upper} type="button" onClick={() => s.say(letterName(l.upper, style), null, "es-419")} className="h-11 min-w-11 rounded-xl border border-line bg-card px-2 font-display text-lg font-semibold hover:border-teal hover:bg-teal-soft" aria-label={`Letter ${l.upper}: ${letterName(l.upper, style)}`}>
+              <button key={l.upper} type="button" onClick={() => s.say(letterName(l.upper, style), null, "es-419")} className="h-11 min-w-11 rounded-lg border-[1.5px] border-line-strong bg-card px-2 font-display text-lg font-bold hover:border-teal hover:bg-teal-soft" aria-label={`Letter ${l.upper}: ${letterName(l.upper, style)}`}>
                 {l.upper}
               </button>
             ))}
@@ -137,7 +138,7 @@ export function SpellBoard({ s, questions, exitHref }: { s: VoiceSession; questi
         </details>
       )}
 
-      {s.showHint && q.hint && <p className="mt-3 rounded-full bg-sun-soft px-4 py-1.5 font-semibold text-[#7a5200]">💡 {plainText(q.hint)}</p>}
+      {s.showHint && q.hint && <HintNote className="mt-3">{plainText(q.hint)}</HintNote>}
       <VoiceDock s={s} />
     </div>
   );

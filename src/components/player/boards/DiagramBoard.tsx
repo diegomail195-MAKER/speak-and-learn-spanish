@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import type { PlayQuestion } from "@/lib/games/types";
 import { plainText } from "@/lib/text/segments";
-import { CharKeys, DoneScreen, VoiceDock, shuffled } from "../parts";
+import { CharKeys, DoneScreen, HintNote, VoiceDock, shuffled } from "../parts";
 import type { VoiceSession } from "../useVoiceSession";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -116,7 +116,7 @@ export function DiagramBoard({ s, questions, exitHref }: { s: VoiceSession; ques
 
   return (
     <div className="flex w-full flex-1 flex-col items-center">
-      <div className="relative mt-2 w-full max-w-2xl select-none overflow-hidden rounded-[1.5rem] border border-line bg-card">
+      <div className="relative mt-2 w-full max-w-2xl select-none overflow-hidden rounded-2xl border-2 border-ink bg-card shadow-[4px_4px_0_var(--color-aqua)]">
         {s.game.diagramImageUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={s.game.diagramImageUrl} alt="Picture to label" className="block w-full" draggable={false} />
@@ -136,13 +136,13 @@ export function DiagramBoard({ s, questions, exitHref }: { s: VoiceSession; ques
               }}
             >
               {placed[q.id] ? (
-                <span className="animate-pop-in block whitespace-nowrap rounded-full bg-leaf px-3 py-1 text-sm font-bold text-white shadow-soft">{label(q)}</span>
+                <span className="animate-pop-in block whitespace-nowrap rounded-full border-2 border-white bg-leaf px-3 py-1 text-sm font-bold text-white shadow-soft">{label(q)}</span>
               ) : (
                 <button
                   type="button"
                   aria-label={`Point ${i + 1}`}
                   onClick={() => (mode === "drag" && selected ? drop(questions.find((x) => x.id === selected)!, q) : mode === "type" ? setActive(i) : undefined)}
-                  className={`grid h-9 w-9 place-items-center rounded-full border-[3px] border-white font-display text-sm font-bold text-white shadow-soft ${wrong === q.id ? "bg-coral" : isActive ? "animate-pulse bg-teal ring-4 ring-teal/30" : "bg-ink"}`}
+                  className={`grid h-10 w-10 place-items-center rounded-full border-[3px] border-white font-display text-sm font-bold text-white shadow-soft ${wrong === q.id ? "bg-coral" : isActive ? "animate-pulse bg-teal ring-4 ring-teal/30" : "bg-indigo"}`}
                 >
                   {i + 1}
                 </button>
@@ -154,9 +154,9 @@ export function DiagramBoard({ s, questions, exitHref }: { s: VoiceSession; ques
 
       {mode !== "drag" && current && !placed[current.id] && (
         <div className="mt-4 text-center">
-          <p className="text-sm font-bold text-muted">Point {active + 1}</p>
-          {current.prompt && <p className="font-display text-3xl font-semibold">{plainText(current.prompt)}</p>}
-          {s.showHint && current.hint && <p className="mt-2 rounded-full bg-sun-soft px-4 py-1.5 font-semibold text-[#7a5200]">💡 {plainText(current.hint)}</p>}
+          <p className="inline-flex items-center gap-2 rounded-full bg-indigo-soft px-3.5 py-1 text-sm font-bold text-indigo">Point {active + 1}</p>
+          {current.prompt && <p className="mt-2 font-display text-3xl font-bold">{plainText(current.prompt)}</p>}
+          {s.showHint && current.hint && <HintNote className="mt-2">{plainText(current.hint)}</HintNote>}
         </div>
       )}
 
@@ -170,7 +170,7 @@ export function DiagramBoard({ s, questions, exitHref }: { s: VoiceSession; ques
             aria-label={`Label for point ${active + 1}`}
             autoComplete="off"
             spellCheck={false}
-            className="h-14 w-full rounded-2xl border-2 border-line bg-card px-4 text-center font-display text-2xl focus:border-sky focus:outline-none"
+            className="h-14 w-full rounded-xl border-2 border-ink bg-card px-4 text-center font-display text-2xl shadow-[3px_3px_0_var(--color-aqua)] focus:border-indigo focus:shadow-[3px_3px_0_var(--color-sun)] focus:outline-none"
           />
           <CharKeys target={inputRef} language={s.game.language} />
           <Button type="submit" variant="voice" disabled={busy || !typed.trim()}>Check</Button>
@@ -190,7 +190,7 @@ export function DiagramBoard({ s, questions, exitHref }: { s: VoiceSession; ques
                 onDragStart={(e) => e.dataTransfer.setData("text/plain", q.id)}
                 onClick={() => setSelected((x) => (x === q.id ? null : q.id))}
                 aria-pressed={selected === q.id}
-                className={`cursor-grab rounded-full border-2 px-4 py-2 font-display text-lg font-semibold disabled:opacity-50 ${selected === q.id ? "border-teal bg-teal-soft text-teal-dark" : "border-line bg-card"}`}
+                className={`press min-h-12 cursor-grab rounded-xl border-2 px-4 py-2 font-display text-lg font-bold disabled:opacity-50 ${selected === q.id ? "-translate-y-0.5 border-indigo bg-indigo text-white shadow-[3px_3px_0_var(--color-ink)]" : "border-ink bg-card shadow-[2px_2px_0_var(--color-ink)]"}`}
               >
                 {label(q)}
               </button>

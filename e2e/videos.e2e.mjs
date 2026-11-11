@@ -167,7 +167,7 @@ try {
   writeFileSync(SCRIPT, JSON.stringify([{ text: "Es un perro", confidence: 0.92 }]));
   await s.click("text=¡A practicar!");
   await s.waitForURL(/\/play\/.+\?video=/);
-  await s.click("text=🎤 Start");
+  await s.click("button:has-text('Start')");
   await s.waitForSelector("text=¡Terminaste!", { timeout: 60000 });
   log("practice game finished");
 

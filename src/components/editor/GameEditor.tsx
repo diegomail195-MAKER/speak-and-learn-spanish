@@ -238,7 +238,7 @@ export function GameEditor({ initial, template, categories }: { initial: EditorG
         </div>
       )}
 
-      <div className="sticky top-0 z-10 -mx-5 mb-6 flex flex-wrap items-center gap-3 border-b border-line bg-paper/95 px-5 py-3 backdrop-blur">
+      <div className="sticky top-0 z-10 -mx-5 mb-6 flex flex-wrap items-center gap-3 border-b border-line bg-paper px-5 py-3">
         <Link href="/teacher/games" className="text-sm font-bold text-muted hover:text-ink">← Activities</Link>
         <span className="font-display text-lg font-semibold">{game.title || "Untitled activity"}</span>
         <Badge tone="sky">{template.name}</Badge>
