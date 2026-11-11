@@ -2,7 +2,11 @@
 import { PrismaClient } from "@prisma/client";
 import { TEMPLATES } from "../src/lib/games/templates";
 
-const db = new PrismaClient();
+// Use the direct (session) connection when available: the transaction pooler (port 6543)
+// can fail with "prepared statement already exists" during builds.
+const db = new PrismaClient({
+  datasourceUrl: process.env.DIRECT_URL || process.env.DATABASE_URL,
+});
 
 async function main() {
   for (const t of TEMPLATES) {
