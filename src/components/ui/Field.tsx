@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 
 export const inputClass =
-  "w-full rounded-xl border border-line bg-card px-3.5 py-2.5 text-[0.98rem] text-ink placeholder:text-muted/70 focus:border-sky focus:outline-none focus:ring-3 focus:ring-sky/20";
+  "w-full min-h-11 rounded-xl border-[1.5px] border-line-strong bg-card px-3.5 py-2.5 text-[0.98rem] text-ink placeholder:text-muted/70 hover:border-ink-2/60 focus:border-indigo focus:outline-none focus:ring-3 focus:ring-indigo/15";
 
 export function Label({ children, htmlFor, hint }: { children: ReactNode; htmlFor?: string; hint?: string }) {
   return (

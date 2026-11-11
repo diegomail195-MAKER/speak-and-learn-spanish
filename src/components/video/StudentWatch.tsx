@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Icon } from "@/components/ui/Icon";
 import { useCallback, useState } from "react";
 import type { PlayVideo } from "@/lib/videos";
 import { VideoPlayer } from "./VideoPlayer";
@@ -29,17 +30,17 @@ export function StudentWatch({ video, startAt, practiceHref, practiceTitle, next
       <VideoPlayer video={video} startAt={startAt} onProgress={onProgress} onEnded={() => setEnded(true)} />
       {saveError && <p className="mt-2 text-sm font-bold text-coral" role="status">We couldn&apos;t save your place. Check the internet connection.</p>}
       {(ended || practiceHref || nextHref) && (
-        <div className={`mt-4 flex flex-wrap items-center gap-3 rounded-xl2 border p-4 ${ended ? "border-teal bg-teal-soft" : "border-line bg-card"}`}>
-          {ended && <p className="font-display text-xl font-semibold text-teal-dark">¡Muy bien! Terminaste el video.</p>}
+        <div className={`animate-rise-in mt-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 p-4 ${ended ? "border-ink bg-aqua shadow-[4px_4px_0_var(--color-ink)]" : "border-line bg-card"}`}>
+          {ended && <p className="flex items-center gap-2 font-display text-xl font-bold text-ink"><span className="grid h-8 w-8 place-items-center rounded-full bg-leaf text-white"><Icon name="check" size={18} strokeWidth={3} /></span>¡Muy bien! Terminaste el video.</p>}
           <div className="ml-auto flex flex-wrap gap-2">
             {practiceHref && (
-              <Link href={practiceHref} className={`rounded-full px-5 py-2.5 font-bold ${ended ? "bg-coral text-white hover:brightness-95" : "border border-line hover:bg-paper-2"}`}>
+              <Link href={practiceHref} className={`press inline-flex min-h-11 items-center gap-2 rounded-xl border-2 border-ink px-5 font-bold shadow-[2px_2px_0_var(--color-ink)] ${ended ? "bg-indigo text-white hover:bg-indigo-dark" : "bg-card hover:bg-paper"}`}>
                 ¡A practicar!{practiceTitle ? ` · ${practiceTitle}` : ""}
               </Link>
             )}
             {nextHref && (
-              <Link href={nextHref} className="rounded-full border border-line px-5 py-2.5 font-bold hover:bg-paper-2">
-                Next video{nextTitle ? `: ${nextTitle}` : ""} →
+              <Link href={nextHref} className="press inline-flex min-h-11 items-center gap-2 rounded-xl border-2 border-ink bg-card px-5 font-bold shadow-[2px_2px_0_var(--color-ink)] hover:bg-paper">
+                Next video{nextTitle ? `: ${nextTitle}` : ""} <Icon name="next" size={18} />
               </Link>
             )}
           </div>

@@ -15,7 +15,7 @@ function Oral({ t }: { t: TemplateDef }) {
       ? ["Answered out loud", "bg-teal-soft text-teal-dark"]
       : t.answers === "voice-or-typing"
         ? ["Out loud or typed — you choose", "bg-sky-soft text-sky"]
-        : ["Speaking optional — you choose", "bg-sun-soft text-[#7a5200]"];
+        : ["Speaking optional — you choose", "bg-sun-soft text-sun-ink"];
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${tone}`}>
       <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" aria-hidden="true"><path fill="currentColor" d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 0 0-7 0v6A3.5 3.5 0 0 0 12 15Zm6-3.5a6 6 0 0 1-12 0H4.5a7.5 7.5 0 0 0 6.75 7.46V21h1.5v-2.04a7.5 7.5 0 0 0 6.75-7.46H18Z" /></svg>
@@ -28,7 +28,7 @@ function CreateButton({ name }: { name: string }) {
   const { pending, data } = useFormStatus();
   const mine = pending && data?.get("templateKey") === name;
   return (
-    <button name="templateKey" value={name} disabled={pending} className="rounded-full bg-coral px-5 py-2 font-bold text-white shadow-soft transition hover:bg-coral-dark disabled:opacity-60">
+    <button name="templateKey" value={name} disabled={pending} className="press min-h-11 rounded-xl border-2 border-ink bg-indigo px-5 font-bold text-white shadow-[2px_2px_0_var(--color-ink)] hover:bg-indigo-dark disabled:opacity-60">
       {mine ? "Creating…" : "Create"}
     </button>
   );
@@ -51,7 +51,7 @@ export function TemplateGallery({ templates }: { templates: TemplateDef[] }) {
             type="button"
             aria-pressed={filter === f.key}
             onClick={() => setFilter(f.key)}
-            className={`rounded-full border-2 px-4 py-1.5 text-sm font-bold transition ${filter === f.key ? "border-ink bg-ink text-white" : "border-line bg-card text-ink-2 hover:border-ink-2"}`}
+            className={`min-h-10 rounded-lg border-2 px-4 text-sm font-bold transition ${filter === f.key ? "border-ink bg-indigo text-white" : "border-line-strong/60 bg-card text-ink-2 hover:border-ink"}`}
           >
             {f.label}
           </button>
@@ -64,14 +64,14 @@ export function TemplateGallery({ templates }: { templates: TemplateDef[] }) {
           return (
             <article
               key={t.key}
-              className={`group flex overflow-hidden rounded-[1.75rem] border border-line bg-card transition hover:-translate-y-0.5 hover:shadow-soft ${wide ? "flex-col sm:col-span-2 md:flex-row" : "flex-col"}`}
+              className={`group flex overflow-hidden rounded-2xl border-2 border-ink bg-card transition hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--color-ink)] ${wide ? "flex-col sm:col-span-2 md:flex-row" : "flex-col"}`}
               aria-labelledby={`tpl-${t.key}`}
             >
               <div className={`shrink-0 ${wide ? "aspect-[5/3] md:aspect-auto md:w-1/2" : "aspect-[5/3]"}`} style={{ background: PREVIEW_BG[t.key] }}>
                 <TemplatePreview k={t.key} />
               </div>
               <div className="flex flex-1 flex-col gap-2 p-5">
-                <h2 id={`tpl-${t.key}`} className="font-display text-xl font-semibold leading-tight">
+                <h2 id={`tpl-${t.key}`} className="font-display text-xl font-bold leading-tight">
                   {t.name} <span className="block font-sans text-sm font-semibold text-muted">{t.nameEs}</span>
                 </h2>
                 <p className="text-sm text-ink-2">{t.description}</p>

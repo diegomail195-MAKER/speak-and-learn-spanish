@@ -190,7 +190,7 @@ try {
   script([{ text: "amor", confidence: 0.1 }, { text: "amor", confidence: 0.93 }, { text: "la manzana", confidence: 0.9 }]);
   await s.click("text=El amor y las frutas");
   await s.waitForURL(/\/play\//);
-  await s.click("text=🎤 Start");
+  await s.click("button:has-text('Start')");
   await s.waitForSelector("text=Te escucho", { timeout: 15000 });
   await s.waitForSelector("text=/No te escuché bien|Habla un poquito más fuerte/", { timeout: 40000 });
   log("Test 12 low-confidence answer → “didn't hear you well” (uncertain, not incorrect)");
@@ -227,7 +227,7 @@ try {
   clearSttLog();
   script([{ text: "eñe a ene", confidence: 0.9 }, { text: "de u", confidence: 0.9 }, { text: "ve corta a", confidence: 0.9 }, { text: "ce a", confidence: 0.9 }]);
   await preview(spId);
-  await page.click("text=🎤 Start");
+  await page.click("button:has-text('Start')");
   await page.waitForSelector("text=Te escucho", { timeout: 15000 });
   await page.waitForSelector("text=¡Terminaste!", { timeout: 90000 });
   const spSummary = (await page.locator("main").textContent()).replace(/\s+/g, " ");
@@ -295,7 +295,7 @@ try {
   }
   await publish();
   await preview(whId);
-  await page.click("text=🎤 Start");
+  await page.click("button:has-text('Start')");
   for (let k = 0; k < 2; k++) {
     await page.click("button:has-text('Spin!')");
     await page.waitForTimeout(4500);
@@ -318,7 +318,7 @@ try {
   await page.getByLabel("Box order").selectOption("sequential");
   await publish();
   await preview(bxId);
-  await page.click("text=🎤 Start");
+  await page.click("button:has-text('Start')");
   assert(await page.locator("button[aria-label='Box 2']").isDisabled(), "sequential order: box 2 is locked first");
   script([{ text: "me llamo Lucía", confidence: 0.9 }, { text: "tengo ocho años", confidence: 0.9 }]);
   await page.click("button[aria-label='Box 1']");
@@ -339,7 +339,7 @@ try {
   }
   await publish();
   await preview(mtId);
-  await page.click("text=🎤 Start");
+  await page.click("button:has-text('Start')");
   script([{ text: "el perro", confidence: 0.9 }, { text: "el gato", confidence: 0.9 }]);
   const pics = page.locator("[aria-label='Picture — drop a word here']");
   // Pictures are in editor order: dog, cat.
@@ -358,10 +358,10 @@ try {
   assert((await page.locator("[role=listbox] [role=option]").count()) === 27, "27 letters");
   await page.click("[role=option][aria-label^='Ñ']");
   await page.evaluate(() => (window.__spoken = []));
-  await page.click("button:has-text('🔊 Listen')");
+  await page.click("button:has-text('Listen')");
   await page.waitForFunction(() => window.__spoken.some((x) => x.text === "eñe" && x.lang === "es-MX"));
   script([{ text: "eñe", confidence: 0.9 }]);
-  await page.click("button:has-text('🎤 Repeat')");
+  await page.click("button:has-text('Repeat')");
   await page.waitForSelector(CORRECT, { timeout: 30000 });
   await shot(page, "t04-alphabet");
   log("Alphabet: Ñ “eñe” played by the Spanish voice and repeated by voice");

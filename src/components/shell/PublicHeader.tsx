@@ -9,7 +9,7 @@ export function PublicHeader() {
         <Logo />
       </Link>
       <nav className="flex items-center gap-1.5 sm:gap-2">
-        <Link href="/login" className="hidden rounded-full px-4 py-2 text-sm font-bold text-ink-2 hover:bg-paper-2 sm:inline-flex">
+        <Link href="/login" className="hidden min-h-10 items-center rounded-lg px-4 text-sm font-bold text-ink-2 hover:bg-paper-2 hover:text-ink sm:inline-flex">
           Teacher sign in
         </Link>
         <ButtonLink href="/student" variant="voice" size="sm">

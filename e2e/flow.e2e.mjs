@@ -154,7 +154,7 @@ try {
   script([{ text: "Es un perro", confidence: 0.92 }, { text: "es un perro", confidence: 0.9 }, { text: "un gato", confidence: 0.88 }]);
   await s.click("text=Los animales");
   await s.waitForURL(/\/play\//);
-  await s.click("text=🎤 Start");
+  await s.click("button:has-text('Start')");
   await s.waitForSelector("text=Te escucho", { timeout: 15000 });
   log("microphone open, listening without any click");
   await shot(s, "04-student-activity");

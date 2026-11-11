@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import type { PlayQuestion } from "@/lib/games/types";
 import { plainText } from "@/lib/text/segments";
 import { DoneScreen, VoiceDock, shuffled } from "../parts";
@@ -82,7 +83,7 @@ export function MatchBoard({ s, questions, exitHref }: { s: VoiceSession; questi
               if (wq) drop(wq, q);
             }}
             onClick={() => selected && drop(questions.find((x) => x.id === selected)!, q)}
-            className={`relative overflow-hidden rounded-2xl border-2 bg-card p-2 transition ${speaking?.id === q.id ? "border-teal ring-4 ring-teal/25" : matched[q.id] ? "border-leaf/50" : wrong === q.id ? "border-coral" : selected ? "cursor-pointer border-sky/60" : "border-line"}`}
+            className={`relative overflow-hidden rounded-2xl border-2 bg-card p-2 transition ${speaking?.id === q.id ? "border-teal ring-4 ring-teal/25" : matched[q.id] ? "border-leaf" : wrong === q.id ? "border-dashed border-coral" : selected ? "cursor-pointer border-indigo shadow-[3px_3px_0_var(--color-indigo)]" : "border-line-strong/60"}`}
             role="button"
             aria-label={matched[q.id] ? `Matched: ${word(q)}` : "Picture — drop a word here"}
           >
@@ -90,8 +91,8 @@ export function MatchBoard({ s, questions, exitHref }: { s: VoiceSession; questi
               // eslint-disable-next-line @next/next/no-img-element
               <img src={q.imageUrl} alt="" className="aspect-[4/3] w-full rounded-xl object-contain" draggable={false} />
             )}
-            <div className="mt-2 grid h-10 place-items-center rounded-xl border-2 border-dashed border-line font-display text-lg font-semibold">
-              {matched[q.id] ? <span className="text-leaf">{word(q)}</span> : <span className="text-muted">?</span>}
+            <div className={`mt-2 grid min-h-11 place-items-center rounded-lg border-2 font-display text-lg font-bold ${matched[q.id] ? "border-leaf bg-leaf-soft" : "border-dashed border-line-strong"}`}>
+              {matched[q.id] ? <span className="inline-flex items-center gap-1.5 text-leaf"><Icon name="check" size={18} strokeWidth={3} />{word(q)}</span> : <span className="text-muted">?</span>}
             </div>
           </div>
         ))}
@@ -108,20 +109,20 @@ export function MatchBoard({ s, questions, exitHref }: { s: VoiceSession; questi
               onDragStart={(e) => e.dataTransfer.setData("text/plain", q.id)}
               onClick={() => setSelected((x) => (x === q.id ? null : q.id))}
               aria-pressed={selected === q.id}
-              className={`cursor-grab rounded-full border-2 px-4 py-2 font-display text-lg font-semibold ${selected === q.id ? "border-teal bg-teal-soft text-teal-dark" : "border-line bg-card"}`}
+              className={`press min-h-12 cursor-grab rounded-xl border-2 px-4 py-2 font-display text-lg font-bold ${selected === q.id ? "-translate-y-0.5 border-indigo bg-indigo text-white shadow-[3px_3px_0_var(--color-ink)]" : "border-ink bg-card shadow-[2px_2px_0_var(--color-ink)]"}`}
             >
               {word(q)}
             </button>
           ))}
       </div>
       {speaking && (
-        <p className="mt-4 text-center font-display text-3xl font-semibold">
+        <p className="mt-4 text-center font-display text-3xl font-bold">
           Di: <span className="text-teal-dark">{word(speaking)}</span>
         </p>
       )}
       <VoiceDock s={s} showControls={false}>
-        {speaking && !speakRequired && <Button variant="ghost" onClick={s.skip}>Skip speaking →</Button>}
-        {speaking && <Button variant="secondary" onClick={s.repeat} disabled={s.phase !== "listening"}>🔊 Escuchar otra vez</Button>}
+        {speaking && !speakRequired && <Button variant="ghost" onClick={s.skip}>Skip speaking <Icon name="next" size={18} /></Button>}
+        {speaking && <Button variant="secondary" onClick={s.repeat} disabled={s.phase !== "listening"}><Icon name="speaker" /> Escuchar otra vez</Button>}
       </VoiceDock>
     </div>
   );

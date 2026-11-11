@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Icon } from "@/components/ui/Icon";
 import { ButtonLink } from "@/components/ui/Button";
 import { PageHeader, Panel } from "@/components/ui/Panel";
 import { requireTeacherPage } from "@/lib/auth/guards";
@@ -44,7 +45,7 @@ export default async function Dashboard() {
             {steps.map((s, i) => (
               <li key={s.label}>
                 <Link href={s.href} className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold ${s.done ? "bg-leaf-soft text-leaf" : "bg-paper-2 text-ink-2 hover:bg-line"}`}>
-                  <span className="grid h-6 w-6 place-items-center rounded-full bg-card text-xs">{s.done ? "✓" : i + 1}</span>
+                  <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-[1.5px] text-xs ${s.done ? "border-leaf bg-leaf text-white" : "border-ink bg-card"}`}>{s.done ? <Icon name="check" size={14} strokeWidth={3} /> : i + 1}</span>
                   {s.label}
                 </Link>
               </li>
@@ -53,7 +54,7 @@ export default async function Dashboard() {
         </Panel>
       )}
 
-      <dl className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl2 border border-line bg-line sm:grid-cols-4">
+      <dl className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-4">
         {[
           ["Students", students],
           ["Classes", classes],
@@ -61,8 +62,11 @@ export default async function Dashboard() {
           ["Open assignments", assignments],
         ].map(([k, v]) => (
           <div key={k} className="bg-card px-5 py-4">
-            <dt className="text-xs font-bold uppercase tracking-wider text-muted">{k}</dt>
-            <dd className="mt-1 font-display text-3xl font-semibold">{v}</dd>
+            <dt className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted">
+              <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full border border-ink ${{ Students: "bg-sun", Classes: "bg-aqua", Games: "bg-coral-bright", "Open assignments": "bg-indigo" }[k as string]}`} />
+              {k}
+            </dt>
+            <dd className="mt-1 font-display text-4xl font-bold tabular-nums">{v}</dd>
           </div>
         ))}
       </dl>
@@ -89,10 +93,10 @@ export default async function Dashboard() {
           <h2 className="font-display text-lg font-semibold">Speech services</h2>
           <ul className="mt-3 space-y-2 text-sm">
             <li>
-              <strong>Voice generation (TTS):</strong> {tts ? <span className="text-leaf">{tts} connected</span> : <span className="text-[#8a5a00]">not configured — students hear the device&apos;s Spanish voice when available</span>}
+              <strong>Voice generation (TTS):</strong> {tts ? <span className="text-leaf">{tts} connected</span> : <span className="text-sun-ink">not configured — students hear the device&apos;s Spanish voice when available</span>}
             </li>
             <li>
-              <strong>Speech recognition (STT):</strong> {stt === "scripted-test" ? <span className="font-bold text-coral-dark">TEST RECOGNIZER — for automated tests only, not for classrooms</span> : stt ? <span className="text-leaf">{stt} connected</span> : <span className="text-[#8a5a00]">using Chrome&apos;s built-in recognizer (needs internet; audio goes to Google)</span>}
+              <strong>Speech recognition (STT):</strong> {stt === "scripted-test" ? <span className="font-bold text-coral-dark">TEST RECOGNIZER — for automated tests only, not for classrooms</span> : stt ? <span className="text-leaf">{stt} connected</span> : <span className="text-sun-ink">using Chrome&apos;s built-in recognizer (needs internet; audio goes to Google)</span>}
             </li>
           </ul>
         </Panel>
