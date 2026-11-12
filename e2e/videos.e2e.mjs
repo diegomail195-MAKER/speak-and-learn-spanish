@@ -24,6 +24,17 @@ const ctx = await browser.newContext({ permissions: ["microphone"], viewport: { 
 const page = await ctx.newPage();
 page.on("pageerror", (e) => console.error("PAGE ERROR", e.message));
 
+// Pictures are added through the "Add image" panel (upload tab), then applied in the image editor.
+async function addImage(scope, file) {
+  await scope.getByRole("button", { name: /^Add image/ }).first().click();
+  const dlg = page.getByRole("dialog", { name: "Add image" });
+  await dlg.getByRole("tab", { name: "Upload image" }).click();
+  await dlg.locator("input[type=file]").setInputFiles(fx(file));
+  const ed = page.getByRole("dialog", { name: "Edit" });
+  await ed.getByRole("button", { name: "Apply" }).click();
+  await ed.waitFor({ state: "detached" });
+}
+
 try {
   // 1. Teacher, class, LE2 Group A, one student
   await page.goto(`${BASE}/signup`);
@@ -55,12 +66,12 @@ try {
   await page.click("button[value=SPEAK_AND_ANSWER]");
   await page.waitForURL(/\/edit$/);
   await page.getByLabel("Activity title").fill("Practica: el perro");
-  const q1 = page.locator("section[aria-label='Question 1']");
+  const q1 = page.locator("li[aria-label='Question 1']");
   await q1.locator("input[placeholder='¿Qué animal es?']").fill("¿Qué animal es?");
   await q1.locator("input[placeholder='Es un perro.']").fill("Es un perro.");
-  await q1.locator("input[type=file]").setInputFiles(fx("dog.png"));
+  await addImage(q1, "dog.png");
   await q1.locator("img").waitFor();
-  await page.waitForSelector("text=/All changes saved|Saved \\d/", { timeout: 15000 });
+  await page.waitForSelector("text=/✓ Saved|✓ Guardado/", { timeout: 15000 });
   await page.click("button:text-is('Publish')");
   await page.waitForSelector("button:text-is('Update published')", { timeout: 20000 });
   log("practice game published");

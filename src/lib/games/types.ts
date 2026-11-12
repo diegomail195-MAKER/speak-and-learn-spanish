@@ -16,10 +16,42 @@ export interface GameSettings {
   diagramImageId?: string | null;
 }
 
+export type Lang = "es-419" | "en-US" | "fr-FR";
+
+/**
+ * Audio attached to a card face or an item. A recording, an uploaded file or saved
+ * text-to-speech has a mediaId (MediaAsset of kind AUDIO). Without one, the text is read by the
+ * device's own voice in `language` (used when no TTS service is configured).
+ */
+export interface FaceAudio {
+  mediaId?: string | null;
+  /** Words read aloud (may differ from the visible text: show a picture, say "rojo"). */
+  text: string;
+  language: Lang;
+  voice?: string | null;
+  source: "record" | "upload" | "tts" | "browser";
+  /** File name for uploads, shown in the editor. */
+  name?: string;
+}
+
+/** The back of a flashcard: any mix of text, picture and audio. */
+export interface FaceData {
+  text?: string;
+  imageAssetId?: string | null;
+  imageAlt?: string;
+  audio?: FaceAudio | null;
+}
+
 /** Template-specific item fields. */
 export interface ItemData {
   translation?: string;
   translationLanguage?: "es-419" | "en-US" | "fr-FR";
+  /** Alt text for the item's (front) picture. */
+  imageAlt?: string;
+  /** Audio of the item / flashcard front. */
+  audio?: FaceAudio | null;
+  /** Flashcards: the back face. Kept when the activity switches to one side. */
+  back?: FaceData;
   /** Label the Diagram: point position in % of the picture. */
   x?: number;
   y?: number;
@@ -51,6 +83,8 @@ export interface EditorQuestion {
 
 export interface EditorItem {
   id?: string;
+  /** Client-only key, stable across reorders (drag & drop, undo). */
+  key?: string;
   imageAssetId: string | null;
   imageUrl?: string | null;
   text: string;
@@ -79,6 +113,14 @@ export interface EditorGame {
   updatedAt: string;
 }
 
+/** A face as the player receives it (media resolved to URLs). */
+export interface PlayFace {
+  text: string;
+  imageUrl: string | null;
+  imageAlt: string;
+  audio: { url: string | null; text: string; language: Lang } | null;
+}
+
 /** What the activity player receives. */
 export interface PlayQuestion {
   id: string;
@@ -97,6 +139,11 @@ export interface PlayQuestion {
   modelAudioUrl: string | null;
   answerLanguage: "es-419" | "en-US" | "fr-FR";
   data: ItemData;
+  imageAlt: string;
+  /** Audio of the item / flashcard front. */
+  audio: PlayFace["audio"];
+  /** Flashcards: the back face (null for old cards: the answer and translation are shown). */
+  back: PlayFace | null;
 }
 
 export interface PlayGame {

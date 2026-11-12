@@ -88,7 +88,10 @@ export function MatchBoard({ s, questions, exitHref }: { s: VoiceSession; questi
           >
             {q.imageUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={q.imageUrl} alt="" className="aspect-[4/3] w-full rounded-xl object-contain" draggable={false} />
+              <img src={q.imageUrl} alt={q.imageAlt} className="aspect-[4/3] w-full rounded-xl object-contain" draggable={false} />
+            )}
+            {q.audio && (
+              <button type="button" onClick={(e) => (e.stopPropagation(), s.say(q.audio!.text, q.audio!.url, q.audio!.language))} className="absolute right-3 top-3 rounded-full bg-card/90 px-2 py-1 text-sm shadow" aria-label="Listen">🔊</button>
             )}
             <div className="mt-2 grid h-10 place-items-center rounded-xl border-2 border-dashed border-line font-display text-lg font-semibold">
               {matched[q.id] ? <span className="text-leaf">{word(q)}</span> : <span className="text-muted">?</span>}

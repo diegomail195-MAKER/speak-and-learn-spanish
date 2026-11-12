@@ -7,9 +7,17 @@ import { hasBlockedWords, isSafeAnnotation, type SafeSearchAnnotation } from "./
 // with safesearch=true). Teachers only see results; images are copied into our private storage
 // when chosen, so students never load anything from outside the platform.
 
-export type ImageResult = { id: string; thumb: string; tags: string; author: string; pageUrl: string };
+export type ImageResult = { id: string; thumb: string; tags: string; author: string; pageUrl: string; width: number; height: number; license: string };
+export type ImageSize = "all" | "small" | "medium" | "large";
+const LICENSE = "Pixabay Content License";
 
-type PixabayHit = { id: number; previewURL: string; webformatURL: string; tags: string; user: string; pageURL: string };
+/** Size buckets by the original's longest side (Pixabay reports it). */
+export function sizeOf(w: number, h: number): Exclude<ImageSize, "all"> {
+  const m = Math.max(w, h);
+  return m < 1500 ? "small" : m < 3000 ? "medium" : "large";
+}
+
+type PixabayHit = { id: number; previewURL: string; webformatURL: string; tags: string; user: string; pageURL: string; imageWidth?: number; imageHeight?: number };
 
 const PIXABAY_HOSTS = new Set(["pixabay.com", "cdn.pixabay.com"]);
 
@@ -77,12 +85,14 @@ async function visionSafe(images: Buffer[]): Promise<boolean[]> {
 
 const smallUrl = (h: PixabayHit) => pixabayUrl(h.webformatURL.replace("_640.", "_340.")) ?? pixabayUrl(h.previewURL);
 
-export async function searchImages(query: string, kind: "photo" | "illustration" | "all"): Promise<ImageResult[]> {
+export async function searchImages(query: string, kind: "photo" | "illustration" | "all", size: ImageSize = "all"): Promise<ImageResult[]> {
   const q = query.trim().slice(0, 100);
   if (!q) return [];
   if (hasBlockedWords(q)) throw new HttpError(422, "Esa búsqueda no está permitida. Prueba con otra palabra.");
-  const hits = (await pixabay({ q, image_type: kind, lang: "es", per_page: "30", order: "popular" }))
-    .filter((h) => !hasBlockedWords(h.tags) && pixabayUrl(h.previewURL) && pixabayUrl(h.webformatURL));
+  const hits = (await pixabay({ q, image_type: kind, lang: "es", per_page: size === "all" ? "30" : "100", order: "popular", ...(size === "large" ? { min_width: "3000" } : {}) }))
+    .filter((h) => !hasBlockedWords(h.tags) && pixabayUrl(h.previewURL) && pixabayUrl(h.webformatURL))
+    .filter((h) => size === "all" || !h.imageWidth || !h.imageHeight || sizeOf(h.imageWidth, h.imageHeight) === size)
+    .slice(0, 30);
 
   let safe = hits;
   if (visionKey()) {
@@ -94,7 +104,7 @@ export async function searchImages(query: string, kind: "photo" | "illustration"
     const verdicts = await visionSafe(withBytes.map((x) => x.b));
     safe = withBytes.filter((_, i) => verdicts[i]).map((x) => x.h);
   }
-  return safe.slice(0, 24).map((h) => ({ id: String(h.id), thumb: h.previewURL, tags: h.tags, author: h.user, pageUrl: h.pageURL }));
+  return safe.slice(0, 24).map((h) => ({ id: String(h.id), thumb: h.previewURL, tags: h.tags, author: h.user, pageUrl: h.pageURL, width: h.imageWidth ?? 0, height: h.imageHeight ?? 0, license: LICENSE }));
 }
 
 /**
@@ -112,6 +122,7 @@ export async function fetchSafeImage(id: string): Promise<{ data: Buffer; mime: 
   if (!mime) throw new HttpError(415, "Unsupported image");
   const [ok] = await visionSafe([data]);
   if (!ok) throw new HttpError(422, "Esta imagen fue bloqueada por el filtro de seguridad.");
-  const name = `${hit.tags.split(",")[0]?.trim() || "image"} (Pixabay · ${hit.user})`;
+  // Source, author and license travel with the file name (shown in the media library).
+  const name = `${hit.tags.split(",")[0]?.trim() || "image"} — ${hit.user} / Pixabay (${LICENSE}) ${hit.pageURL}`.slice(0, 200);
   return { data, mime, name };
 }

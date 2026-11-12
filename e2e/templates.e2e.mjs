@@ -65,6 +65,17 @@ const ctx = await browser.newContext({ permissions: ["microphone"], viewport: { 
 await ctx.addInitScript(INIT);
 const page = await ctx.newPage();
 page.on("pageerror", (e) => console.error("PAGE ERROR", e.message));
+
+// Pictures are added through the "Add image" panel (upload tab), then applied in the image editor.
+async function addImage(scope, file) {
+  await scope.getByRole("button", { name: /^Add image/ }).first().click();
+  const dlg = page.getByRole("dialog", { name: "Add image" });
+  await dlg.getByRole("tab", { name: "Upload image" }).click();
+  await dlg.locator("input[type=file]").setInputFiles(fx(file));
+  const ed = page.getByRole("dialog", { name: "Edit" });
+  await ed.getByRole("button", { name: "Apply" }).click();
+  await ed.waitFor({ state: "detached" });
+}
 page.on("dialog", (d) => d.accept());
 
 async function newActivity(key, title) {
@@ -75,7 +86,7 @@ async function newActivity(key, title) {
   return page.url().split("/").at(-2);
 }
 async function saved() {
-  await page.waitForSelector("text=/All changes saved|Saved \\d/", { timeout: 15000 });
+  await page.waitForSelector("text=/✓ Saved|✓ Guardado/", { timeout: 15000 });
 }
 async function publish() {
   await saved();
@@ -136,7 +147,8 @@ try {
 
   // ── Tests 2, 6, 7, 8, 9, 12: Flashcards with a multilingual prompt, assigned and played ─
   const fcId = await newActivity("FLASHCARDS", "El amor y las frutas");
-  const c1 = page.locator("section[aria-label='Card 1']");
+  const c1 = page.locator("li[aria-label='Card 1']");
+  await c1.locator("summary").click(); // the spoken answer is optional and folded away
   const prompt1 = c1.locator("input[placeholder='¿Qué fruta es?']");
   await prompt1.fill("¿Cómo se dice en español, LOVE?");
   // The app only proposes; the teacher confirms.
@@ -156,12 +168,13 @@ try {
   assert((await prompt1.inputValue()) === tagged, "spell check changed the prompt");
   await c1.locator("input[placeholder='La manzana.']").fill("amor");
   await c1.locator("select[aria-label='Answer language']").selectOption("es-419");
-  await c1.locator("input[placeholder='the apple']").fill("love");
+  await c1.getByRole("textbox", { name: "Back: Text" }).fill("love");
   await page.click("text=+ Add card");
-  const c2 = page.locator("section[aria-label='Card 2']");
+  const c2 = page.locator("li[aria-label='Card 2']");
+  await c2.locator("summary").click();
   await c2.locator("input[placeholder='¿Qué fruta es?']").fill("¿Qué fruta es?");
   await c2.locator("input[placeholder='La manzana.']").fill("La manzana.");
-  await c2.locator("input[type=file]").setInputFiles(fx("dog.png"));
+  await addImage(c2, "dog.png");
   await c2.locator("img").waitFor();
   await saved();
   await shot(page, "t02-flashcards-editor");
@@ -218,10 +231,10 @@ try {
 
   // ── Tests 3, 11: Spell the Word by voice (letter names in several breaths) ───────────
   const spId = await newActivity("SPELL_THE_WORD", "Deletrea");
-  const w1 = page.locator("section[aria-label='Word 1']");
+  const w1 = page.locator("li[aria-label='Word 1']");
   await w1.locator("input[placeholder='mariposa']").fill("ñandú");
   await page.click("text=+ Add word");
-  const w2 = page.locator("section[aria-label='Word 2']");
+  const w2 = page.locator("li[aria-label='Word 2']");
   await w2.locator("input[placeholder='mariposa']").fill("vaca");
   await publish();
   clearSttLog();
@@ -238,7 +251,7 @@ try {
   // ── Spell the Word, typing mode: precise feedback, no microphone ─────────────────────
   const tyId = await newActivity("SPELL_THE_WORD", "Escribe");
   await page.getByLabel("How students spell").selectOption("type");
-  await page.locator("section[aria-label='Word 1'] input[placeholder='mariposa']").fill("árbol");
+  await page.locator("li[aria-label='Word 1'] input[placeholder='mariposa']").fill("árbol");
   await publish();
   await preview(tyId);
   const gumBefore = await page.evaluate(() => window.__gum);
@@ -257,11 +270,11 @@ try {
   // ── Test 5: Label the Diagram (tap a label, then its point) ──────────────────────────
   const dgId = await newActivity("LABEL_THE_DIAGRAM", "El perro");
   await page.getByLabel("How students label").selectOption("drag");
-  await page.locator("section[aria-label='Picture to label'] input[type=file]").setInputFiles(fx("dog.png"));
+  await page.locator("[aria-label='Picture to label']").first().waitFor(); await addImage(page.locator("section[aria-label='Picture to label']"), "dog.png");
   const editorPic = page.locator("[data-testid=diagram-editor]");
   await editorPic.waitFor();
-  const p1 = page.locator("section[aria-label='Point 1']");
-  const p2 = page.locator("section[aria-label='Point 2']");
+  const p1 = page.locator("li[aria-label='Point 1']");
+  const p2 = page.locator("li[aria-label='Point 2']");
   await field(p1, "Label").fill("la cabeza");
   await p1.locator("input[placeholder='La cabeza.']").fill("la cabeza");
   await field(p2, "Label").fill("la cola");
@@ -269,7 +282,7 @@ try {
   await p1.locator("button:has-text('Not placed')").click().catch(() => {});
   await editorPic.click({ position: { x: 60, y: 50 } });
   await editorPic.click({ position: { x: 220, y: 150 } });
-  assert((await page.locator("section[aria-label='Point 2'] >> text=/Placed|Placing/").count()) > 0, "point 2 placed");
+  assert((await page.locator("li[aria-label='Point 2'] >> text=/Placed|Placing/").count()) > 0, "point 2 placed");
   await publish();
   await preview(dgId);
   await page.click("button:has-text('Start')");
@@ -288,7 +301,7 @@ try {
   const whId = await newActivity("SPIN_THE_WHEEL", "La ruleta de colores");
   for (const [i, [slice, q, a]] of [["Rojo", "¿De qué color es la fresa?", "roja"], ["Amarillo", "¿De qué color es el sol?", "amarillo"]].entries()) {
     // these templates start with two items
-    const sec = page.locator(`section[aria-label='Slice ${i + 1}']`);
+    const sec = page.locator(`li[aria-label='Slice ${i + 1}']`);
     await field(sec, "Text on the wheel").fill(slice);
     await sec.locator("input[placeholder='¿De qué color es el sol?']").fill(q);
     await sec.locator("input[placeholder='Amarillo.']").fill(a);
@@ -311,7 +324,7 @@ try {
   const bxId = await newActivity("OPEN_THE_BOX", "Las cajas");
   for (const [i, [q, a]] of [["¿Cómo te llamas?", "me llamo Lucía"], ["¿Cuántos años tienes?", "tengo ocho años"]].entries()) {
     // these templates start with two items
-    const sec = page.locator(`section[aria-label='Box ${i + 1}']`);
+    const sec = page.locator(`li[aria-label='Box ${i + 1}']`);
     await sec.locator("input[placeholder='¿Qué es?']").fill(q);
     await sec.locator("input[placeholder='Es un gato.']").fill(a);
   }
@@ -332,8 +345,8 @@ try {
   const mtId = await newActivity("MATCH_AND_SPEAK", "Animales");
   for (const [i, [img, w]] of [["dog.png", "el perro"], ["cat.png", "el gato"]].entries()) {
     // these templates start with two items
-    const sec = page.locator(`section[aria-label='Pair ${i + 1}']`);
-    await sec.locator("input[type=file]").setInputFiles(fx(img));
+    const sec = page.locator(`li[aria-label='Pair ${i + 1}']`);
+    await addImage(sec, img);
     await sec.locator("img").waitFor();
     await sec.locator("input[placeholder='el perro']").fill(w);
   }

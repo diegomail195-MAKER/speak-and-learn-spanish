@@ -65,7 +65,12 @@ export interface TemplateDef {
   answerPlaceholder: string;
   /** Items the editor starts with. */
   minItems?: number;
+  /** Most items an activity may have (checked in the editor and on the server). */
+  maxItems?: number;
 }
+
+export const DEFAULT_MAX_ITEMS = 100;
+export const maxItemsFor = (t: TemplateDef | undefined) => t?.maxItems ?? DEFAULT_MAX_ITEMS;
 
 export const TEMPLATES: TemplateDef[] = [
   {
@@ -81,10 +86,21 @@ export const TEMPLATES: TemplateDef[] = [
     fields: { image: "optional", prompt: true, answer: true, itemText: { label: "Front text", placeholder: "la manzana", required: false }, translation: true },
     defaults: { acceptShortAnswer: true, showAnswerText: false, evaluationMode: "PHRASE" },
     options: [
+      {
+        key: "sides",
+        label: "Card sides",
+        type: "choice",
+        default: "two",
+        choices: [
+          { value: "two", label: "Two sides" },
+          { value: "one", label: "One side" },
+        ],
+      },
       { key: "shuffle", label: "Shuffle cards", type: "boolean", default: false },
       { key: "practiceMissed", label: "Practice missed cards at the end", type: "boolean", default: true },
     ],
     itemNoun: "card",
+    maxItems: 100,
     promptPlaceholder: "¿Qué fruta es?",
     answerPlaceholder: "La manzana.",
   },
