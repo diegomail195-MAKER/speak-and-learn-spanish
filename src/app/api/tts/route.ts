@@ -29,7 +29,7 @@ export const POST = handle(async (req: Request) => {
   const { user } = await requireTeacher();
   const body = schema.parse(await req.json());
   if (!ttsProvider()) return NextResponse.json({ error: "tts_not_configured" }, { status: 503 });
-  if (!rateLimit(`tts:${user.schoolId}`, 400, 60 * 60_000)) throw new HttpError(429, "Audio generation limit reached, try again later");
+  if (!(await rateLimit(`tts:${user.schoolId}`, 400, 60 * 60_000))) throw new HttpError(429, "Audio generation limit reached, try again later");
   try {
     const r = await ensureAudio({ schoolId: user.schoolId, userId: user.id, text: body.text, language: body.language, voiceId: body.voice, voices: body.voices, rate: body.rate, style: body.style, regenerate: body.regenerate });
     if (!r) throw new HttpError(400, "No voice available for that language");
@@ -37,6 +37,6 @@ export const POST = handle(async (req: Request) => {
   } catch (e) {
     if (e instanceof HttpError) throw e;
     console.error(e);
-    return NextResponse.json({ error: "tts_failed", message: (e as Error).message.slice(0, 200) }, { status: 502 });
+    return NextResponse.json({ error: "tts_failed", message: "The voice service could not create this audio. Try again later." }, { status: 502 });
   }
 });

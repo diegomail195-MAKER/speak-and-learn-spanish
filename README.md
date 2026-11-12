@@ -35,6 +35,7 @@ npm run build && npx next start -p 3100   # with STT_PROVIDER=scripted-test, see
 BASE_URL=http://localhost:3100 E2E_STT_SCRIPT_FILE=/tmp/stt.json node e2e/flow.e2e.mjs
 BASE_URL=http://localhost:3100 E2E_STT_SCRIPT_FILE=/tmp/stt.json node e2e/videos.e2e.mjs
 BASE_URL=http://localhost:3100 E2E_STT_SCRIPT_FILE=/tmp/stt.json E2E_STT_LOG=/tmp/stt.log node e2e/templates.e2e.mjs  # server started with the same E2E_STT_LOG
+BASE_URL=http://localhost:3100 SERVER_LOG=/tmp/server.log node e2e/security.e2e.mjs  # server started with EMAIL_DRIVER=console, APP_URL=$BASE_URL, output in SERVER_LOG
 ```
 
 ## How the oral activity works

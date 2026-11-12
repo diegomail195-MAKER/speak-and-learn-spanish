@@ -15,7 +15,7 @@ export const POST = handle(async (req: Request) => {
   const user = await requireUser();
   const provider = sttProvider();
   if (!provider) return NextResponse.json({ error: "stt_not_configured" }, { status: 503 });
-  if (!rateLimit(`stt:${user.id}`, 120, 10 * 60_000)) throw new HttpError(429, "Too many requests");
+  if (!(await rateLimit(`stt:${user.id}`, 120, 10 * 60_000))) throw new HttpError(429, "Too many requests");
 
   const url = new URL(req.url);
   const language = url.searchParams.get("language") ?? "es-419";
