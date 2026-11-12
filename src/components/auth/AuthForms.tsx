@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/Button";
 import { FormError, Input, Label } from "@/components/ui/Field";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { requestPasswordReset, resetPassword, signInTeacher, signUpTeacher } from "@/lib/actions/auth";
 
 export function TeacherSignInForm() {
@@ -16,7 +17,7 @@ export function TeacherSignInForm() {
       </div>
       <div>
         <Label htmlFor="password">Password</Label>
-        <Input id="password" name="password" type="password" autoComplete="current-password" required />
+        <PasswordInput id="password" name="password" autoComplete="current-password" required />
         <p className="mt-1.5 text-right text-sm">
           <Link href="/forgot-password" className="font-bold text-coral hover:underline">
             Forgot your password? · ¿Olvidaste tu contraseña?
@@ -55,7 +56,7 @@ export function TeacherSignUpForm() {
       </div>
       <div>
         <Label htmlFor="password" hint="at least 10 characters">Password</Label>
-        <Input id="password" name="password" type="password" autoComplete="new-password" minLength={10} required />
+        <PasswordInput id="password" name="password" autoComplete="new-password" minLength={10} required />
       </div>
       <FormError message={state?.error} />
       <Button type="submit" className="w-full" disabled={pending}>
@@ -129,11 +130,11 @@ export function ResetPasswordForm({ token }: { token: string }) {
       <input type="hidden" name="token" value={token} />
       <div>
         <Label htmlFor="password" hint="at least 10 characters · mínimo 10">New password · Contraseña nueva</Label>
-        <Input id="password" name="password" type="password" autoComplete="new-password" minLength={10} required />
+        <PasswordInput id="password" name="password" autoComplete="new-password" minLength={10} required />
       </div>
       <div>
         <Label htmlFor="confirm">Repeat it · Repítela</Label>
-        <Input id="confirm" name="confirm" type="password" autoComplete="new-password" minLength={10} required />
+        <PasswordInput id="confirm" name="confirm" autoComplete="new-password" minLength={10} required />
       </div>
       <FormError message={state?.error} />
       <Button type="submit" className="w-full" disabled={pending}>
