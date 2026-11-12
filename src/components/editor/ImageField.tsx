@@ -44,7 +44,7 @@ export function ImageField({
   label?: string;
 }) {
   const { t } = useUi();
-  const [panel, setPanel] = useState(false);
+  const [panel, setPanel] = useState<false | "search" | "upload">(false);
   const [editing, setEditing] = useState<{ src: string; name: string; local: boolean; file?: File } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -97,7 +97,7 @@ export function ImageField({
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex flex-wrap gap-1 text-[11px] font-bold">
               <button type="button" onClick={() => setEditing({ src, name: "image.webp", local: false })} className="rounded-full bg-paper-2 px-2 py-0.5 text-ink-2 hover:bg-line">{t.edit}</button>
-              <button type="button" onClick={() => setPanel(true)} className="rounded-full bg-paper-2 px-2 py-0.5 text-ink-2 hover:bg-line">{t.replace}</button>
+              <button type="button" onClick={() => setPanel("search")} className="rounded-full bg-paper-2 px-2 py-0.5 text-ink-2 hover:bg-line">{t.replace}</button>
               <button type="button" onClick={() => onChange(null)} className="rounded-full px-2 py-0.5 text-muted hover:text-coral-dark">{t.remove}</button>
             </div>
             {onAlt && (
@@ -114,19 +114,30 @@ export function ImageField({
           </div>
         </div>
       ) : inline ? (
+        <span className="flex">
         <button
           type="button"
-          onClick={() => setPanel(true)}
+          onClick={() => setPanel("search")}
+          className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-paper-2 hover:text-sky"
+          aria-label={`${t.searchWeb}${label ? ` (${label})` : ""}`}
+          title={t.searchWeb}
+        >
+          <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="10.5" cy="10.5" r="6" /><path d="m15 15 5 5" /></svg>
+        </button>
+        <button
+          type="button"
+          onClick={() => setPanel("upload")}
           className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-paper-2 hover:text-sky"
           aria-label={`${t.addImage}${label ? ` (${label})` : ""}`}
-          title={t.addImage}
+          title={t.uploadImage}
         >
           <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5" /><circle cx="9" cy="10" r="1.8" /><path d="m4 18 5-5 4 4 3-3 4 4" /></svg>
         </button>
+        </span>
       ) : (
         <button
           type="button"
-          onClick={() => setPanel(true)}
+          onClick={() => setPanel("search")}
           className={`grid place-items-center rounded-lg border-2 border-dashed border-line bg-paper text-center text-xs font-bold text-ink-2 hover:border-sky hover:text-sky ${compact ? "h-14 w-14" : "h-28 w-36"}`}
           aria-label={`${t.addImage}${label ? ` (${label})` : ""}`}
           title={t.addImage}
@@ -140,6 +151,7 @@ export function ImageField({
       {error && <p className="mt-1 text-xs font-semibold text-coral-dark">{error}</p>}
       {panel && (
         <AddImagePanel
+          initialTab={panel}
           suggest={suggest}
           onClose={() => setPanel(false)}
           onPicked={(a) => {
@@ -156,7 +168,7 @@ export function ImageField({
           error={error}
           onCancel={() => setEditing(null)}
           onRemove={editing.local ? undefined : () => (onChange(null), setEditing(null))}
-          onReplace={editing.local ? undefined : () => (setEditing(null), setPanel(true))}
+          onReplace={editing.local ? undefined : () => (setEditing(null), setPanel("search"))}
           onApply={(blob) => {
             if (!blob && !editing.local) return setEditing(null); // nothing changed
             applyEdited(blob, blob ? editing.name.replace(/\.[^.]+$/, "") + ".webp" : editing.name);
@@ -167,9 +179,9 @@ export function ImageField({
   );
 }
 
-function AddImagePanel({ suggest, onClose, onPicked, onLocalFile }: { suggest?: string; onClose: () => void; onPicked: (a: { id: string; url: string }) => void; onLocalFile: (f: File) => void }) {
+function AddImagePanel({ initialTab, suggest, onClose, onPicked, onLocalFile }: { initialTab: "search" | "upload"; suggest?: string; onClose: () => void; onPicked: (a: { id: string; url: string }) => void; onLocalFile: (f: File) => void }) {
   const { t } = useUi();
-  const [tab, setTab] = useState<"search" | "upload">("search");
+  const [tab, setTab] = useState<"search" | "upload">(initialTab);
   const [q, setQ] = useState((suggest ?? "").trim().slice(0, 100));
   const [size, setSize] = useState("all");
   const [results, setResults] = useState<WebResult[] | null>(null);
@@ -187,7 +199,7 @@ function AddImagePanel({ suggest, onClose, onPicked, onLocalFile }: { suggest?: 
         if (!j.enabled) {
           setState("off");
           setTab("upload");
-        } else if (q) search(q, size);
+        } else if (q && initialTab === "search") search(q, size);
       })
       .catch(() => undefined);
     dialogRef.current?.focus();
@@ -254,7 +266,10 @@ function AddImagePanel({ suggest, onClose, onPicked, onLocalFile }: { suggest?: 
             ) : (
               <>
                 <form className="flex flex-wrap gap-2" onSubmit={(e) => (e.preventDefault(), search(q, size))}>
-                  <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={100} placeholder="manzana, perro, rojo…" aria-label={t.search} className="h-10 min-w-0 flex-1 rounded-full border border-line px-4 text-sm" />
+                  <span className="relative flex min-w-0 flex-1 items-center">
+                    <span className="pointer-events-none absolute left-3 text-muted"><svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="10.5" cy="10.5" r="6" /><path d="m15 15 5 5" /></svg></span>
+                    <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={100} placeholder="manzana, perro, rojo…" aria-label={t.search} autoFocus className="h-10 w-full rounded-full border border-line pl-10 pr-4 text-sm focus:border-sky focus:outline-none" />
+                  </span>
                   <select value={size} onChange={(e) => (setSize(e.target.value), q && search(q, e.target.value))} aria-label={t.size} className="h-10 rounded-full border border-line px-3 text-sm">
                     <option value="all">{t.sizeAll}</option>
                     <option value="small">{t.sizeSmall}</option>

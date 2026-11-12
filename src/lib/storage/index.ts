@@ -59,11 +59,13 @@ const local: StorageDriver = {
 // (never sent to the browser). The bucket is private and created on first use.
 function supabase(): StorageDriver {
   const base = process.env.SUPABASE_URL?.replace(/\/$/, "");
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   const bucket = process.env.SUPABASE_BUCKET ?? "media";
   if (!base || !key) throw new Error("STORAGE_DRIVER=supabase needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
   const api = `${base}/storage/v1`;
-  const auth = { Authorization: `Bearer ${key}`, apikey: key };
+  // New-style secret keys (sb_secret_…) are not JWTs: they go only in the apikey header, and the
+  // gateway turns them into a service-role token. Legacy service_role keys (eyJ…) also go as Bearer.
+  const auth: Record<string, string> = key.startsWith("sb_") ? { apikey: key } : { Authorization: `Bearer ${key}`, apikey: key };
   const obj = (k: string) => `${encodeURIComponent(bucket)}/${k.split("/").map(encodeURIComponent).join("/")}`;
   const fail = async (res: Response, what: string) => {
     throw new Error(`Supabase Storage ${what} failed: ${res.status} ${(await res.text()).slice(0, 200)}`);
@@ -80,7 +82,9 @@ function supabase(): StorageDriver {
       if (/"statusCode":"409"|Duplicate|already exists/i.test(text)) return;
       throw new StorageConfigError(
         /row-level security|Unauthorized|403|JWS|JWT|signature/i.test(text)
-          ? "La clave SUPABASE_SERVICE_ROLE_KEY no tiene permiso para crear el bucket. Revisa que sea la clave service_role (secreta), no la anon/publishable."
+          ? key.startsWith("sb_publishable_") || keyRole(key) === "anon"
+            ? "SUPABASE_SERVICE_ROLE_KEY tiene la clave pública (anon/publishable). Pon la clave secreta: service_role (eyJ…) o Secret key (sb_secret_…)."
+            : `Supabase rechazó la clave SUPABASE_SERVICE_ROLE_KEY (${res.status}): ${text.slice(0, 120)}. Revisa que sea del mismo proyecto que SUPABASE_URL.`
           : `No se pudo crear el bucket "${bucket}" en Supabase Storage (${res.status}): ${text.slice(0, 160)}`,
       );
     });
@@ -171,6 +175,15 @@ function supabase(): StorageDriver {
       return { size: total || buf.length, head: buf };
     },
   };
+}
+
+/** The role inside a legacy Supabase JWT key ("anon" or "service_role"), without verifying it. */
+function keyRole(key: string): string | null {
+  try {
+    return JSON.parse(Buffer.from(key.split(".")[1] ?? "", "base64url").toString()).role ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Storage is misconfigured (wrong key, missing bucket): the message is safe to show to teachers. */
