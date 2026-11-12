@@ -46,6 +46,7 @@ export function AudioField({
   tts,
   rate = 0.95,
   label,
+  inline,
 }: {
   audio: FaceAudio | null | undefined;
   onChange: (a: FaceAudio | null) => void;
@@ -54,6 +55,8 @@ export function AudioField({
   tts: TtsConfig | null;
   rate?: number;
   label?: string;
+  /** Icon-sized, to sit inside a one-line field. */
+  inline?: boolean;
 }) {
   const { t } = useUi();
   const [open, setOpen] = useState(false);
@@ -63,11 +66,15 @@ export function AudioField({
       {has ? (
         <>
           <button type="button" onClick={() => playFaceAudio(audio, rate)} className="inline-flex h-8 items-center gap-1 rounded-full bg-teal-soft px-2.5 text-xs font-bold text-teal-dark hover:bg-teal hover:text-white" title={audio!.text || audio!.name || t.play} aria-label={`${t.play}${label ? ` (${label})` : ""}`}>
-            ▶ <span className="max-w-28 truncate">{audio!.text || audio!.name || (audio!.source === "record" ? "🎙" : "♪")}</span> <span className="opacity-70">{SHORT[audio!.language]}</span>
+            ▶ <span className={`${inline ? "max-w-16" : "max-w-28"} truncate`}>{audio!.text || audio!.name || (audio!.source === "record" ? "🎙" : "♪")}</span> <span className="opacity-70">{SHORT[audio!.language]}</span>
           </button>
           <button type="button" onClick={() => setOpen(true)} className="h-8 rounded-full px-2 text-xs font-bold text-muted hover:bg-paper-2 hover:text-ink" aria-label={`${t.replace}: ${t.addAudio}${label ? ` (${label})` : ""}`}>✎</button>
           <button type="button" onClick={() => onChange(null)} className="h-8 rounded-full px-1.5 text-xs font-bold text-muted hover:text-coral-dark" aria-label={`${t.remove}: ${t.addAudio}${label ? ` (${label})` : ""}`}>×</button>
         </>
+      ) : inline ? (
+        <button type="button" onClick={() => setOpen(true)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-paper-2 hover:text-sky" aria-label={`${t.addAudio}${label ? ` (${label})` : ""}`} title={t.addAudio}>
+          <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" /></svg>
+        </button>
       ) : (
         <button type="button" onClick={() => setOpen(true)} className="inline-flex h-8 items-center gap-1 rounded-full bg-paper-2 px-2.5 text-xs font-bold text-ink-2 hover:bg-line" aria-label={`${t.addAudio}${label ? ` (${label})` : ""}`}>
           🎙 {t.addAudio}

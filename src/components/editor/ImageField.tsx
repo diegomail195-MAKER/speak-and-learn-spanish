@@ -30,6 +30,7 @@ export function ImageField({
   onAlt,
   suggest,
   compact = false,
+  inline = false,
   label,
 }: {
   assetId: string | null | undefined;
@@ -38,6 +39,8 @@ export function ImageField({
   onAlt?: (alt: string) => void;
   suggest?: string;
   compact?: boolean;
+  /** Icon-sized, to sit inside a one-line field. */
+  inline?: boolean;
   label?: string;
 }) {
   const { t } = useUi();
@@ -72,7 +75,7 @@ export function ImageField({
         <button
           type="button"
           onClick={() => setEditing({ src, name: "image.webp", local: false })}
-          className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-line bg-card"
+          className={`shrink-0 overflow-hidden rounded-lg border border-line bg-card ${inline ? "h-8 w-8" : "h-14 w-14"}`}
           title={t.edit}
           aria-label={`${t.edit}: ${label ?? t.addImage}`}
         >
@@ -110,6 +113,16 @@ export function ImageField({
             )}
           </div>
         </div>
+      ) : inline ? (
+        <button
+          type="button"
+          onClick={() => setPanel(true)}
+          className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-paper-2 hover:text-sky"
+          aria-label={`${t.addImage}${label ? ` (${label})` : ""}`}
+          title={t.addImage}
+        >
+          <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5" /><circle cx="9" cy="10" r="1.8" /><path d="m4 18 5-5 4 4 3-3 4 4" /></svg>
+        </button>
       ) : (
         <button
           type="button"

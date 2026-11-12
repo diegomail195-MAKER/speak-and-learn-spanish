@@ -47,36 +47,33 @@ export function FaceEditor({
 }) {
   const { t } = useUi();
   return (
-    <div className={`min-w-0 rounded-xl border border-line bg-paper/60 p-2 ${className}`}>
+    <div className={`min-w-0 ${className}`}>
       {showLabel && <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted md:hidden">{label}</span>}
-      <div className="flex items-start gap-2">
-        <ImageField
-          compact
-          label={label}
-          assetId={face.imageAssetId}
-          alt={face.imageAlt}
-          suggest={face.text}
-          onChange={(a) => onChange({ ...face, imageAssetId: a?.id ?? null })}
+      <div className="flex min-h-11 items-center gap-1 rounded-lg border border-line bg-card px-1.5 py-1 focus-within:border-sky focus-within:ring-2 focus-within:ring-sky/20">
+        {face.imageAssetId && (
+          <ImageField compact inline label={label} assetId={face.imageAssetId} alt={face.imageAlt} suggest={face.text} onChange={(a) => onChange({ ...face, imageAssetId: a?.id ?? null })} />
+        )}
+        <input
+          value={face.text ?? ""}
+          onChange={(e) => onChange({ ...face, text: e.target.value })}
+          maxLength={200}
+          placeholder={t.text}
+          aria-label={`${label}: ${t.text}`}
+          className="h-8 min-w-0 flex-1 bg-transparent px-1.5 text-sm focus:outline-none"
         />
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <input
-            value={face.text ?? ""}
-            onChange={(e) => onChange({ ...face, text: e.target.value })}
-            maxLength={200}
-            placeholder={t.text}
-            aria-label={`${label}: ${t.text}`}
-            className="h-9 w-full rounded-lg border border-line bg-card px-3 text-sm focus:border-sky focus:outline-none focus:ring-2 focus:ring-sky/20"
-          />
-          <AudioField
-            audio={face.audio}
-            onChange={(a: FaceAudio | null) => onChange({ ...face, audio: a })}
-            defaultText={face.text ?? ""}
-            defaultLanguage={language}
-            tts={tts}
-            rate={rate}
-            label={label}
-          />
-        </div>
+        <AudioField
+          inline
+          audio={face.audio}
+          onChange={(a: FaceAudio | null) => onChange({ ...face, audio: a })}
+          defaultText={face.text ?? ""}
+          defaultLanguage={language}
+          tts={tts}
+          rate={rate}
+          label={label}
+        />
+        {!face.imageAssetId && (
+          <ImageField compact inline label={label} assetId={null} suggest={face.text} onChange={(a) => onChange({ ...face, imageAssetId: a?.id ?? null })} />
+        )}
       </div>
       {face.imageAssetId && (
         <input
@@ -86,7 +83,7 @@ export function FaceEditor({
           placeholder={`${t.altText} — ${t.altHint}`}
           title={t.altHint}
           aria-label={`${t.altText} (${label})`}
-          className="mt-1.5 h-7 w-full rounded-md border border-line bg-card px-2 text-xs"
+          className="mt-1 h-7 w-full rounded-md border border-line bg-card px-2 text-xs"
         />
       )}
     </div>

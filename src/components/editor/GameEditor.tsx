@@ -549,7 +549,7 @@ function GameEditorInner({ initial, template, categories }: { initial: EditorGam
           )}
 
           {flash && twoSided && (
-            <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_13rem] gap-2 px-4 text-sm font-bold text-ink-2 md:grid">
+            <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_13rem] gap-2 px-2 text-sm font-bold text-ink-2 md:grid">
               <span />
               <span>{t.front}</span>
               <span>{t.back}</span>
@@ -557,7 +557,7 @@ function GameEditorInner({ initial, template, categories }: { initial: EditorGam
             </div>
           )}
 
-          <ol className="space-y-3" aria-label={`${template.name}: ${game.items.length}`}>
+          <ol className={flash ? "space-y-1" : "space-y-3"} aria-label={`${template.name}: ${game.items.length}`}>
             {game.items.map((it, i) => {
               const controls = (
                 <RowControls
@@ -586,9 +586,9 @@ function GameEditorInner({ initial, template, categories }: { initial: EditorGam
               if (flash) {
                 const back = it.data.back ?? {};
                 return (
-                  <li key={rowKey} {...rowProps} className={`rounded-xl2 border border-line bg-card p-3 ${dropMark} ${dragFrom === i ? "opacity-50" : ""}`} aria-label={`${t.card[0].toUpperCase()}${t.card.slice(1)} ${i + 1}`}>
-                    <div className={`grid items-start gap-2 ${twoSided ? "md:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_13rem]" : "md:grid-cols-[2.5rem_minmax(0,1fr)_13rem]"} grid-cols-[2.5rem_minmax(0,1fr)]`}>
-                      <span className="grid h-8 w-8 place-items-center rounded-full bg-ink font-display text-sm font-semibold text-white">{i + 1}</span>
+                  <li key={rowKey} {...rowProps} className={`rounded-xl px-2 py-1.5 hover:bg-card ${dropMark} ${dragFrom === i ? "opacity-50" : ""}`} aria-label={`${t.card[0].toUpperCase()}${t.card.slice(1)} ${i + 1}`}>
+                    <div className={`grid items-center gap-2 ${twoSided ? "md:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_13rem]" : "md:grid-cols-[2.5rem_minmax(0,1fr)_13rem]"} grid-cols-[2.5rem_minmax(0,1fr)]`}>
+                      <span className="self-start pt-2.5 text-right font-display text-base font-semibold text-ink-2">{i + 1}.</span>
                       <FaceEditor
                         label={t.front}
                         showLabel={twoSided}
@@ -610,14 +610,14 @@ function GameEditorInner({ initial, template, categories }: { initial: EditorGam
                           onChange={(f) => setData(i, { back: f, translation: undefined })}
                         />
                       )}
-                      <div className="col-start-2 flex items-center gap-1 md:col-start-auto md:justify-end">
+                      <div className="col-start-2 flex items-center gap-1 self-start md:col-start-auto md:justify-end md:pt-1.5">
                         {twoSided && (
                           <button type="button" onClick={() => setItem(i, swapItem)} className="rounded-full px-2 py-1 text-xs font-bold text-muted hover:bg-paper-2 hover:text-ink" aria-label={`${t.swapOne} ${i + 1}`} title={t.swapOne}>⇄</button>
                         )}
                         {controls}
                       </div>
                     </div>
-                    <details className="ml-10 mt-2 text-sm">
+                    <details className="ml-12 mt-1 text-sm">
                       <summary className="cursor-pointer text-xs font-bold text-muted hover:text-ink">
                         {t.spokenAnswer}
                         {it.question.expectedAnswer.trim() ? `: ${it.question.expectedAnswer}` : ""}
@@ -689,12 +689,12 @@ function GameEditorInner({ initial, template, categories }: { initial: EditorGam
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className={`flex flex-wrap items-center gap-3 ${flash ? "pl-12" : ""}`}>
             <button
               type="button"
               disabled={atMax}
               onClick={() => setGame((g) => (g.items.length >= maxItems ? g : { ...g, items: [...g.items, blankItem(template)] }))}
-              className="flex-1 rounded-xl2 border-2 border-dashed border-line py-4 font-bold text-ink-2 hover:border-coral hover:text-coral disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:text-ink-2"
+              className={`${flash ? "rounded-full px-4 py-2 hover:bg-coral-soft" : "flex-1 rounded-xl2 border-2 border-dashed border-line py-4 hover:border-coral"} font-bold text-ink-2 hover:text-coral disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:bg-transparent disabled:hover:text-ink-2`}
             >
               + {t.add} {flash ? t.card : noun}
             </button>
