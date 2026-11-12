@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { handle } from "@/lib/api";
 import { audit } from "@/lib/audit";
-import { HttpError, requireTeacher } from "@/lib/auth/guards";
+import { HttpError, requireVideoAdmin } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { videoData, videoInput } from "@/lib/videos";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export const PUT = handle(async (req: Request, ctx: Ctx) => {
-  const { user } = await requireTeacher();
+  const { user } = await requireVideoAdmin();
   const { id } = await ctx.params;
   const existing = await db.video.findFirst({ where: { id, schoolId: user.schoolId } });
   if (!existing) throw new HttpError(404, "Video not found");

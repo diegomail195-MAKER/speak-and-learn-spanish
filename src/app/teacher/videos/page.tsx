@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ButtonLink } from "@/components/ui/Button";
 import { Badge, EmptyState, PageHeader } from "@/components/ui/Panel";
 import { deleteVideo, setVideoStatus } from "@/lib/actions/videos";
+import { isPlatformAdmin } from "@/lib/auth/admin";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { toPlayVideo } from "@/lib/videos";
@@ -10,9 +11,10 @@ export const metadata = { title: "Videos" };
 
 const fmt = (s: number | null) => (s == null ? "" : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`);
 
-export default async function VideosPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; category?: string; source?: string }> }) {
+export default async function VideosPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; category?: string; source?: string; admin?: string }> }) {
   const sp = await searchParams;
   const { user } = await requireTeacherPage();
+  const admin = isPlatformAdmin(user);
   const status = ["DRAFT", "PUBLISHED", "ARCHIVED"].includes(sp.status ?? "") ? (sp.status as "DRAFT" | "PUBLISHED" | "ARCHIVED") : undefined;
   const [videos, categories] = await Promise.all([
     db.video.findMany({
@@ -34,14 +36,19 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
       <PageHeader
         eyebrow="Videos"
         title="Video library"
-        subtitle="Upload your own videos or add YouTube links, then assign them or group them into collections."
+        subtitle={admin ? "Upload your own videos or add YouTube links, then assign them or group them into collections." : "Watch and assign the videos of the library, or group them into collections."}
         actions={
           <>
             <ButtonLink href="/teacher/videos/collections" variant="secondary">Collections</ButtonLink>
-            <ButtonLink href="/teacher/videos/new">Add video</ButtonLink>
+            {admin && <ButtonLink href="/teacher/videos/new">Add video</ButtonLink>}
           </>
         }
       />
+      {!admin && (
+        <p className={`mb-4 rounded-xl border px-4 py-3 text-sm ${sp.admin === "only" ? "border-coral bg-coral-soft text-coral-dark" : "border-line bg-paper-2 text-ink-2"}`} role="status">
+          Only the platform administrator can upload or edit videos. / Solo el administrador puede subir o editar videos.
+        </p>
+      )}
       <form className="mb-4 flex flex-wrap gap-2 text-sm">
         <input name="q" defaultValue={sp.q} placeholder="Search title, keyword" className="h-10 min-w-56 flex-1 rounded-full border border-line bg-card px-4" aria-label="Search" />
         <select name="source" defaultValue={sp.source ?? ""} className="h-10 rounded-full border border-line bg-card px-3" aria-label="Source">
@@ -62,7 +69,11 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
         <button className="h-10 rounded-full bg-ink px-5 font-bold text-white">Filter</button>
       </form>
       {videos.length === 0 ? (
-        <EmptyState title="No videos yet" body="Upload an MP4 from your computer or paste a YouTube link." action={<ButtonLink href="/teacher/videos/new">Add video</ButtonLink>} />
+        <EmptyState
+          title="No videos yet"
+          body={admin ? "Upload an MP4 from your computer or paste a YouTube link." : "The administrator hasn't added videos yet."}
+          action={admin ? <ButtonLink href="/teacher/videos/new">Add video</ButtonLink> : undefined}
+        />
       ) : (
         <ul className="divide-y divide-line overflow-hidden rounded-xl2 border border-line bg-card">
           {videos.map((v) => {
@@ -74,7 +85,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
                   {cover && <img src={cover} alt="" className="h-full w-full object-cover" loading="lazy" />}
                   {v.durationSec != null && <span className="absolute bottom-1 right-1 rounded bg-ink/80 px-1 text-[11px] font-bold text-white">{fmt(v.durationSec)}</span>}
                 </Link>
-                <Link href={`/teacher/videos/${v.id}/edit`} className="min-w-52 flex-1">
+                <Link href={admin ? `/teacher/videos/${v.id}/edit` : `/teacher/videos/${v.id}`} className="min-w-52 flex-1">
                   <span className="block font-display text-lg font-semibold hover:text-coral">{v.title}</span>
                   <span className="text-sm text-muted">
                     {v.source === "YOUTUBE" ? "YouTube" : "Uploaded"}
@@ -87,6 +98,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
                 <div className="flex flex-wrap items-center gap-1 text-sm font-bold">
                   <Link href={`/teacher/videos/${v.id}`} className="rounded-full px-3 py-1.5 text-ink-2 hover:bg-paper-2">Watch</Link>
                   {v.status === "PUBLISHED" && <Link href={`/teacher/assignments/new?videoId=${v.id}`} className="rounded-full px-3 py-1.5 text-teal-dark hover:bg-teal-soft">Assign</Link>}
+                  {admin && (<>
                   <form action={setVideoStatus}>
                     <input type="hidden" name="videoId" value={v.id} />
                     <input type="hidden" name="status" value={v.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED"} />
@@ -109,6 +121,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
                       </form>
                     </details>
                   )}
+                  </>)}
                 </div>
               </li>
             );

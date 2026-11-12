@@ -3,6 +3,8 @@
 // assign a video to a group, student watches (progress + resume), "Watch & Practice" with the
 // fake microphone, and the teacher sees watching + practice results.
 // Run: BASE_URL=http://localhost:3100 node e2e/videos.e2e.mjs  (server started with E2E_SCRIPTED_STT=1)
+// Only the platform admin can upload videos: start the server with ADMIN_EMAILS set to E2E_ADMIN_EMAIL
+// (fresh database each run, since the email is fixed).
 import { chromium } from "playwright";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
@@ -27,7 +29,7 @@ try {
   await page.goto(`${BASE}/signup`);
   await page.fill("#displayName", "Ana Rivera");
   await page.fill("#schoolName", "Lincoln Elementary");
-  await page.fill("#email", `video${stamp}@school.test`);
+  await page.fill("#email", process.env.E2E_ADMIN_EMAIL ?? `video${stamp}@school.test`);
   await page.fill("#password", "correct-horse-42");
   await page.click("button[type=submit]");
   await page.waitForURL(`${BASE}/teacher`);

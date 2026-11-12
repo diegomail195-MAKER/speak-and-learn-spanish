@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { handle } from "@/lib/api";
-import { HttpError, requireTeacher } from "@/lib/auth/guards";
+import { HttpError, requireVideoAdmin } from "@/lib/auth/guards";
 import { mediaUrl, saveMedia } from "@/lib/media/save";
 import { isWebVtt } from "@/lib/media/validate";
 
 // WebVTT subtitle upload, validated as text and stored as private media.
 export const POST = handle(async (req: Request) => {
-  const { user } = await requireTeacher();
+  const { user } = await requireVideoAdmin();
   const form = await req.formData();
   const file = form.get("file");
   if (!(file instanceof File)) throw new HttpError(400, "No file");
