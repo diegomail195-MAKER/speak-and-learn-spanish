@@ -2,6 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { HttpError } from "@/lib/auth/guards";
+import { StorageConfigError } from "@/lib/storage";
 
 /** Wraps a route handler so auth/validation errors become clean JSON responses. */
 export function handle<A extends unknown[]>(fn: (...args: A) => Promise<Response>) {
@@ -12,7 +13,8 @@ export function handle<A extends unknown[]>(fn: (...args: A) => Promise<Response
       if (e instanceof HttpError) return NextResponse.json({ error: e.message }, { status: e.status });
       if (e instanceof ZodError) return NextResponse.json({ error: "invalid_request", issues: e.issues }, { status: 400 });
       console.error(e);
-      return NextResponse.json({ error: "server_error" }, { status: 500 });
+      if (e instanceof StorageConfigError) return NextResponse.json({ error: e.message }, { status: 503 });
+      return NextResponse.json({ error: "Algo falló en el servidor. Intenta otra vez." }, { status: 500 });
     }
   };
 }
