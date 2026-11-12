@@ -26,6 +26,17 @@ const ctx = await browser.newContext({ permissions: ["microphone"], viewport: { 
 const page = await ctx.newPage();
 page.on("pageerror", (e) => console.error("PAGE ERROR", e.message));
 
+// Pictures are added through the "Add image" panel (upload tab), then applied in the image editor.
+async function addImage(scope, file) {
+  await scope.getByRole("button", { name: /^Add image/ }).first().click();
+  const dlg = page.getByRole("dialog", { name: "Add image" });
+  await dlg.getByRole("tab", { name: "Upload image" }).click();
+  await dlg.locator("input[type=file]").setInputFiles(fx(file));
+  const ed = page.getByRole("dialog", { name: "Edit" });
+  await ed.getByRole("button", { name: "Apply" }).click();
+  await ed.waitFor({ state: "detached" });
+}
+
 try {
   await page.goto(BASE);
   await shot(page, "01-home");
@@ -79,7 +90,7 @@ try {
   await page.getByLabel("Activity title").fill("Los animales");
 
   // Question typed with the Spanish character bar (US keyboard): "¿Qué animal es?"
-  const q1 = page.locator("section[aria-label='Question 1']");
+  const q1 = page.locator("li[aria-label='Question 1']");
   const qInput = q1.locator("input[placeholder='¿Qué animal es?']");
   await qInput.click();
   await page.locator("[role=toolbar] button[aria-label='Insert ¿']").first().click();
@@ -90,7 +101,7 @@ try {
   if (typed !== "¿Qué animal es?") throw new Error(`Character bar/shortcut produced "${typed}"`);
   log("typed with char bar + Alt shortcut:", typed);
   await q1.locator("input[placeholder='Es un perro.']").fill("Es un perro.");
-  await q1.locator("input[type=file]").setInputFiles(fx("dog.png"));
+  await addImage(q1, "dog.png");
   await q1.locator("img").waitFor();
 
   // Spell checker suggestion: Hint "El nino esta feliz" → accept
@@ -106,18 +117,18 @@ try {
 
   // Question 2: cat
   await page.click("text=+ Add question");
-  const q2 = page.locator("section[aria-label='Question 2']");
+  const q2 = page.locator("li[aria-label='Question 2']");
   await q2.locator("input[placeholder='¿Qué animal es?']").fill("¿Qué animal es?");
   await q2.locator("input[placeholder='Es un perro.']").fill("Es un gato.");
   await q2.locator("input[placeholder='Hace “guau, guau”.']").fill("Hace miau.");
-  await q2.locator("input[type=file]").setInputFiles(fx("cat.png"));
+  await addImage(q2, "cat.png");
   await q2.locator("img").waitFor();
 
   // Generate Audio (no TTS key configured in CI → browser-voice preview path is offered)
   const audioCtl = q1.locator("text=/Generate audio|Preview \\(browser voice\\)/").first();
   log("audio control:", await audioCtl.textContent());
 
-  await page.waitForSelector("text=/All changes saved|Saved \\d/", { timeout: 15000 });
+  await page.waitForSelector("text=/✓ Saved|✓ Guardado/", { timeout: 15000 });
   await page.evaluate(() => window.scrollTo(0, 0));
   await shot(page, "02-game-editor");
   await page.click("button:text-is('Publish')");

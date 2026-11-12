@@ -7,8 +7,8 @@ import { phrasesFor } from "@/lib/feedback";
 import { mediaUrl } from "@/lib/media/save";
 import { sttLocale, sttProvider } from "@/lib/stt";
 import { ensureAudio } from "@/lib/tts/generate";
-import { templateByKey, templateOptions } from "./templates";
-import { DEFAULT_SETTINGS, SPELL_TOKENS, type EditorGame, type GameSettings, type ItemData, type PlayGame } from "./types";
+import { maxItemsFor, templateByKey, templateOptions } from "./templates";
+import { DEFAULT_SETTINGS, SPELL_TOKENS, type EditorGame, type FaceAudio, type GameSettings, type ItemData, type PlayFace, type PlayGame } from "./types";
 
 export function readItemData(json: Prisma.JsonValue): ItemData {
   return json && typeof json === "object" && !Array.isArray(json) ? (json as ItemData) : {};
@@ -82,6 +82,14 @@ export async function loadEditorGame(schoolId: string, id: string): Promise<Edit
 }
 
 const lang = z.enum(["es-419", "en-US", "fr-FR"]);
+const faceAudio = z.object({
+  mediaId: z.string().max(40).nullable().optional(),
+  text: z.string().max(300),
+  language: lang,
+  voice: z.string().max(60).nullable().optional(),
+  source: z.enum(["record", "upload", "tts", "browser"]),
+  name: z.string().max(200).optional(),
+});
 export const saveSchema = z.object({
   title: z.string().trim().max(120),
   description: z.string().max(1000),
@@ -115,6 +123,16 @@ export const saveSchema = z.object({
             translationLanguage: lang.optional(),
             x: z.number().min(0).max(100).optional(),
             y: z.number().min(0).max(100).optional(),
+            imageAlt: z.string().max(200).optional(),
+            audio: faceAudio.nullable().optional(),
+            back: z
+              .object({
+                text: z.string().max(200).optional(),
+                imageAssetId: z.string().max(40).nullable().optional(),
+                imageAlt: z.string().max(200).optional(),
+                audio: faceAudio.nullable().optional(),
+              })
+              .optional(),
           })
           .default({}),
         question: z.object({
@@ -139,11 +157,19 @@ export async function saveEditorGame(schoolId: string, id: string, input: z.infe
   const game = await db.game.findFirst({ where: { id, schoolId }, include: { items: { include: { questions: { include: { _count: { select: { responses: true } } } } } } } });
   if (!game) throw new HttpError(404, "Game not found");
 
-  // Referenced media must belong to this school.
-  const assetIds = [...input.items.map((i) => i.imageAssetId), input.settings.diagramImageId].filter(Boolean) as string[];
-  if (assetIds.length) {
-    const n = await db.mediaAsset.count({ where: { id: { in: assetIds }, schoolId } });
-    if (n !== new Set(assetIds).size) throw new HttpError(400, "Unknown image");
+  const max = maxItemsFor(templateByKey(game.templateKey));
+  if (input.items.length > max) throw new HttpError(400, `This activity can have up to ${max} items (you have ${input.items.length}).`);
+
+  // Referenced media must belong to this school, and be of the right kind.
+  const imageIds = [...input.items.flatMap((i) => [i.imageAssetId, i.data.back?.imageAssetId]), input.settings.diagramImageId].filter(Boolean) as string[];
+  if (imageIds.length) {
+    const n = await db.mediaAsset.count({ where: { id: { in: [...new Set(imageIds)] }, schoolId, kind: "IMAGE" } });
+    if (n !== new Set(imageIds).size) throw new HttpError(400, "Unknown image");
+  }
+  const faceAudioIds = input.items.flatMap((i) => [i.data.audio?.mediaId, i.data.back?.audio?.mediaId]).filter(Boolean) as string[];
+  if (faceAudioIds.length) {
+    const n = await db.mediaAsset.count({ where: { id: { in: [...new Set(faceAudioIds)] }, schoolId, kind: "AUDIO" } });
+    if (n !== new Set(faceAudioIds).size) throw new HttpError(400, "Unknown audio");
   }
   const audioIds = input.items.flatMap((i) => [i.question.promptAudioId, i.question.supportAudioId]).filter(Boolean) as string[];
   const audio = new Map((await db.audioAsset.findMany({ where: { id: { in: audioIds }, schoolId } })).map((a) => [a.id, a]));
@@ -226,8 +252,15 @@ export function publishProblems(g: EditorGame): string[] {
   const Noun = noun[0].toUpperCase() + noun.slice(1);
   if (g.items.length < (t?.minItems ?? 1)) p.push(`Add at least ${t?.minItems ?? 1} ${noun}${(t?.minItems ?? 1) > 1 ? (noun.endsWith("x") ? "es" : "s") : ""}.`);
   if (t?.activityImage && !g.settings.diagramImageId) p.push("Upload the picture to label.");
+  if (g.items.length > maxItemsFor(t)) p.push(`Use at most ${maxItemsFor(t)} ${noun}s.`);
+  const flash = t?.board === "flashcards";
   g.items.forEach((it, i) => {
     const n = `${Noun} ${i + 1}`;
+    if (flash) {
+      // A face may be only a picture or only audio; the spoken answer is optional.
+      if (!it.text.trim() && !it.question.prompt.trim() && !it.imageAssetId && !it.data.audio?.text?.trim() && !it.data.audio?.mediaId) p.push(`${n}: add text, a picture or audio to the front.`);
+      return;
+    }
     if (t?.fields.image === "required" && !it.imageAssetId) p.push(`${n}: add an image.`);
     if (t?.fields.prompt && !it.question.prompt.trim() && t.board !== "diagram" && t.board !== "boxes" && t.board !== "flashcards") p.push(`${n}: write the question.`);
     if (t?.fields.itemText?.required && !it.text.trim()) p.push(`${n}: write the ${t.fields.itemText.label.toLowerCase()}.`);
@@ -267,6 +300,22 @@ export async function publishGame(schoolId: string, userId: string, id: string) 
         },
       });
       audioGenerated ||= !!(prompt || hint || model || support);
+    }
+    // Faces whose audio is "device voice" get saved audio when a TTS service is configured.
+    const items = await db.gameItem.findMany({ where: { gameId: id } });
+    for (const it of items) {
+      const data = readItemData(it.data);
+      const upgrade = async (a: FaceAudio | null | undefined) => {
+        if (!a || a.mediaId || !a.text.trim()) return a;
+        const r = await gen(a.text, a.language);
+        return r ? { ...a, mediaId: r.asset.mediaAssetId, source: "tts" as const } : a;
+      };
+      const audio = await upgrade(data.audio);
+      const backAudio = await upgrade(data.back?.audio);
+      if (audio !== data.audio || backAudio !== data.back?.audio) {
+        await db.gameItem.update({ where: { id: it.id }, data: { data: { ...data, audio, ...(data.back ? { back: { ...data.back, audio: backAudio } } : {}) } as unknown as Prisma.InputJsonValue } });
+        audioGenerated = true;
+      }
     }
     const phraseAudio: Record<string, string> = {};
     for (const text of phrasesFor(g.language)) {
@@ -312,13 +361,21 @@ export async function buildPlayGame(schoolId: string, gameId: string, names: { f
     if (a) phraseAudio[text] = mediaUrl(a.mediaAssetId);
   }
   const url = (a: { mediaAssetId: string } | null) => (a ? mediaUrl(a.mediaAssetId) : null);
+  const playAudio = (a: FaceAudio | null | undefined): PlayFace["audio"] =>
+    a && (a.mediaId || a.text.trim()) ? { url: a.mediaId ? mediaUrl(a.mediaId) : null, text: a.text, language: a.language } : null;
+  const flash = tpl?.board === "flashcards";
+  const oneSide = flash && templateOptions(tpl, settings.options).sides === "one";
   const questions = g.items.flatMap((it) =>
     it.questions
       .map((q) => {
         let expected = q.expectedAnswer;
+        const token = expected === SPELL_TOKENS.firstName || expected === SPELL_TOKENS.lastName;
         if (expected === SPELL_TOKENS.firstName) expected = names.firstName;
         if (expected === SPELL_TOKENS.lastName) expected = names.lastName;
+        const data = readItemData(it.data);
+        const back = data.back;
         return {
+          token,
           id: q.id,
           prompt: q.prompt,
           promptAudioUrl: url(q.promptAudio),
@@ -334,11 +391,24 @@ export async function buildPlayGame(schoolId: string, gameId: string, names: { f
           hintAudioUrl: url(q.hintAudio),
           modelAudioUrl: url(q.modelAudio),
           answerLanguage: (q.answerLanguage ?? g.language) as PlayGame["language"],
-          data: readItemData(it.data),
+          data,
+          imageAlt: data.imageAlt ?? "",
+          audio: playAudio(data.audio),
+          // One-sided flashcards never show the back (it stays saved for the editor).
+          back:
+            flash && back && !oneSide
+              ? { text: back.text ?? "", imageUrl: back.imageAssetId ? mediaUrl(back.imageAssetId) : null, imageAlt: back.imageAlt ?? "", audio: playAudio(back.audio) }
+              : null,
         };
       })
       // A spelling question for a name the teacher hasn't entered is skipped rather than guessed.
-      .filter((q) => q.expected.trim().length > 0),
+      // Flashcards may have no spoken answer at all (look, flip and listen).
+      .filter((q) => (q.token ? q.expected.trim().length > 0 : flash || q.expected.trim().length > 0))
+      .map((q) => {
+        const { token, ...rest } = q;
+        void token;
+        return rest;
+      }),
   );
   return {
     gameId: g.id,

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { ImagePicker } from "@/components/editor/ImagePicker";
+import { ImageField } from "@/components/editor/ImageField";
 import { SpanishField } from "@/components/editor/SpanishField";
 import { Button } from "@/components/ui/Button";
 import { FormError, Input, Label, Select } from "@/components/ui/Field";
@@ -242,7 +242,7 @@ export function VideoForm({ initial, categories, games }: { initial: VideoFormVa
         <section className="space-y-4 rounded-xl2 border border-line bg-card p-5">
           <div>
             <Label>Cover image {v.source === "YOUTUBE" && <span className="font-normal text-muted">(optional)</span>}</Label>
-            <ImagePicker value={v.coverAssetId} url={v.coverUrl} onChange={(a) => setV((x) => ({ ...x, coverAssetId: a?.id ?? null, coverUrl: a?.url ?? null }))} />
+            <ImageField assetId={v.coverAssetId} onChange={(a) => setV((x) => ({ ...x, coverAssetId: a?.id ?? null, coverUrl: a?.url ?? null }))} />
           </div>
           <div>
             <Label htmlFor="cat">Category</Label>

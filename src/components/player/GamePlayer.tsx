@@ -30,6 +30,8 @@ export interface PlayerProps {
 export function needsMic(game: PlayGame) {
   if (game.board === "spell") return game.options.spellMode !== "type";
   if (game.board === "diagram") return game.options.diagramMode === "speak";
+  // Look–flip–listen flashcards (no spoken answers) never need the microphone.
+  if (game.board === "flashcards") return game.questions.some((q) => q.expected.trim().length > 0);
   return true;
 }
 

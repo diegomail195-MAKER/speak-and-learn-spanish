@@ -26,7 +26,9 @@ export function SpellBoard({ s, questions, exitHref }: { s: VoiceSession; questi
   const inputRef = useRef<HTMLInputElement>(null);
   const q = questions[index];
 
-  const sayWord = (qq: PlayQuestion) => (qq.prompt ? s.say(qq.prompt, qq.promptAudioUrl) : s.say(qq.expected, qq.modelAudioUrl, qq.answerLanguage));
+  // The teacher's own audio for the word (recording, file or chosen voice) comes first.
+  const sayWord = (qq: PlayQuestion) =>
+    qq.audio ? s.say(qq.audio.text, qq.audio.url, qq.audio.language) : qq.prompt ? s.say(qq.prompt, qq.promptAudioUrl) : s.say(qq.expected, qq.modelAudioUrl, qq.answerLanguage);
 
   // Voice mode: one word after another, answered by voice.
   useEffect(() => {
@@ -90,7 +92,7 @@ export function SpellBoard({ s, questions, exitHref }: { s: VoiceSession; questi
       {q.imageUrl && (
         <div key={q.id} className="animate-pop-in mt-2 w-full max-w-xs overflow-hidden rounded-[1.75rem] border border-line bg-card p-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={q.imageUrl} alt="Picture of the word" className="mx-auto aspect-[4/3] w-full rounded-2xl object-contain" />
+          <img src={q.imageUrl} alt={q.imageAlt || "Picture of the word"} className="mx-auto aspect-[4/3] w-full rounded-2xl object-contain" />
         </div>
       )}
       {q.prompt && <p className="mt-3 text-center font-display text-3xl font-semibold">{plainText(q.prompt)}</p>}

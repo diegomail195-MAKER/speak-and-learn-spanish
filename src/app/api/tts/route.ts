@@ -33,7 +33,7 @@ export const POST = handle(async (req: Request) => {
   try {
     const r = await ensureAudio({ schoolId: user.schoolId, userId: user.id, text: body.text, language: body.language, voiceId: body.voice, voices: body.voices, rate: body.rate, style: body.style, regenerate: body.regenerate });
     if (!r) throw new HttpError(400, "No voice available for that language");
-    return NextResponse.json({ audioId: r.asset.id, url: mediaUrl(r.asset.mediaAssetId), cached: r.cached, voice: r.asset.voice, text: r.asset.text });
+    return NextResponse.json({ audioId: r.asset.id, mediaId: r.asset.mediaAssetId, url: mediaUrl(r.asset.mediaAssetId), cached: r.cached, voice: r.asset.voice, text: r.asset.text });
   } catch (e) {
     if (e instanceof HttpError) throw e;
     console.error(e);

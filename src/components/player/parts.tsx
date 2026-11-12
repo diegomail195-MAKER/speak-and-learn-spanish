@@ -138,6 +138,17 @@ export function VoiceDock({ s, children, showControls = true }: { s: VoiceSessio
   );
 }
 
+/** Plays the item's own audio (recording, file or device voice) only when the student asks. */
+export function ItemAudioButton({ s, q }: { s: VoiceSession; q: PlayQuestion }) {
+  if (!q.audio) return null;
+  const a = q.audio;
+  return (
+    <button type="button" onClick={() => s.say(a.text, a.url, a.language)} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-teal-soft px-4 py-1.5 font-bold text-teal-dark hover:bg-teal hover:text-white" aria-label="Listen to this item">
+      🔊 Listen
+    </button>
+  );
+}
+
 /** Picture, support line, question and hint of one question. */
 export function QuestionView({ s, q, showAnswer, compact }: { s: VoiceSession; q: PlayQuestion; showAnswer?: boolean; compact?: boolean }) {
   return (
@@ -145,9 +156,10 @@ export function QuestionView({ s, q, showAnswer, compact }: { s: VoiceSession; q
       {q.imageUrl && (
         <div key={q.id} className={`animate-pop-in mt-2 w-full overflow-hidden rounded-[1.75rem] border border-line bg-card p-3 ${compact ? "max-w-xs" : "max-w-lg"}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={q.imageUrl} alt={q.displayText || "Activity image"} className="mx-auto aspect-[4/3] w-full rounded-2xl object-contain" />
+          <img src={q.imageUrl} alt={q.imageAlt || q.displayText || "Activity image"} className="mx-auto aspect-[4/3] w-full rounded-2xl object-contain" />
         </div>
       )}
+      <ItemAudioButton s={s} q={q} />
       {q.supportText && <p className="mt-5 text-center text-lg text-muted">{plainText(q.supportText)}</p>}
       {q.prompt && <h1 className="mt-2 text-center font-display text-4xl font-semibold tracking-tight sm:text-5xl">{plainText(q.prompt)}</h1>}
       {!q.prompt && (showAnswer || s.game.settings.showAnswerText) && <h1 className="mt-5 text-center font-display text-4xl font-semibold tracking-tight sm:text-5xl">{plainText(q.expected)}</h1>}

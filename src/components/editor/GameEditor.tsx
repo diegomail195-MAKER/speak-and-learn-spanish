@@ -8,12 +8,15 @@ import { Input, Label, Select } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Panel";
 import { duplicateGame } from "@/lib/actions/games";
 import { ALPHABET } from "@/lib/alphabet";
-import { templateOptions, type OptionDef, type TemplateDef } from "@/lib/games/templates";
+import { maxItemsFor, templateOptions, type OptionDef, type TemplateDef } from "@/lib/games/templates";
 import { SPELL_TOKENS, type EditorGame, type EditorItem } from "@/lib/games/types";
 import { LANGUAGES, type AppLanguage } from "@/lib/tts/voices";
 import { AudioControl, type TtsConfig } from "./AudioControl";
+import { AudioField } from "./AudioField";
 import { DiagramPoints } from "./DiagramPoints";
-import { ImagePicker } from "./ImagePicker";
+import { FaceEditor, FlashcardPreview, RowControls, swapItem } from "./FlashcardParts";
+import { UiLangProvider, useUi } from "./i18n";
+import { ImageField, mediaSrc } from "./ImageField";
 import { SpanishCharBar, SpanishField, SpanishKeyboardProvider } from "./SpanishField";
 
 type Category = { id: string; nameEn: string; nameEs: string };
@@ -21,9 +24,21 @@ type SaveState = "saved" | "dirty" | "saving" | "error";
 
 const LANG_SHORT: Record<AppLanguage, string> = { "es-419": "Spanish", "en-US": "English", "fr-FR": "French" };
 
+const newKey = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+/** Gives every item a stable client key; old flashcards get their back text from the translation. */
+function prepareItems(items: EditorItem[], t: TemplateDef): EditorItem[] {
+  return items.map((it) => {
+    const x = { ...it, key: it.key ?? newKey() };
+    if (t.board === "flashcards" && !x.data.back && x.data.translation) x.data = { ...x.data, back: { text: x.data.translation } };
+    return x;
+  });
+}
+
 function blankItem(t: TemplateDef): EditorItem {
   const name = t.key === "SPELL_YOUR_NAME";
   return {
+    key: newKey(),
     imageAssetId: null,
     imageUrl: null,
     text: "",
@@ -67,11 +82,25 @@ function alphabetItems(t: TemplateDef): EditorItem[] {
 }
 const ALPHABET_TEMPLATES = ["FLASHCARDS", "LISTEN_AND_SPEAK", "SPELL_THE_WORD"];
 
-export function GameEditor({ initial, template, categories }: { initial: EditorGame; template: TemplateDef; categories: Category[] }) {
-  const router = useRouter();
-  const [game, setGame] = useState<EditorGame>(() =>
-    initial.items.length ? initial : { ...initial, items: Array.from({ length: template.minItems ?? 1 }, () => blankItem(template)) },
+export function GameEditor(props: { initial: EditorGame; template: TemplateDef; categories: Category[] }) {
+  return (
+    <UiLangProvider>
+      <GameEditorInner {...props} />
+    </UiLangProvider>
   );
+}
+
+function GameEditorInner({ initial, template, categories }: { initial: EditorGame; template: TemplateDef; categories: Category[] }) {
+  const router = useRouter();
+  const { t, lang: uiLang, setLang: setUiLang } = useUi();
+  const [game, setGame] = useState<EditorGame>(() =>
+    initial.items.length ? { ...initial, items: prepareItems(initial.items, template) } : { ...initial, items: Array.from({ length: template.minItems ?? 1 }, () => blankItem(template)) },
+  );
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+  const [lastDeleted, setLastDeleted] = useState<{ item: EditorItem; index: number } | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(!!initial.instructions.trim());
   const [save, setSave] = useState<SaveState>("saved");
   const [saveError, setSaveError] = useState("");
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -90,7 +119,8 @@ export function GameEditor({ initial, template, categories }: { initial: EditorG
       const raw = localStorage.getItem(backupKey);
       if (raw) {
         const b = JSON.parse(raw) as EditorGame;
-        if (JSON.stringify(b.items) !== JSON.stringify(initial.items) || b.title !== initial.title) setRestore(b);
+        const strip = (items: EditorItem[]) => JSON.stringify(items.map((x) => ({ ...x, key: undefined })));
+        if (strip(b.items) !== strip(prepareItems(initial.items, template)) || b.title !== initial.title) setRestore(b);
         else localStorage.removeItem(backupKey);
       }
     } catch {}
@@ -164,7 +194,46 @@ export function GameEditor({ initial, template, categories }: { initial: EditorG
       return { ...g, items };
     });
 
+  const maxItems = maxItemsFor(template);
+  const atMax = game.items.length >= maxItems;
+  const reorder = (from: number, to: number) =>
+    setGame((g) => {
+      if (from === to) return g;
+      const items = [...g.items];
+      const [x] = items.splice(from, 1);
+      items.splice(to, 0, x);
+      return { ...g, items };
+    });
+  const duplicateItem = (i: number) =>
+    setGame((g) => {
+      if (g.items.length >= maxItems) return g;
+      const it = g.items[i];
+      const copy: EditorItem = { ...structuredClone(it), id: undefined, key: newKey(), data: { ...structuredClone(it.data), x: undefined, y: undefined }, question: { ...structuredClone(it.question), id: undefined } };
+      return { ...g, items: [...g.items.slice(0, i + 1), copy, ...g.items.slice(i + 1)] };
+    });
+  const remove = (i: number) => {
+    setLastDeleted({ item: game.items[i], index: i });
+    setGame((g) => ({ ...g, items: g.items.filter((_, k) => k !== i) }));
+  };
+  const undoDelete = () => {
+    if (!lastDeleted) return;
+    setGame((g) => {
+      const items = [...g.items];
+      items.splice(Math.min(lastDeleted.index, items.length), 0, lastDeleted.item);
+      return { ...g, items };
+    });
+    setLastDeleted(null);
+  };
+  useEffect(() => {
+    if (!lastDeleted) return;
+    const tm = setTimeout(() => setLastDeleted(null), 10_000);
+    return () => clearTimeout(tm);
+  }, [lastDeleted]);
+  const swapAll = () => setGame((g) => ({ ...g, items: g.items.map(swapItem) }));
+
   const options = templateOptions(template, game.settings.options);
+  const flash = template.board === "flashcards";
+  const twoSided = flash && (options.sides ?? "two") !== "one";
   const setOption = (k: string, v: string | number | boolean) => setSettings({ options: { ...options, [k]: v } });
   const voicesFor = (l: AppLanguage) => (tts?.voices ?? []).filter((v) => v.language === l);
   const otherVoices = game.settings.voices ?? {};
@@ -224,147 +293,7 @@ export function GameEditor({ initial, template, categories }: { initial: EditorG
     setGame((g) => ({ ...g, items: [...(empty ? [] : g.items), ...alphabetItems(template)] }));
   }
 
-  return (
-    <SpanishKeyboardProvider>
-      <form ref={dupForm} action={duplicateGame} className="hidden">
-        <input type="hidden" name="gameId" value={game.id} />
-      </form>
-
-      {restore && (
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl2 bg-sun-soft px-4 py-3 text-sm">
-          <span className="flex-1">This device has unsaved changes to this activity from an earlier session.</span>
-          <Button size="sm" variant="secondary" onClick={() => (setGame(restore), setRestore(null))}>Restore them</Button>
-          <Button size="sm" variant="ghost" onClick={() => { try { localStorage.removeItem(backupKey); } catch {} setRestore(null); }}>Discard</Button>
-        </div>
-      )}
-
-      <div className="sticky top-0 z-10 -mx-5 mb-6 flex flex-wrap items-center gap-3 border-b border-line bg-paper/95 px-5 py-3 backdrop-blur">
-        <Link href="/teacher/games" className="text-sm font-bold text-muted hover:text-ink">← Activities</Link>
-        <span className="font-display text-lg font-semibold">{game.title || "Untitled activity"}</span>
-        <Badge tone="sky">{template.name}</Badge>
-        <Badge tone={game.status === "PUBLISHED" ? "leaf" : "neutral"}>{game.status === "PUBLISHED" ? "Published" : game.status === "ARCHIVED" ? "Archived" : "Draft"}</Badge>
-        <span className="text-xs font-semibold text-muted" aria-live="polite">
-          {save === "saved"
-            ? savedAt
-              ? `Saved ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
-              : "All changes saved"
-            : save === "saving"
-              ? "Saving…"
-              : save === "dirty"
-                ? "Unsaved changes"
-                : `Not saved: ${saveError}`}
-        </span>
-        <div className="ml-auto flex flex-wrap gap-2">
-          <Button size="sm" variant="ghost" onClick={saveDraft} disabled={save === "saving"}>
-            {save === "error" ? "Retry save" : "Save draft"}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={duplicate} disabled={!!busy}>{busy === "duplicate" ? "Duplicating…" : "Duplicate"}</Button>
-          <Button size="sm" variant="secondary" onClick={preview} disabled={!!busy}>Preview</Button>
-          <Button size="sm" onClick={doPublish} disabled={!!busy}>
-            {busy === "publish" ? "Publishing…" : game.status === "PUBLISHED" ? "Update published" : "Publish"}
-          </Button>
-          <Button size="sm" variant="voice" onClick={assign} disabled={!!busy}>{busy === "assign" ? "Publishing…" : "Assign"}</Button>
-        </div>
-        <div className="w-full">
-          <SpanishCharBar french={game.language === "fr-FR"} />
-        </div>
-      </div>
-
-      {problems.length > 0 && (
-        <div role="alert" className="mb-6 rounded-xl2 bg-coral-soft p-4 text-sm text-coral-dark">
-          <p className="font-bold">Before publishing:</p>
-          <ul className="mt-1 list-disc pl-5">{problems.map((p) => <li key={p}>{p}</li>)}</ul>
-        </div>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-4">
-          {template.activityImage && (
-            <section className="rounded-xl2 border border-line bg-card p-5" aria-label="Picture to label">
-              <h2 className="font-display text-lg font-semibold">Picture to label</h2>
-              <p className="mb-3 text-sm text-muted">Upload one picture, then choose a {noun} below and click the picture to place it. Drag a number to move it.</p>
-              {game.diagramImageUrl ? (
-                <>
-                  <DiagramPoints
-                    imageUrl={game.diagramImageUrl}
-                    points={game.items.map((it) => ({ x: it.data.x, y: it.data.y, label: it.text }))}
-                    active={activePoint}
-                    onSelect={setActivePoint}
-                    onPlace={(i, x, y) => {
-                      setData(i, { x, y });
-                      const next = game.items.findIndex((it, k) => k > i && it.data.x == null);
-                      if (next !== -1) setActivePoint(next);
-                    }}
-                  />
-                  <button type="button" onClick={() => setGame((g) => ({ ...g, diagramImageUrl: null, settings: { ...g.settings, diagramImageId: null } }))} className="mt-2 text-xs font-bold text-muted hover:text-coral-dark">
-                    Change picture
-                  </button>
-                </>
-              ) : (
-                <div className="max-w-sm">
-                  <ImagePicker value={null} onChange={(a) => setGame((g) => ({ ...g, diagramImageUrl: a?.url ?? null, settings: { ...g.settings, diagramImageId: a?.id ?? null } }))} />
-                </div>
-              )}
-            </section>
-          )}
-
-          {ALPHABET_TEMPLATES.includes(template.key) && (
-            <div className="flex flex-wrap items-center gap-3 rounded-xl2 bg-teal-soft px-4 py-3 text-sm">
-              <span className="flex-1 text-teal-dark">
-                {template.key === "SPELL_THE_WORD"
-                  ? "Start from the alphabet: one word for each of the 27 letters (árbol, barco, casa…)."
-                  : "Start from the Spanish alphabet: 27 letters with their names. Any common name counts (“be larga”, “i griega”…)."}
-              </span>
-              <Button size="sm" variant="secondary" onClick={addAlphabet}>Add the Spanish alphabet</Button>
-            </div>
-          )}
-
-          {game.items.map((it, i) => (
-            <section
-              key={it.id ?? `new-${i}`}
-              className={`rounded-xl2 border bg-card p-5 ${template.activityImage && i === activePoint ? "border-teal ring-2 ring-teal/20" : "border-line"}`}
-              aria-label={`${noun[0].toUpperCase()}${noun.slice(1)} ${i + 1}`}
-              onFocusCapture={() => template.activityImage && setActivePoint(i)}
-            >
-              <div className="mb-4 flex items-center gap-2">
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-ink font-display text-sm font-semibold text-white">{i + 1}</span>
-                <span className="text-sm font-bold capitalize text-muted">{noun}</span>
-                {fields.point && (
-                  <button type="button" onClick={() => setActivePoint(i)} className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${it.data.x == null ? "bg-coral-soft text-coral-dark" : "bg-leaf-soft text-leaf"}`}>
-                    {it.data.x == null ? (i === activePoint ? "Click the picture to place it" : "Not placed — choose") : i === activePoint ? "Placing… click the picture to move" : "Placed ✓"}
-                  </button>
-                )}
-                <div className="ml-auto flex gap-1 text-xs font-bold text-muted">
-                  <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="rounded-full px-2 py-1 hover:bg-paper-2 disabled:opacity-30" aria-label="Move up">↑</button>
-                  <button type="button" onClick={() => move(i, 1)} disabled={i === game.items.length - 1} className="rounded-full px-2 py-1 hover:bg-paper-2 disabled:opacity-30" aria-label="Move down">↓</button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setGame((g) => ({
-                        ...g,
-                        items: [...g.items.slice(0, i + 1), { ...structuredClone(it), id: undefined, data: { ...it.data, x: undefined, y: undefined }, question: { ...structuredClone(it.question), id: undefined } }, ...g.items.slice(i + 1)],
-                      }))
-                    }
-                    className="rounded-full px-2 py-1 hover:bg-paper-2"
-                  >
-                    Duplicate
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => confirm(`Delete this ${noun}?`) && setGame((g) => ({ ...g, items: g.items.filter((_, k) => k !== i) }))}
-                    className="rounded-full px-2 py-1 hover:bg-coral-soft hover:text-coral-dark"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-              <div className={`grid gap-5 ${fields.image !== "none" ? "md:grid-cols-[220px_minmax(0,1fr)]" : ""}`}>
-                {fields.image !== "none" && (
-                  <div>
-                    <Label>Image {fields.image === "optional" && <span className="font-normal text-muted">(optional)</span>}</Label>
-                    <ImagePicker value={it.imageAssetId} url={it.imageUrl} suggest={it.text || it.question.expectedAnswer} onChange={(a) => setItem(i, (x) => ({ ...x, imageAssetId: a?.id ?? null, imageUrl: a?.url ?? null }))} />
-                  </div>
-                )}
+  const questionFields = (it: EditorItem, i: number) => (
                 <div className="space-y-4">
                   {template.key === "SPELL_YOUR_NAME" && (
                     <div>
@@ -384,7 +313,7 @@ export function GameEditor({ initial, template, categories }: { initial: EditorG
                     </div>
                   )}
 
-                  {fields.itemText && (
+                  {fields.itemText && !flash && (
                     <SpanishField
                       label={fields.itemText.label}
                       hint={fields.itemText.required ? undefined : "optional"}
@@ -453,7 +382,7 @@ export function GameEditor({ initial, template, categories }: { initial: EditorG
                     </div>
                   )}
 
-                  {fields.translation && (
+                  {fields.translation && !flash && (
                     <div>
                       <SpanishField label="Back of the card" hint="optional — translation or note" value={it.data.translation ?? ""} language={it.data.translationLanguage ?? "en-US"} onChange={(v) => setData(i, { translation: v })} placeholder="the apple" maxLength={200} />
                       <select aria-label="Back of the card language" value={it.data.translationLanguage ?? "en-US"} onChange={(e) => setData(i, { translationLanguage: e.target.value as AppLanguage })} className="mt-1.5 rounded-lg border border-line bg-card px-2 py-1 text-xs">
@@ -481,20 +410,305 @@ export function GameEditor({ initial, template, categories }: { initial: EditorG
                     <SpanishField label="Hint" hint="shown after the first incorrect try" value={it.question.hint} language={game.language} onChange={(v) => setQ(i, { hint: v })} placeholder="Empieza con M." />
                   )}
                 </div>
-              </div>
+  );
+
+  return (
+    <SpanishKeyboardProvider>
+      <form ref={dupForm} action={duplicateGame} className="hidden">
+        <input type="hidden" name="gameId" value={game.id} />
+      </form>
+
+      {restore && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl2 bg-sun-soft px-4 py-3 text-sm">
+          <span className="flex-1">This device has unsaved changes to this activity from an earlier session.</span>
+          <Button size="sm" variant="secondary" onClick={() => (setGame(restore), setRestore(null))}>Restore them</Button>
+          <Button size="sm" variant="ghost" onClick={() => { try { localStorage.removeItem(backupKey); } catch {} setRestore(null); }}>Discard</Button>
+        </div>
+      )}
+
+      <div className="sticky top-0 z-20 -mx-5 mb-4 flex flex-wrap items-center gap-3 border-b border-line bg-paper/95 px-5 py-3 backdrop-blur">
+        <Link href="/teacher/games" className="text-sm font-bold text-muted hover:text-ink">← Activities</Link>
+        <Badge tone="sky">{template.name}</Badge>
+        <Badge tone={game.status === "PUBLISHED" ? "leaf" : "neutral"}>{game.status === "PUBLISHED" ? "Published" : game.status === "ARCHIVED" ? "Archived" : "Draft"}</Badge>
+        <span
+          data-testid="save-status"
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${save === "error" ? "bg-coral-soft text-coral-dark" : save === "saved" ? "bg-leaf-soft text-leaf" : "bg-paper-2 text-ink-2"}`}
+          aria-live="polite"
+          title={save === "error" ? saveError : savedAt ? savedAt.toLocaleTimeString() : undefined}
+        >
+          {save === "saved" ? `✓ ${t.saved}` : save === "saving" ? t.saving : save === "dirty" ? t.unsaved : `⚠ ${t.saveError}`}
+          {save === "error" && (
+            <button type="button" onClick={saveDraft} className="underline">{t.retry}</button>
+          )}
+        </span>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div className="flex rounded-full bg-paper-2 p-0.5 text-xs font-bold" role="group" aria-label="Language / Idioma">
+            {(["es", "en"] as const).map((l) => (
+              <button key={l} type="button" onClick={() => setUiLang(l)} aria-pressed={uiLang === l} className={`rounded-full px-2 py-1 ${uiLang === l ? "bg-card text-ink shadow-sm" : "text-muted"}`}>{l.toUpperCase()}</button>
+            ))}
+          </div>
+          <Button size="sm" variant="ghost" onClick={duplicate} disabled={!!busy}>{busy === "duplicate" ? "Duplicating…" : "Duplicate"}</Button>
+          {flash && <Button size="sm" variant="secondary" onClick={() => setShowPreview(true)}>👁 {t.preview}</Button>}
+          <Button size="sm" variant="secondary" onClick={preview} disabled={!!busy}>{flash ? "Play" : "Preview"}</Button>
+          <Button size="sm" onClick={doPublish} disabled={!!busy}>
+            {busy === "publish" ? "Publishing…" : game.status === "PUBLISHED" ? "Update published" : "Publish"}
+          </Button>
+          <Button size="sm" variant="voice" onClick={assign} disabled={!!busy}>{busy === "assign" ? "Publishing…" : "Assign"}</Button>
+        </div>
+        <div className="w-full">
+          <SpanishCharBar french={game.language === "fr-FR"} />
+        </div>
+      </div>
+
+      <section className="mb-4 space-y-2">
+        <label htmlFor="game-title" className="block text-sm font-bold text-ink-2">{t.title}</label>
+        <input
+          id="game-title"
+          value={game.title}
+          onChange={(e) => set("title", e.target.value)}
+          maxLength={120}
+          placeholder={t.untitled}
+          className="w-full rounded-xl border border-line bg-card px-4 py-3 font-display text-xl font-semibold focus:border-sky focus:outline-none focus:ring-3 focus:ring-sky/20"
+        />
+        {showInstructions ? (
+          <div>
+            <SpanishField label={t.instructions} hint="spoken at the start" multiline value={game.instructions} language={game.language} onChange={(v) => set("instructions", v)} placeholder="Mira la imagen y responde." maxLength={1000} tags />
+            <button type="button" onClick={() => (set("instructions", ""), setShowInstructions(false))} className="mt-1 text-xs font-bold text-muted hover:text-coral-dark">{t.hideInstructions}</button>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setShowInstructions(true)} className="text-sm font-bold text-ink-2 hover:text-coral">+ {t.addInstructions}</button>
+        )}
+      </section>
+
+      {showPreview && <FlashcardPreview items={game.items} twoSided={twoSided} rate={game.settings.rate} language={game.language} onClose={() => setShowPreview(false)} />}
+
+      {problems.length > 0 && (
+        <div role="alert" className="mb-6 rounded-xl2 bg-coral-soft p-4 text-sm text-coral-dark">
+          <p className="font-bold">Before publishing:</p>
+          <ul className="mt-1 list-disc pl-5">{problems.map((p) => <li key={p}>{p}</li>)}</ul>
+        </div>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-4">
+          {template.activityImage && (
+            <section className="rounded-xl2 border border-line bg-card p-5" aria-label="Picture to label">
+              <h2 className="font-display text-lg font-semibold">Picture to label</h2>
+              <p className="mb-3 text-sm text-muted">Upload one picture, then choose a {noun} below and click the picture to place it. Drag a number to move it.</p>
+              {game.diagramImageUrl ? (
+                <>
+                  <DiagramPoints
+                    imageUrl={game.diagramImageUrl}
+                    points={game.items.map((it) => ({ x: it.data.x, y: it.data.y, label: it.text }))}
+                    active={activePoint}
+                    onSelect={setActivePoint}
+                    onPlace={(i, x, y) => {
+                      setData(i, { x, y });
+                      const next = game.items.findIndex((it, k) => k > i && it.data.x == null);
+                      if (next !== -1) setActivePoint(next);
+                    }}
+                  />
+                  <button type="button" onClick={() => setGame((g) => ({ ...g, diagramImageUrl: null, settings: { ...g.settings, diagramImageId: null } }))} className="mt-2 text-xs font-bold text-muted hover:text-coral-dark">
+                    Change picture
+                  </button>
+                </>
+              ) : (
+                <div className="max-w-sm">
+                  <ImageField assetId={null} onChange={(a) => setGame((g) => ({ ...g, diagramImageUrl: a?.url ?? null, settings: { ...g.settings, diagramImageId: a?.id ?? null } }))} />
+                </div>
+              )}
             </section>
-          ))}
-          <button type="button" onClick={() => setGame((g) => ({ ...g, items: [...g.items, blankItem(template)] }))} className="w-full rounded-xl2 border-2 border-dashed border-line py-4 font-bold text-ink-2 hover:border-coral hover:text-coral">
-            + Add {noun}
-          </button>
+          )}
+
+          {ALPHABET_TEMPLATES.includes(template.key) && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl2 bg-teal-soft px-4 py-3 text-sm">
+              <span className="flex-1 text-teal-dark">
+                {template.key === "SPELL_THE_WORD"
+                  ? "Start from the alphabet: one word for each of the 27 letters (árbol, barco, casa…)."
+                  : "Start from the Spanish alphabet: 27 letters with their names. Any common name counts (“be larga”, “i griega”…)."}
+              </span>
+              <Button size="sm" variant="secondary" onClick={addAlphabet}>Add the Spanish alphabet</Button>
+            </div>
+          )}
+
+          {flash && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl2 border border-line bg-card px-4 py-3">
+              <div role="radiogroup" aria-label={template.name} className="flex gap-4 text-sm font-bold">
+                {(["two", "one"] as const).map((v) => (
+                  <label key={v} className="flex cursor-pointer items-center gap-1.5">
+                    <input type="radio" name="sides" checked={(options.sides ?? "two") === v} onChange={() => setOption("sides", v)} />
+                    {v === "two" ? t.twoSides : t.oneSide}
+                  </label>
+                ))}
+              </div>
+              {twoSided && (
+                <Button size="sm" variant="secondary" onClick={swapAll} className="ml-auto">⇄ {t.swap}</Button>
+              )}
+              {!twoSided && <p className="w-full text-xs text-muted">{t.backHiddenOne}</p>}
+            </div>
+          )}
+
+          {flash && twoSided && (
+            <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_13rem] gap-2 px-4 text-sm font-bold text-ink-2 md:grid">
+              <span />
+              <span>{t.front}</span>
+              <span>{t.back}</span>
+              <span />
+            </div>
+          )}
+
+          <ol className="space-y-3" aria-label={`${template.name}: ${game.items.length}`}>
+            {game.items.map((it, i) => {
+              const controls = (
+                <RowControls
+                  index={i}
+                  count={game.items.length}
+                  canDuplicate={!atMax}
+                  onMove={(d) => move(i, d)}
+                  onDuplicate={() => duplicateItem(i)}
+                  onDelete={() => remove(i)}
+                  onDragStart={() => setDragFrom(i)}
+                />
+              );
+              const rowKey = it.key ?? it.id ?? `new-${i}`;
+              const rowProps = {
+                onDragOver: (e: React.DragEvent) => dragFrom !== null && (e.preventDefault(), setDragOver(i)),
+                onDrop: (e: React.DragEvent) => {
+                  e.preventDefault();
+                  if (dragFrom !== null) reorder(dragFrom, i);
+                  setDragFrom(null);
+                  setDragOver(null);
+                },
+                onDragEnd: () => (setDragFrom(null), setDragOver(null)),
+              };
+              const dropMark = dragOver === i && dragFrom !== null && dragFrom !== i ? "ring-2 ring-sky" : "";
+
+              if (flash) {
+                const back = it.data.back ?? {};
+                return (
+                  <li key={rowKey} {...rowProps} className={`rounded-xl2 border border-line bg-card p-3 ${dropMark} ${dragFrom === i ? "opacity-50" : ""}`} aria-label={`${t.card[0].toUpperCase()}${t.card.slice(1)} ${i + 1}`}>
+                    <div className={`grid items-start gap-2 ${twoSided ? "md:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_13rem]" : "md:grid-cols-[2.5rem_minmax(0,1fr)_13rem]"} grid-cols-[2.5rem_minmax(0,1fr)]`}>
+                      <span className="grid h-8 w-8 place-items-center rounded-full bg-ink font-display text-sm font-semibold text-white">{i + 1}</span>
+                      <FaceEditor
+                        label={t.front}
+                        showLabel={twoSided}
+                        face={{ text: it.text, imageAssetId: it.imageAssetId, imageAlt: it.data.imageAlt, audio: it.data.audio }}
+                        language={game.language}
+                        tts={tts}
+                        rate={game.settings.rate}
+                        onChange={(f) => setItem(i, (x) => ({ ...x, text: f.text ?? "", imageAssetId: f.imageAssetId ?? null, imageUrl: mediaSrc(f.imageAssetId), data: { ...x.data, imageAlt: f.imageAlt, audio: f.audio ?? null } }))}
+                      />
+                      {twoSided && (
+                        <FaceEditor
+                          className="col-start-2 md:col-start-auto"
+                          label={t.back}
+                          showLabel
+                          face={back}
+                          language={it.data.translationLanguage ?? (game.language === "es-419" ? "en-US" : "es-419")}
+                          tts={tts}
+                          rate={game.settings.rate}
+                          onChange={(f) => setData(i, { back: f, translation: undefined })}
+                        />
+                      )}
+                      <div className="col-start-2 flex items-center gap-1 md:col-start-auto md:justify-end">
+                        {twoSided && (
+                          <button type="button" onClick={() => setItem(i, swapItem)} className="rounded-full px-2 py-1 text-xs font-bold text-muted hover:bg-paper-2 hover:text-ink" aria-label={`${t.swapOne} ${i + 1}`} title={t.swapOne}>⇄</button>
+                        )}
+                        {controls}
+                      </div>
+                    </div>
+                    <details className="ml-10 mt-2 text-sm">
+                      <summary className="cursor-pointer text-xs font-bold text-muted hover:text-ink">
+                        {t.spokenAnswer}
+                        {it.question.expectedAnswer.trim() ? `: ${it.question.expectedAnswer}` : ""}
+                      </summary>
+                      <div className="mt-3">{questionFields(it, i)}</div>
+                    </details>
+                  </li>
+                );
+              }
+
+              return (
+                <li
+                  key={rowKey}
+                  {...rowProps}
+                  className={`rounded-xl2 border bg-card p-5 ${template.activityImage && i === activePoint ? "border-teal ring-2 ring-teal/20" : "border-line"} ${dropMark} ${dragFrom === i ? "opacity-50" : ""}`}
+                  aria-label={`${noun[0].toUpperCase()}${noun.slice(1)} ${i + 1}`}
+                  onFocusCapture={() => template.activityImage && setActivePoint(i)}
+                >
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-ink font-display text-sm font-semibold text-white">{i + 1}</span>
+                    <span className="text-sm font-bold capitalize text-muted">{noun}</span>
+                    {fields.point && (
+                      <button type="button" onClick={() => setActivePoint(i)} className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${it.data.x == null ? "bg-coral-soft text-coral-dark" : "bg-leaf-soft text-leaf"}`}>
+                        {it.data.x == null ? (i === activePoint ? "Click the picture to place it" : "Not placed — choose") : i === activePoint ? "Placing… click the picture to move" : "Placed ✓"}
+                      </button>
+                    )}
+                    <div className="ml-auto">{controls}</div>
+                  </div>
+                  <div className={`grid gap-5 ${fields.image !== "none" ? "md:grid-cols-[220px_minmax(0,1fr)]" : ""}`}>
+                    <div className="space-y-3">
+                      {fields.image !== "none" && (
+                        <div>
+                          <Label>{t.addImage} {fields.image === "optional" && <span className="font-normal text-muted">(optional)</span>}</Label>
+                          <ImageField
+                            assetId={it.imageAssetId}
+                            alt={it.data.imageAlt}
+                            suggest={it.text || it.question.expectedAnswer}
+                            onChange={(a) => setItem(i, (x) => ({ ...x, imageAssetId: a?.id ?? null, imageUrl: a?.url ?? null }))}
+                            onAlt={(alt) => setData(i, { imageAlt: alt })}
+                          />
+                        </div>
+                      )}
+                      {template.board !== "diagram" && template.key !== "SPELL_YOUR_NAME" && (
+                      <div>
+                        <Label hint={template.key === "SPELL_THE_WORD" ? "plays as “Hear the word”" : undefined}>{t.itemAudio}</Label>
+                        <AudioField
+                          audio={it.data.audio}
+                          onChange={(a) => setData(i, { audio: a })}
+                          defaultText={template.key === "SPELL_THE_WORD" || template.key === "LISTEN_AND_SPEAK" ? it.question.expectedAnswer : it.text || it.question.expectedAnswer}
+                          defaultLanguage={it.question.answerLanguage ?? game.language}
+                          tts={tts}
+                          rate={game.settings.rate}
+                          label={`${noun} ${i + 1}`}
+                        />
+                      </div>
+                      )}
+                    </div>
+                    {questionFields(it, i)}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+
+          {lastDeleted && (
+            <div role="status" className="sticky bottom-3 z-10 mx-auto flex w-fit items-center gap-3 rounded-full bg-ink px-4 py-2 text-sm text-white shadow-soft">
+              {t.deleted}
+              <button type="button" onClick={undoDelete} className="font-bold text-sun underline">{t.undo}</button>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={atMax}
+              onClick={() => setGame((g) => (g.items.length >= maxItems ? g : { ...g, items: [...g.items, blankItem(template)] }))}
+              className="flex-1 rounded-xl2 border-2 border-dashed border-line py-4 font-bold text-ink-2 hover:border-coral hover:text-coral disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:text-ink-2"
+            >
+              + {t.add} {flash ? t.card : noun}
+            </button>
+            <span className={`text-sm font-bold ${atMax ? "text-coral-dark" : "text-muted"}`} aria-live="polite">
+              {game.items.length} {t.of} {maxItems}
+              {atMax && <span className="block text-xs font-semibold">{t.limitReached}</span>}
+            </span>
+          </div>
         </div>
 
         <aside className="space-y-4">
           <section className="space-y-4 rounded-xl2 border border-line bg-card p-5">
             <h2 className="font-display text-lg font-semibold">Activity</h2>
-            <SpanishField label="Activity title" value={game.title} onChange={(v) => set("title", v)} placeholder="Los animales" maxLength={120} />
             <SpanishField label="Description" multiline value={game.description} onChange={(v) => set("description", v)} maxLength={1000} />
-            <SpanishField label="Instructions for students" hint="spoken at the start" multiline value={game.instructions} language={game.language} onChange={(v) => set("instructions", v)} placeholder="Mira la imagen y responde." maxLength={1000} tags />
             <div>
               <Label htmlFor="cat">Category</Label>
               <Select id="cat" value={game.categoryId ?? ""} onChange={(e) => set("categoryId", e.target.value || null)}>
@@ -535,7 +749,7 @@ export function GameEditor({ initial, template, categories }: { initial: EditorG
           {template.options.length > 0 && (
             <section className="space-y-4 rounded-xl2 border border-line bg-card p-5" aria-label={`${template.name} options`}>
               <h2 className="font-display text-lg font-semibold">{template.name} options</h2>
-              {template.options.map((o) => (
+              {template.options.filter((o) => o.key !== "sides").map((o) => (
                 <OptionInput key={o.key} o={o} value={options[o.key]} onChange={(v) => setOption(o.key, v)} disabled={o.key === "seconds" && !options.timed} />
               ))}
             </section>

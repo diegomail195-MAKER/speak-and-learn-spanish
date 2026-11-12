@@ -22,10 +22,27 @@ export const extFor: Record<string, string> = {
   "image/webp": "webp",
   "audio/mpeg": "mp3",
   "audio/wav": "wav",
+  "audio/ogg": "ogg",
+  "audio/webm": "webm",
+  "audio/mp4": "m4a",
   "video/mp4": "mp4",
   "video/webm": "webm",
   "text/vtt": "vtt",
 };
+
+export const AUDIO_MAX_BYTES = 4 * 1024 * 1024;
+
+/** MP3, WAV, OGG, WebM (browser recordings) or MP4/M4A audio, by their first bytes. */
+export function sniffAudio(buf: Uint8Array): "audio/mpeg" | "audio/wav" | "audio/ogg" | "audio/webm" | "audio/mp4" | null {
+  if (buf.length < 12) return null;
+  const ascii = (a: number, b: number) => String.fromCharCode(...buf.slice(a, b));
+  if (ascii(0, 3) === "ID3" || (buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0)) return "audio/mpeg";
+  if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WAVE") return "audio/wav";
+  if (ascii(0, 4) === "OggS") return "audio/ogg";
+  if (buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3) return "audio/webm";
+  if (ascii(4, 8) === "ftyp") return "audio/mp4";
+  return null;
+}
 
 export const VIDEO_MAX_BYTES = Number(process.env.VIDEO_MAX_MB ?? 500) * 1024 * 1024;
 
