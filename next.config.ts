@@ -16,7 +16,7 @@ const securityHeaders = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' blob: https://www.youtube.com https://s.ytimg.com" + (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""),
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://i.ytimg.com" + storageOrigin,
+      "img-src 'self' data: blob: https://i.ytimg.com https://cdn.pixabay.com https://pixabay.com" + storageOrigin,
       "media-src 'self' blob:" + storageOrigin,
       "font-src 'self'",
       "connect-src 'self'" + storageOrigin,

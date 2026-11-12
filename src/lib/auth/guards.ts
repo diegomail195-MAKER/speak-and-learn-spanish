@@ -1,5 +1,6 @@
 import "server-only";
 import { redirect } from "next/navigation";
+import { isPlatformAdmin } from "./admin";
 import { getSessionUser } from "./session";
 
 export class HttpError extends Error {
@@ -26,6 +27,19 @@ export async function requireTeacher() {
   const user = await getSessionUser();
   if (!user || !user.teacher || (user.role !== "TEACHER" && user.role !== "ADMIN")) throw new HttpError(401, "Teacher sign-in required");
   return { user, teacher: user.teacher };
+}
+
+/** Videos can only be uploaded, edited or deleted by the platform administrator. */
+export async function requireVideoAdmin() {
+  const res = await requireTeacher();
+  if (!isPlatformAdmin(res.user)) throw new HttpError(403, "Solo el administrador puede subir o editar videos.");
+  return res;
+}
+
+export async function requireVideoAdminPage() {
+  const res = await requireTeacherPage();
+  if (!isPlatformAdmin(res.user)) redirect("/teacher/videos?admin=only");
+  return res;
 }
 
 export async function requireStudent() {

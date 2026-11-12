@@ -53,6 +53,24 @@ plataforma usa la voz y el reconocimiento de Chrome.
 
 Sin estas variables, la página dice que el restablecimiento por correo todavía no está activado.
 
+## Solo el administrador sube videos
+
+En Vercel agrega `ADMIN_EMAILS` = tu correo de inicio de sesión (si son varios, sepáralos con comas)
+y vuelve a desplegar. Solo esas cuentas pueden subir, editar, publicar o borrar videos; los demás
+docentes pueden verlos, asignarlos y armar colecciones.
+
+## Buscar imágenes en internet (con filtro infantil)
+
+1. Crea una cuenta gratis en <https://pixabay.com> y abre <https://pixabay.com/api/docs/>: tu clave
+   aparece en la sección **Parameters → key** (estando conectado).
+2. En Vercel agrega `PIXABAY_API_KEY` con esa clave y vuelve a desplegar.
+3. Opcional, filtro extra: una clave de Google Cloud con **Cloud Vision API** activada en
+   `GOOGLE_VISION_API_KEY`. Cada imagen se revisa (contenido sexual, violento o subido de tono) y,
+   si la revisión falla, la imagen se bloquea.
+
+Siempre activo: palabras prohibidas (español e inglés) en la búsqueda y en las etiquetas, y SafeSearch
+de Pixabay. La imagen elegida se copia a tu almacenamiento: los estudiantes nunca cargan nada externo.
+
 ## Límites conocidos en Vercel
 
 - Las imágenes se suben hasta 4 MB; los videos van directo del navegador a Supabase Storage.

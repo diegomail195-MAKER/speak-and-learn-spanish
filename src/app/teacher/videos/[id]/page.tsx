@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ButtonLink } from "@/components/ui/Button";
 import { Badge, PageHeader } from "@/components/ui/Panel";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
+import { isPlatformAdmin } from "@/lib/auth/admin";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { toPlayVideo } from "@/lib/videos";
@@ -22,7 +23,7 @@ export default async function TeacherWatch({ params }: { params: Promise<{ id: s
         subtitle={v.description || undefined}
         actions={
           <>
-            <ButtonLink href={`/teacher/videos/${v.id}/edit`} variant="secondary">Edit</ButtonLink>
+            {isPlatformAdmin(user) && <ButtonLink href={`/teacher/videos/${v.id}/edit`} variant="secondary">Edit</ButtonLink>}
             {v.status === "PUBLISHED" && <ButtonLink href={`/teacher/assignments/new?videoId=${v.id}`} variant="voice">Assign</ButtonLink>}
           </>
         }

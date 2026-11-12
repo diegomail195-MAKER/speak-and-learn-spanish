@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { handle } from "@/lib/api";
 import { audit } from "@/lib/audit";
-import { HttpError, requireTeacher } from "@/lib/auth/guards";
+import { HttpError, requireVideoAdmin } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { mediaUrl } from "@/lib/media/save";
 import { VIDEO_MAX_BYTES, extFor, sniffVideo } from "@/lib/media/validate";
@@ -21,7 +21,7 @@ async function sha256File(p: string) {
 
 // Raw-body upload (not multipart) so large videos stream to disk instead of memory.
 export const POST = handle(async (req: Request) => {
-  const { user } = await requireTeacher();
+  const { user } = await requireVideoAdmin();
   if (!req.body) throw new HttpError(400, "No file");
   const declared = Number(req.headers.get("content-length") ?? 0);
   if (declared > VIDEO_MAX_BYTES) throw new HttpError(413, `Videos must be ${Math.round(VIDEO_MAX_BYTES / 1048576)} MB or smaller`);

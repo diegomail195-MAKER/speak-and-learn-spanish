@@ -362,7 +362,7 @@ export function GameEditor({ initial, template, categories }: { initial: EditorG
                 {fields.image !== "none" && (
                   <div>
                     <Label>Image {fields.image === "optional" && <span className="font-normal text-muted">(optional)</span>}</Label>
-                    <ImagePicker value={it.imageAssetId} url={it.imageUrl} onChange={(a) => setItem(i, (x) => ({ ...x, imageAssetId: a?.id ?? null, imageUrl: a?.url ?? null }))} />
+                    <ImagePicker value={it.imageAssetId} url={it.imageUrl} suggest={it.text || it.question.expectedAnswer} onChange={(a) => setItem(i, (x) => ({ ...x, imageAssetId: a?.id ?? null, imageUrl: a?.url ?? null }))} />
                   </div>
                 )}
                 <div className="space-y-4">

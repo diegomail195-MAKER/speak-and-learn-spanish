@@ -1,12 +1,12 @@
 import { PageHeader } from "@/components/ui/Panel";
 import { VideoForm } from "@/components/video/VideoForm";
-import { requireTeacherPage } from "@/lib/auth/guards";
+import { requireVideoAdminPage } from "@/lib/auth/guards";
 import { videoFormOptions } from "@/lib/video-form-data";
 
 export const metadata = { title: "Add video" };
 
 export default async function NewVideo() {
-  const { user } = await requireTeacherPage();
+  const { user } = await requireVideoAdminPage();
   const { categories, games } = await videoFormOptions(user.schoolId);
   return (
     <>

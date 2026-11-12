@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { audit } from "@/lib/audit";
-import { HttpError, requireTeacher } from "@/lib/auth/guards";
+import { HttpError, requireTeacher, requireVideoAdmin } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 
 async function schoolVideo(schoolId: string, id: string) {
@@ -14,7 +14,7 @@ async function schoolVideo(schoolId: string, id: string) {
 }
 
 export async function setVideoStatus(form: FormData) {
-  const { user } = await requireTeacher();
+  const { user } = await requireVideoAdmin();
   const v = await schoolVideo(user.schoolId, String(form.get("videoId")));
   const status = z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).parse(form.get("status"));
   await db.video.update({ where: { id: v.id }, data: { status } });
@@ -23,7 +23,7 @@ export async function setVideoStatus(form: FormData) {
 }
 
 export async function deleteVideo(form: FormData) {
-  const { user } = await requireTeacher();
+  const { user } = await requireVideoAdmin();
   const v = await schoolVideo(user.schoolId, String(form.get("videoId")));
   if (form.get("confirm") !== "DELETE") throw new Error("Confirmation required");
   await db.video.delete({ where: { id: v.id } });

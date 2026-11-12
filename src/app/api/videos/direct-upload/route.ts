@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { handle } from "@/lib/api";
 import { audit } from "@/lib/audit";
-import { HttpError, requireTeacher } from "@/lib/auth/guards";
+import { HttpError, requireVideoAdmin } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { mediaUrl } from "@/lib/media/save";
 import { VIDEO_MAX_BYTES, sniffVideo } from "@/lib/media/validate";
@@ -17,7 +17,7 @@ const start = z.object({ name: z.string().max(200), size: z.number().int().posit
 const done = z.object({ key: z.string().max(300), name: z.string().max(200) });
 
 export const POST = handle(async (req: Request) => {
-  const { user } = await requireTeacher();
+  const { user } = await requireVideoAdmin();
   const store = storage();
   const body = await req.json();
 
