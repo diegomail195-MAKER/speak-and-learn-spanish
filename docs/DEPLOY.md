@@ -61,6 +61,16 @@ docentes pueden verlos, asignarlos y armar colecciones.
 
 ## Buscar imágenes en internet (con filtro infantil)
 
+Puedes usar uno de los dos buscadores o los dos (recomendado): la lupa busca primero en Brave
+(imágenes de toda la web, con SafeSearch estricto) y, si Brave no está configurado, falla o no
+encuentra nada, busca en Pixabay.
+
+- **Brave Search (resultados de toda la web):** crea una cuenta en
+  <https://api-dashboard.search.brave.com>, suscríbete a un plan de **Search** y crea una clave.
+  En Vercel agrégala como `BRAVE_SEARCH_API_KEY`. Las imágenes de la web pueden tener derechos de
+  autor: úsalas solo en clase.
+- **Pixabay (gratis, libres de derechos):** sigue los pasos de abajo.
+
 1. Crea una cuenta gratis en <https://pixabay.com> y abre <https://pixabay.com/api/docs/>: tu clave
    aparece en la sección **Parameters → key** (estando conectado).
 2. En Vercel agrega `PIXABAY_API_KEY` con esa clave y vuelve a desplegar.
@@ -69,7 +79,7 @@ docentes pueden verlos, asignarlos y armar colecciones.
    si la revisión falla, la imagen se bloquea.
 
 Siempre activo: palabras prohibidas (español e inglés) en la búsqueda y en las etiquetas, y SafeSearch
-de Pixabay. La imagen elegida se copia a tu almacenamiento: los estudiantes nunca cargan nada externo.
+estricto de Brave / SafeSearch de Pixabay. La imagen elegida se copia a tu almacenamiento: los estudiantes nunca cargan nada externo.
 
 ## Límites conocidos en Vercel
 
