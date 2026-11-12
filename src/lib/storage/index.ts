@@ -74,8 +74,15 @@ function supabase(): StorageDriver {
       headers: { ...auth, "Content-Type": "application/json" },
       body: JSON.stringify({ id: bucket, name: bucket, public: false }),
     }).then(async (res) => {
-      // 400/409 = already exists
-      if (!res.ok && res.status !== 409 && res.status !== 400) await fail(res, "create bucket");
+      if (res.ok || res.status === 409) return;
+      // Supabase answers 400 with an inner statusCode; only "409 Duplicate" means the bucket already exists.
+      const text = await res.text();
+      if (/"statusCode":"409"|Duplicate|already exists/i.test(text)) return;
+      throw new StorageConfigError(
+        /row-level security|Unauthorized|403|JWS|JWT|signature/i.test(text)
+          ? "La clave SUPABASE_SERVICE_ROLE_KEY no tiene permiso para crear el bucket. Revisa que sea la clave service_role (secreta), no la anon/publishable."
+          : `No se pudo crear el bucket "${bucket}" en Supabase Storage (${res.status}): ${text.slice(0, 160)}`,
+      );
     });
     return bucketReady.catch((e) => {
       bucketReady = null;
@@ -91,7 +98,17 @@ function supabase(): StorageDriver {
       // @ts-expect-error -- Node fetch needs duplex for streamed bodies
       duplex: "half",
     });
-    if (!res.ok) await fail(res, "upload");
+    if (!res.ok) {
+      const text = await res.text();
+      if (/Bucket not found|NoSuchBucket/i.test(text)) {
+        bucketReady = null; // try to create it again next time
+        throw new StorageConfigError(`El bucket "${bucket}" no existe en Supabase Storage. Créalo (privado) en Supabase → Storage, o revisa SUPABASE_URL.`);
+      }
+      if (/row-level security|Unauthorized|JWS|JWT|signature/i.test(text)) {
+        throw new StorageConfigError("Supabase rechazó la clave. SUPABASE_SERVICE_ROLE_KEY debe ser la clave service_role (secreta).");
+      }
+      throw new Error(`Supabase Storage upload failed: ${res.status} ${text.slice(0, 200)}`);
+    }
   };
   const range = async (k: string, start: number, end: number) => {
     const res = await fetch(`${api}/object/authenticated/${obj(k)}`, { headers: { ...auth, Range: `bytes=${start}-${end}` } });
@@ -155,6 +172,9 @@ function supabase(): StorageDriver {
     },
   };
 }
+
+/** Storage is misconfigured (wrong key, missing bucket): the message is safe to show to teachers. */
+export class StorageConfigError extends Error {}
 
 let bucketReady: Promise<void> | null = null;
 let remote: StorageDriver | null = null;
