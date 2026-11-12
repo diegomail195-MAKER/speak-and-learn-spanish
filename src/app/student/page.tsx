@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { PublicHeader } from "@/components/shell/PublicHeader";
 import { Button } from "@/components/ui/Button";
 
-export const metadata = { title: "Student sign in" };
+export const metadata = { title: "Student sign in", alternates: { canonical: "/student" } };
 
 async function goToClass(form: FormData) {
   "use server";

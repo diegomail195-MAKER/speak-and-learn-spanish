@@ -1,6 +1,6 @@
 import { PublicHeader } from "@/components/shell/PublicHeader";
 
-export const metadata = { title: "Privacy & student data" };
+export const metadata = { title: "Privacy & student data", alternates: { canonical: "/privacy" } };
 
 export default function Privacy() {
   return (

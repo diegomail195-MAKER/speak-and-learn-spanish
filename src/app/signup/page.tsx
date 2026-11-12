@@ -1,7 +1,7 @@
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { TeacherSignUpForm } from "@/components/auth/AuthForms";
 
-export const metadata = { title: "Create a teacher account" };
+export const metadata = { title: "Create a teacher account", alternates: { canonical: "/signup" } };
 
 export default function SignupPage() {
   return (

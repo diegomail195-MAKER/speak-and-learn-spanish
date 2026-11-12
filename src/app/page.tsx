@@ -4,6 +4,9 @@ import { PublicHeader } from "@/components/shell/PublicHeader";
 import { ButtonLink } from "@/components/ui/Button";
 import { getSessionUser } from "@/lib/auth/session";
 
+// Points search engines at speakandlearnspanish.com even when the page is reached via *.vercel.app.
+export const metadata = { alternates: { canonical: "/" } };
+
 export default async function Home() {
   const user = await getSessionUser();
   if (user?.role === "STUDENT") redirect("/learn");

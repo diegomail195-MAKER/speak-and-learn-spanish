@@ -1,7 +1,7 @@
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { TeacherSignInForm } from "@/components/auth/AuthForms";
 
-export const metadata = { title: "Teacher sign in" };
+export const metadata = { title: "Teacher sign in", alternates: { canonical: "/login" } };
 
 export default function LoginPage() {
   return (
