@@ -9,6 +9,8 @@ import "server-only";
 
 export type Email = { to: string; subject: string; text: string; html: string };
 
+const randomRef = () => crypto.randomUUID();
+
 export function emailConfigured(): boolean {
   return !!process.env.RESEND_API_KEY && !!process.env.EMAIL_FROM;
 }
@@ -32,7 +34,9 @@ export async function sendEmail(msg: Email): Promise<boolean> {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [msg.to], subject: msg.subject, text: msg.text, html: msg.html }),
+      // A unique X-Entity-Ref-ID stops Gmail from threading these messages together and hiding
+      // the repeated text (which is where the reset link is) behind "•••".
+      body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [msg.to], subject: msg.subject, text: msg.text, html: msg.html, headers: { "X-Entity-Ref-ID": randomRef() } }),
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) console.error("email send failed", res.status); // never log the address or the link
