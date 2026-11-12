@@ -295,8 +295,7 @@ function AddImagePanel({ initialTab, suggest, onClose, onPicked, onLocalFile }: 
                   )}
                 </div>
                 <p className="mt-2 text-[11px] text-muted">
-                  {t.safeNote}{" "}
-                  <a href="https://pixabay.com/service/license-summary/" target="_blank" rel="noreferrer" className="underline">pixabay.com</a>
+                  {t.safeNote}
                 </p>
               </>
             )}

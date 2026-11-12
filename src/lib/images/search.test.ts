@@ -75,3 +75,67 @@ describe("internet image search", () => {
     await expect(searchImages("perro", "all")).rejects.toThrow(/PIXABAY_API_KEY/);
   });
 });
+
+describe("Brave image search", () => {
+  const brave = (title: string, src = "https://imgs.search.brave.com/abc/rs:fit:500:0/g:ce/x.png") => ({
+    type: "image_result",
+    title,
+    url: "https://example.com/page",
+    source: "example.com",
+    thumbnail: { src, width: 500, height: 400 },
+    properties: { url: "https://example.com/big.png", width: 1000, height: 800 },
+  });
+  let urls: string[] = [];
+  function mockBrave(results: unknown[], pixabayHits: unknown[] = [], status = 200) {
+    urls = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      urls.push(url);
+      if (url.startsWith("https://api.search.brave.com/")) {
+        expect((init?.headers as Record<string, string>)["X-Subscription-Token"]).toBe("brave-key");
+        return new Response(JSON.stringify({ type: "images", results, extra: { might_be_offensive: false } }), { status });
+      }
+      if (url.startsWith("https://pixabay.com/api/")) return new Response(JSON.stringify({ hits: pixabayHits }), { status: 200 });
+      return new Response(png, { status: 200 });
+    }));
+  }
+  beforeEach(() => {
+    vi.resetModules();
+    process.env.BRAVE_SEARCH_API_KEY = "brave-key";
+    delete process.env.PIXABAY_API_KEY;
+    delete process.env.GOOGLE_VISION_API_KEY;
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.BRAVE_SEARCH_API_KEY;
+  });
+
+  it("asks Brave with strict safesearch and drops blocked titles and foreign thumbnail hosts", async () => {
+    mockBrave([brave("manzana roja"), brave("sexy manzana"), brave("manzana verde", "https://evil.example/x.png")]);
+    const { searchImages } = await import("./search");
+    const r = await searchImages("manzana", "all");
+    expect(urls[0]).toContain("safesearch=strict");
+    expect(r.map((x) => x.tags)).toEqual(["manzana roja"]);
+    expect(r[0].id.startsWith("b.")).toBe(true);
+  });
+
+  it("imports only signed ids, downloading from Brave's image proxy", async () => {
+    mockBrave([brave("perro")]);
+    const { searchImages, fetchSafeImage } = await import("./search");
+    const [hit] = await searchImages("perro", "all");
+    const img = await fetchSafeImage(hit.id);
+    expect(img.provider).toBe("brave");
+    expect(urls.at(-1)).toMatch(/^https:\/\/imgs\.search\.brave\.com\//);
+    const [, mac, payload] = hit.id.split(".");
+    const forged = Buffer.from(JSON.stringify({ t: "x", p: "", s: "", i: "https://evil.example/x.png" })).toString("base64url");
+    await expect(fetchSafeImage(`b.${mac}.${forged}`)).rejects.toThrow(/no está disponible/);
+    await expect(fetchSafeImage(`b.AAAA.${payload}`)).rejects.toThrow(/no está disponible/);
+  });
+
+  it("falls back to Pixabay when Brave fails", async () => {
+    process.env.PIXABAY_API_KEY = "test";
+    mockBrave([], [hit(7, "gato")], 429);
+    const { searchImages } = await import("./search");
+    const r = await searchImages("gato", "all");
+    expect(r.map((x) => x.id)).toEqual(["7"]);
+  });
+});
