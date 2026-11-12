@@ -135,11 +135,23 @@ async function sendResetLink(email: string) {
       db.passwordResetToken.create({ data: { id: hashToken(token), userId: user.id, expiresAt: new Date(Date.now() + RESET_TTL_MS) } }),
     ]);
     const link = `${appUrl()}/reset-password/${token}`;
+    // Each email gets its own short code in the subject so Gmail shows it as a new message
+    // (identical subjects get grouped and the link can end up hidden as "trimmed content").
+    const code = randomBytes(3).toString("hex").toUpperCase();
+    const name = escapeHtml(user.displayName);
     await sendEmail({
       to: email,
-      subject: "Restablecer tu contraseña · Reset your password — Speak & Learn Spanish",
-      text: `Hola ${user.displayName}:\n\nPara crear una contraseña nueva, abre este enlace (vence en 30 minutos y solo funciona una vez):\n${link}\n\nSi no lo pediste, ignora este correo; tu contraseña no cambia.\n\n---\nTo choose a new password, open the link above (valid for 30 minutes, one use). If you didn't ask for this, ignore this email.`,
-      html: `<p>Hola ${escapeHtml(user.displayName)}:</p><p>Para crear una contraseña nueva, abre este enlace (vence en 30 minutos y solo funciona una vez):</p><p><a href="${link}">Crear una contraseña nueva</a></p><p>Si no lo pediste, ignora este correo; tu contraseña no cambia.</p><hr><p style="color:#666">To choose a new password, use the link above (valid for 30 minutes, one use). If you didn't ask for this, ignore this email.</p>`,
+      subject: `Tu enlace para cambiar la contraseña (${code}) · Speak & Learn Spanish`,
+      text: `Hola ${user.displayName}:\n\nPara crear una contraseña nueva, abre este enlace. Vence en 30 minutos y solo funciona una vez:\n\n${link}\n\nSi no lo pediste, ignora este correo; tu contraseña no cambia.\n\n---\nTo choose a new password, open the link above (valid for 30 minutes, one use). If you didn't ask for this, ignore this email.\n\nCódigo / code: ${code}`,
+      html: `<div style="font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#1e2340">
+<p>Hola ${name}:</p>
+<p>Para crear una contraseña nueva, pulsa el botón. Vence en 30 minutos y solo funciona una vez.</p>
+<p style="margin:24px 0"><a href="${link}" style="background:#e4553c;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px;display:inline-block">Crear una contraseña nueva</a></p>
+<p style="font-size:14px;color:#3b4060">Si el botón no funciona, copia este enlace en tu navegador:<br><a href="${link}" style="color:#1e2340;word-break:break-all">${link}</a></p>
+<p style="font-size:14px;color:#3b4060">Si no lo pediste, ignora este correo; tu contraseña no cambia.</p>
+<hr style="border:none;border-top:1px solid #e6dfd0">
+<p style="font-size:13px;color:#6c6f82">To choose a new password, use the button above (valid for 30 minutes, one use). If you didn't ask for this, ignore this email. · Código / code: ${code}</p>
+</div>`,
     });
     await audit(user.schoolId, user.id, "teacher.password_reset_requested", "User", user.id);
   }
