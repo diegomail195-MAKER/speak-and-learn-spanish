@@ -12,6 +12,9 @@ import { db } from "@/lib/db";
 import { appUrl, canSendEmail, sendEmail } from "@/lib/email";
 import { DEFAULT_CATEGORIES } from "@/lib/games/templates";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { syncAdminRole } from "@/lib/auth/admin-role";
+import { sendWelcomeIfDue } from "@/lib/emails/automatic";
+import { sendVerificationLink } from "@/lib/admin-grant";
 
 export type FormState = { error?: string; ok?: boolean } | undefined;
 
@@ -40,6 +43,8 @@ export async function signUpTeacher(_: FormState, form: FormData): Promise<FormS
     return u;
   });
   await audit(user.schoolId, user.id, "teacher.signup", "User", user.id);
+  // The welcome email goes out once the email is verified (src/lib/actions/verify.ts).
+  after(() => sendVerificationLink(user.id).then(() => undefined));
   await createSession(user.id, "TEACHER", (await headers()).get("user-agent"));
   redirect("/teacher");
 }
@@ -57,14 +62,18 @@ export async function signInTeacher(_: FormState, form: FormData): Promise<FormS
   const user = await db.user.findUnique({ where: { email: parsed.data.email }, include: { teacher: true } });
   const ok = user?.passwordHash && user.teacher ? await verifySecret(parsed.data.password, user.passwordHash) : false;
   if (!user || !ok) return { error: "Correo o contraseña incorrectos." };
-  await createSession(user.id, user.role, (await headers()).get("user-agent"));
+  // First access with a verified email: welcome (once). ADMIN_EMAILS + verified: admin role.
+  const promoted = await syncAdminRole(user.id);
+  await sendWelcomeIfDue(user.id);
+  await createSession(user.id, promoted ? "ADMIN" : user.role, (await headers()).get("user-agent"));
   redirect("/teacher");
 }
 
 const studentSchema = z.object({
   code: z.string().trim().toUpperCase().min(4).max(12),
   studentId: z.string().min(1),
-  pin: z.string().regex(/^\d{4}$/, "El PIN tiene 4 números."),
+  // PIN (4 digits) or password, depending on the student's login type.
+  pin: z.string().min(1, "Escribe tu PIN o contraseña.").max(64),
 });
 
 export async function signInStudent(_: FormState, form: FormData): Promise<FormState> {
@@ -78,14 +87,15 @@ export async function signInStudent(_: FormState, form: FormData): Promise<FormS
   if (student.lockedUntil && student.lockedUntil > new Date()) {
     return { error: "Demasiados intentos. Pide ayuda a tu maestra o maestro." };
   }
-  if (!(await verifySecret(pin, student.pinHash))) {
+  if (student.loginType === "PIN" && !/^\d{4}$/.test(pin)) return { error: "El PIN tiene 4 números." };
+  if (!(await verifySecret(student.loginType === "PASSWORD" ? pin.trim().toLowerCase() : pin, student.pinHash))) {
     const failed = student.failedLogins + 1;
     const lockMinutes = studentLockMinutes(failed);
     await db.student.update({
       where: { id: student.id },
       data: { failedLogins: failed, lockedUntil: lockMinutes ? new Date(Date.now() + lockMinutes * 60_000) : null },
     });
-    return { error: "Ese PIN no es correcto. Inténtalo otra vez." };
+    return { error: student.loginType === "PASSWORD" ? "Esa contraseña no es correcta. Inténtalo otra vez." : "Ese PIN no es correcto. Inténtalo otra vez." };
   }
   await db.student.update({ where: { id: student.id }, data: { failedLogins: 0, lockedUntil: null } });
   await createSession(student.userId, "STUDENT", (await headers()).get("user-agent"));
@@ -141,7 +151,7 @@ async function sendResetLink(email: string) {
     const name = escapeHtml(user.displayName);
     await sendEmail({
       to: email,
-      subject: `Tu enlace para cambiar la contraseña (${code}) · Speak & Learn Spanish`,
+      subject: `Tu enlace para cambiar la contraseña (${code}) · LaxtroSpeak`,
       text: `Hola ${user.displayName}:\n\nPara crear una contraseña nueva, abre este enlace. Vence en 30 minutos y solo funciona una vez:\n\n${link}\n\nSi no lo pediste, ignora este correo; tu contraseña no cambia.\n\n---\nTo choose a new password, open the link above (valid for 30 minutes, one use). If you didn't ask for this, ignore this email.\n\nCódigo / code: ${code}`,
       html: `<div style="font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#1e2340">
 <p>Hola ${name}:</p>

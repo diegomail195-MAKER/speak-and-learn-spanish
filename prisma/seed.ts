@@ -1,6 +1,7 @@
-// Seeds global, non-tenant reference data (game templates). Safe to run repeatedly.
+// Seeds global, non-tenant reference data (game templates, LaxtroSpeak starter library). Safe to run repeatedly.
 import { PrismaClient } from "@prisma/client";
 import { TEMPLATES } from "../src/lib/games/templates";
+import { seedLibrary } from "../src/lib/library/seed";
 
 // Use the direct (session) connection when available: the transaction pooler (port 6543)
 // can fail with "prepared statement already exists" during builds.
@@ -17,6 +18,8 @@ async function main() {
     });
   }
   console.log(`Seeded ${TEMPLATES.length} game templates.`);
+  const topics = await seedLibrary(db);
+  console.log(`LaxtroSpeak library: ${topics} new topic(s) seeded.`);
 }
 
 main().finally(() => db.$disconnect());

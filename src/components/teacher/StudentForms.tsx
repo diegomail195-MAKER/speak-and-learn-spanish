@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/Button";
 import { FormError, Input, Select } from "@/components/ui/Field";
 import { createStudent, resetStudentPin } from "@/lib/actions/classroom";
 
-function PinNotice({ name, pin }: { name: string; pin: string }) {
+export function PinNotice({ name, pin, username, loginType = "PIN" }: { name: string; pin: string; username?: string; loginType?: "PIN" | "PASSWORD" }) {
+  const what = loginType === "PASSWORD" ? "password" : "PIN";
   return (
     <p role="status" className="rounded-xl bg-sun-soft px-4 py-3 text-sm">
-      <strong>{name}</strong>&apos;s PIN is <span className="font-mono text-lg font-bold tracking-widest">{pin}</span>. Write it down now — for privacy it is stored encrypted and can&apos;t be shown again (you can reset it).
+      <strong>{name}</strong>
+      {username && <> (username <span className="font-mono font-bold">{username}</span>)</>}: new {what} <span data-testid="new-secret" className="font-mono text-lg font-bold tracking-widest">{pin}</span>. Write it down now — for privacy it is stored encrypted and can&apos;t be shown again (you can reset it).
     </p>
   );
 }
@@ -35,6 +37,10 @@ export function AddStudentForm({ classroomId, groups }: { classroomId: string; g
         </Select>
       </div>
       <Input name="spellingName" placeholder="Full name for “Spell Your Name” (optional)" maxLength={80} aria-label="Full name for spelling" />
+      <Select name="loginType" aria-label="Login Type" defaultValue="PIN">
+        <option value="PIN">Login Type: PIN (4 numbers)</option>
+        <option value="PASSWORD">Login Type: Password (two words + number)</option>
+      </Select>
       <FormError message={state?.error} />
       {state?.created && <PinNotice {...state.created} />}
       <Button type="submit" size="sm" disabled={pending}>
@@ -44,13 +50,13 @@ export function AddStudentForm({ classroomId, groups }: { classroomId: string; g
   );
 }
 
-export function ResetPinButton({ studentId }: { studentId: string }) {
+export function ResetPinButton({ studentId, label = "Reset PIN" }: { studentId: string; label?: string }) {
   const [state, action, pending] = useActionState(resetStudentPin, undefined);
   return (
     <form action={action} className="space-y-2">
       <input type="hidden" name="studentId" value={studentId} />
       <Button size="sm" variant="ghost" disabled={pending}>
-        Reset PIN
+        {label}
       </Button>
       {state?.created && <PinNotice {...state.created} />}
     </form>

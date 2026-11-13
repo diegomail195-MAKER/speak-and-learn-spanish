@@ -1,16 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Fredoka, Nunito } from "next/font/google";
+import { Baloo_2, Nunito } from "next/font/google";
 import "./globals.css";
 
 const body = Nunito({ variable: "--font-body", subsets: ["latin", "latin-ext"] });
-const display = Fredoka({ variable: "--font-display-face", subsets: ["latin", "latin-ext"], weight: ["500", "600"] });
+const display = Baloo_2({ variable: "--font-display-face", subsets: ["latin", "latin-ext"], weight: ["600", "700", "800"] });
 
 export const metadata: Metadata = {
-  title: { default: "Speak & Learn Spanish", template: "%s · Speak & Learn Spanish" },
-  description: "Interactive Spanish Learning for Kids. Speak. Play. Learn.",
+  title: { default: "LaxtroSpeak · Speak & Learn Spanish", template: "%s · LaxtroSpeak" },
+  description: "Spanish songs, videos, games and flashcards for kids (ages 6–12). Speak. Play. Learn.",
 };
 
-export const viewport: Viewport = { themeColor: "#faf6ee", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#fff8ec", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
