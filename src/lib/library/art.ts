@@ -1,6 +1,6 @@
 /* eslint-disable */
-// @ts-nocheck -- ported as-is from the approved LaxtroSpeak prototype (original SVG art).
-// LaxtroSpeak — original SVG illustrations (all drawn for this project): Piñita, topic art and
+// @ts-nocheck -- ported as-is from the approved LextroSpeak prototype (original SVG art).
+// LextroSpeak — original SVG illustrations (all drawn for this project): Piñita, topic art and
 // one picture per vocabulary word. Returns SVG markup strings (static, trusted content).
 type ArtApi = {
   pinita: (mood?: "happy" | "cheer" | "think") => string;
@@ -121,7 +121,7 @@ export const ART: ArtApi = (function () {
       <path d="M150 150 l20 -40" stroke="#5DBB63" stroke-width="7" stroke-linecap="round"/><path d="M162 124 q10 -6 14 -2 q-6 8 -14 2Z" fill="#5DBB63"/>`, '0 0 200 200', 'el panda'),
   };
 
-  /* Piñita — original LaxtroSpeak mascot: a little star piñata. */
+  /* Piñita — original LextroSpeak mascot: a little star piñata. */
   function pinita(mood = 'happy') {
     const mouth = mood === 'cheer'
       ? `<path d="M86 112 q14 18 28 0Z" fill="${INK}"/><path d="M93 118 q7 6 14 0" fill="#FF6F7D"/>`

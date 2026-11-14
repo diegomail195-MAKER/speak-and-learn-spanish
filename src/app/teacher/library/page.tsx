@@ -16,7 +16,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageHeader eyebrow="LaxtroSpeak Library" title="Library" subtitle="Choose a grade, then browse by topic or by type of resource. Open any activity to try it, or assign a whole topic to your class." />
+      <PageHeader eyebrow="LextroSpeak Library" title="Library" subtitle="Choose a grade, then browse by topic or by type of resource. Open any activity to try it, or assign a whole topic to your class." />
       <nav aria-label="Grade" className="mb-6 grid gap-3 sm:grid-cols-2">
         {GRADES.map((g) => (
           <Link key={g} href={`/teacher/library?grade=${g}`} aria-current={grade === g ? "page" : undefined}

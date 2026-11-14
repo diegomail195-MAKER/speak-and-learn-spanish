@@ -1,4 +1,4 @@
-// Gives LaxtroSpeak administrator access to an email, through the server process in
+// Gives LextroSpeak administrator access to an email, through the server process in
 // src/lib/admin-grant.ts (grantAdmin):
 //   verified account → ADMIN now · unverified → verification email, ADMIN once verified ·
 //   no account → admin invitation email.

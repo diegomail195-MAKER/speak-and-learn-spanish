@@ -14,7 +14,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const testMode = !(process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_live_");
   return (
     <>
-      <PageHeader eyebrow="Account" title="Plan & billing" subtitle={`${PLAN_NAME()} — full access to the LaxtroSpeak library for your classes.`} />
+      <PageHeader eyebrow="Account" title="Plan & billing" subtitle={`${PLAN_NAME()} — full access to the LextroSpeak library for your classes.`} />
       {checkout === "success" && <p role="status" className="mb-4 rounded-[18px] bg-leaf-soft px-4 py-3 font-bold text-leaf">Thank you! Your payment is being confirmed. You’ll get an email as soon as it is.</p>}
       {checkout === "cancel" && <p role="status" className="mb-4 rounded-[18px] bg-paper-2 px-4 py-3 font-bold">Checkout canceled. Nothing was charged.</p>}
       <Panel className="max-w-xl space-y-4">

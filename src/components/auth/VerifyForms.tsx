@@ -12,7 +12,7 @@ export function ConfirmEmailForm({ token }: { token: string }) {
   if (state?.ok) {
     return (
       <div className="space-y-4 text-center">
-        <p role="status" className="rounded-xl bg-leaf-soft px-4 py-3 font-bold text-leaf">Your email is confirmed. Welcome to LaxtroSpeak!</p>
+        <p role="status" className="rounded-xl bg-leaf-soft px-4 py-3 font-bold text-leaf">Your email is confirmed. Welcome to LextroSpeak!</p>
         <Link href="/teacher" className="inline-flex h-11 items-center rounded-full bg-coral px-6 font-bold text-white">Open my dashboard</Link>
       </div>
     );
@@ -33,7 +33,7 @@ export function AcceptInviteForm({ token, email }: { token: string; email: strin
       <input type="hidden" name="token" value={token} />
       <p className="text-sm">Email: <strong>{email}</strong></p>
       <div><Label htmlFor="displayName">Your name</Label><Input id="displayName" name="displayName" required maxLength={80} autoComplete="name" /></div>
-      <div><Label htmlFor="schoolName">School or organization</Label><Input id="schoolName" name="schoolName" required maxLength={120} defaultValue="LaxtroSpeak" /></div>
+      <div><Label htmlFor="schoolName">School or organization</Label><Input id="schoolName" name="schoolName" required maxLength={120} defaultValue="LextroSpeak" /></div>
       <div><Label htmlFor="password">Password</Label><PasswordInput id="password" name="password" required minLength={10} autoComplete="new-password" /></div>
       <div><Label htmlFor="confirm">Repeat the password</Label><PasswordInput id="confirm" name="confirm" required minLength={10} autoComplete="new-password" /></div>
       <FormError message={state?.error} />

@@ -1,4 +1,4 @@
-// Seeds global, non-tenant reference data (game templates, LaxtroSpeak starter library). Safe to run repeatedly.
+// Seeds global, non-tenant reference data (game templates, LextroSpeak starter library). Safe to run repeatedly.
 import { PrismaClient } from "@prisma/client";
 import { TEMPLATES } from "../src/lib/games/templates";
 import { seedLibrary } from "../src/lib/library/seed";
@@ -19,7 +19,7 @@ async function main() {
   }
   console.log(`Seeded ${TEMPLATES.length} game templates.`);
   const topics = await seedLibrary(db);
-  console.log(`LaxtroSpeak library: ${topics} new topic(s) seeded.`);
+  console.log(`LextroSpeak library: ${topics} new topic(s) seeded.`);
 }
 
 main().finally(() => db.$disconnect());

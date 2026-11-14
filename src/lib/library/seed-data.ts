@@ -1,4 +1,4 @@
-// Original LaxtroSpeak content from the approved prototype (vocabulary, chants, topics).
+// Original LextroSpeak content from the approved prototype (vocabulary, chants, topics).
 // Seeded into the library as published resources so existing activities stay available.
 
 export const SEED_TOPICS: Array<{ id: string; title: string; es: string; color: string; noun: string; nounEs: string; write: string[]; bonus: string[]; hide: string[] }> = [

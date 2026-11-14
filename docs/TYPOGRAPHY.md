@@ -1,6 +1,6 @@
 # Typography
 
-LaxtroSpeak uses **Century Gothic** as its only typeface (titles, menus, buttons, forms, activities,
+LextroSpeak uses **Century Gothic** as its only typeface (titles, menus, buttons, forms, activities,
 tables and emails). Usernames, class codes and PINs keep a monospace face so 0/O and 1/l can't be confused.
 
 ## How it is set up

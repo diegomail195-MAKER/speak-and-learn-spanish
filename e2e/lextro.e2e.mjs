@@ -1,10 +1,10 @@
-// LaxtroSpeak end-to-end test (requirement 7): admin library, classes, Assign Task, versions,
+// LextroSpeak end-to-end test (requirement 7): admin library, classes, Assign Task, versions,
 // automatic emails, Stripe webhooks (test mode, signed locally), permissions, desktop + iPad.
 //
 // Server: npm run build && EMAIL_DRIVER=console APP_URL=$BASE_URL STRIPE_WEBHOOK_SECRET=whsec_e2e_test_secret \
 //         STRIPE_SECRET_KEY=sk_test_dummy ADMIN_EMAILS=$E2E_ADMIN_EMAIL npx next start -p 3100 > $SERVER_LOG 2>&1
-// Run:    BASE_URL=http://localhost:3100 SERVER_LOG=… E2E_ADMIN_EMAIL=admin-e2e@laxtro.test \
-//         STRIPE_WEBHOOK_SECRET=whsec_e2e_test_secret node e2e/laxtro.e2e.mjs
+// Run:    BASE_URL=http://localhost:3100 SERVER_LOG=… E2E_ADMIN_EMAIL=admin-e2e@lextro.test \
+//         STRIPE_WEBHOOK_SECRET=whsec_e2e_test_secret node e2e/lextro.e2e.mjs
 // Uses the local database (DATABASE_URL) to look up ids and rename an earlier admin test account.
 import { chromium, devices } from "playwright";
 import { execFileSync } from "node:child_process";
@@ -18,7 +18,7 @@ const { PrismaClient } = prismaPkg;
 const db = new PrismaClient();
 const BASE = process.env.BASE_URL ?? "http://localhost:3100";
 const LOG = process.env.SERVER_LOG;
-const ADMIN_EMAIL = (process.env.E2E_ADMIN_EMAIL ?? "admin-e2e@laxtro.test").toLowerCase();
+const ADMIN_EMAIL = (process.env.E2E_ADMIN_EMAIL ?? "admin-e2e@lextro.test").toLowerCase();
 const WHSEC = process.env.STRIPE_WEBHOOK_SECRET ?? "whsec_e2e_test_secret";
 const SHOTS = process.env.SCREENSHOTS;
 const stamp = Date.now();
@@ -129,7 +129,7 @@ try {
   const actx = await browser.newContext(desktop);
   const admin = watch(await actx.newPage(), "admin");
   await db.user.updateMany({ where: { email: ADMIN_EMAIL }, data: { email: `old${stamp}-${ADMIN_EMAIL}` } }); // earlier runs
-  await signUp(admin, { name: "Laxtro Admin", school: "LaxtroSpeak HQ", email: ADMIN_EMAIL });
+  await signUp(admin, { name: "Lextro Admin", school: "LextroSpeak HQ", email: ADMIN_EMAIL });
   await check("5 · unverified ADMIN_EMAILS account is not an admin yet (server redirect)", async () => {
     await admin.goto(`${BASE}/admin`);
     assert(admin.url().startsWith(`${BASE}/teacher`), `unverified admin reached ${admin.url()}`);
@@ -199,11 +199,11 @@ try {
   const temail = `teacher${stamp}@school.test`;
   await signUp(teacher, { name: "Ana Rivera", school: "Lincoln Elementary", email: temail });
   await check("6 · no welcome email before the email is verified", async () => {
-    assert(emails(temail).filter((e) => e.subject === "Welcome to LaxtroSpeak!").length === 0, "welcome sent before verification");
+    assert(emails(temail).filter((e) => e.subject === "Welcome to LextroSpeak!").length === 0, "welcome sent before verification");
   });
   await confirmEmail(teacher, temail);
   await check("6 · welcome email once on first verified access, teacher version with My Classes + dashboard link", async () => {
-    const w = await waitFor(() => emails(temail).filter((e) => e.subject === "Welcome to LaxtroSpeak!"));
+    const w = await waitFor(() => emails(temail).filter((e) => e.subject === "Welcome to LextroSpeak!"));
     assert(w.length === 1, `${w.length} welcome emails`);
     assert(w[0].body.includes("Hi Ana,") && w[0].body.includes("My Classes") && w[0].body.includes(`${BASE}/teacher`), "welcome body wrong");
   });
@@ -213,7 +213,7 @@ try {
   await signIn(teacher, temail);
   await check("6 · signing in again does not resend the welcome", async () => {
     await new Promise((r) => setTimeout(r, 800));
-    assert(emails(temail).filter((e) => e.subject === "Welcome to LaxtroSpeak!").length === 1, "welcome resent");
+    assert(emails(temail).filter((e) => e.subject === "Welcome to LextroSpeak!").length === 1, "welcome resent");
   });
 
   await teacher.goto(`${BASE}/teacher/classes`);
@@ -505,7 +505,7 @@ try {
     const got = await waitFor(() => billing().length >= 1 && billing(), 5000);
     await new Promise((r) => setTimeout(r, 800));
     assert(billing().length === 1, `${billing().length} billing emails`);
-    assert(got[0].subject === "Your LaxtroSpeak subscription is active — payment received", got[0].subject);
+    assert(got[0].subject === "Your LextroSpeak subscription is active — payment received", got[0].subject);
     assert(got[0].body.includes("Manage Subscription") && got[0].body.includes("/teacher/billing") && got[0].body.includes("https://invoice.stripe.com/i/test_receipt") && got[0].body.includes("$9.00"), "combined email body");
     const s = await db.subscription.findUnique({ where: { id: sub } });
     assert(s?.status === "active", "subscription not active");
@@ -520,7 +520,7 @@ try {
     await new Promise((r) => setTimeout(r, 1000));
     const subj = billing().map((e) => e.subject);
     assert(subj.filter((s) => s === "Payment received — thank you!").length === 1, `payment emails: ${subj}`);
-    assert(subj.filter((s) => s === "Your LaxtroSpeak subscription is active").length === 1, `activation emails: ${subj}`);
+    assert(subj.filter((s) => s === "Your LextroSpeak subscription is active").length === 1, `activation emails: ${subj}`);
   });
   await check("7.5 · Billing page shows the active plan with Manage Subscription", async () => {
     await teacher.goto(`${BASE}/teacher/billing`);
@@ -552,7 +552,7 @@ try {
     await ip.fill("#confirm", "correct-horse-42");
     await ip.click("button:text-is('Set up my admin access')");
     await ip.waitForURL(`${BASE}/admin`);
-    assert((await waitFor(() => emails(`invite${stamp}@school.test`).filter((e) => e.subject === "Welcome to LaxtroSpeak!").length)) === 1, "invitee welcome");
+    assert((await waitFor(() => emails(`invite${stamp}@school.test`).filter((e) => e.subject === "Welcome to LextroSpeak!").length)) === 1, "invitee welcome");
     const again = await denied(() => ip.goto(inviteLink));
     assert(!(await ip.locator("button:text-is('Set up my admin access')").count()), `invite link reusable (${again.status()})`);
     await ictx.close();
@@ -640,9 +640,9 @@ try {
     assert(consoleErrors.length === 0, `console errors:\n${consoleErrors.join("\n")}`);
   });
 
-  console.log(`\nLAXTROSPEAK E2E PASSED (${results.length} checks)`);
+  console.log(`\nLEXTROSPEAK E2E PASSED (${results.length} checks)`);
 } catch (e) {
-  console.error("\nLAXTROSPEAK E2E FAILED:", e.message);
+  console.error("\nLEXTROSPEAK E2E FAILED:", e.message);
   if (consoleErrors.length) console.error("console errors so far:\n" + consoleErrors.join("\n"));
   exit = 1;
 } finally {

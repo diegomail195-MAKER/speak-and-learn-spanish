@@ -2,7 +2,7 @@ import type { GradeBand, PrismaClient, ResourceKind } from "@prisma/client";
 import { SEED_CHANT, SEED_TOPICS, SEED_VOCAB } from "./seed-data";
 import { fileIdsOf } from "./types";
 
-// Seeds the five original LaxtroSpeak topics with their activities as published library
+// Seeds the five original LextroSpeak topics with their activities as published library
 // resources. A topic that already exists is left alone, so an administrator's edits, removals
 // and reordering are never overwritten by a later deploy.
 

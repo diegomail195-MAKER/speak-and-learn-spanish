@@ -27,7 +27,7 @@ export default async function Home() {
               Grow.
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-ink-2">
-              LaxtroSpeak brings Spanish songs, videos, games, flashcards and printables to elementary classrooms. Teachers add their class, assign a topic in a few taps, and
+              LextroSpeak brings Spanish songs, videos, games, flashcards and printables to elementary classrooms. Teachers add their class, assign a topic in a few taps, and
               students open everything from their own portal.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -86,7 +86,7 @@ export default async function Home() {
       </main>
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-6 text-sm text-muted">
-          <span>LaxtroSpeak · Speak. Learn. Grow.</span>
+          <span>LextroSpeak · Speak. Learn. Grow.</span>
           <Link href="/privacy" className="font-semibold hover:text-ink">Privacy &amp; student data</Link>
         </div>
       </footer>

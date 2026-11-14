@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// LaxtroSpeak library content. Every resource stores its editable content as JSON (the draft);
+// LextroSpeak library content. Every resource stores its editable content as JSON (the draft);
 // publishing copies it into an immutable ResourceVersion. These schemas are the single
 // definition of that JSON, shared by the editor, the server actions and the players.
 

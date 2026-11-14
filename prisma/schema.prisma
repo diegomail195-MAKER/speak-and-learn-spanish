@@ -1,4 +1,4 @@
-// LaxtroSpeak (formerly Speak & Learn Spanish) — relational schema.
+// LextroSpeak (formerly Speak & Learn Spanish) — relational schema.
 // Every tenant-owned row carries schoolId so data from different schools never mixes.
 // Authorization is enforced in src/lib/auth + src/lib/access (server only).
 
@@ -64,7 +64,7 @@ enum LoginType {
   PASSWORD // class code + name + password
 }
 
-// LaxtroSpeak grade bands (the levels the platform uses everywhere).
+// LextroSpeak grade bands (the levels the platform uses everywhere).
 enum GradeBand {
   LOWER // Lower Elementary, grades K–2
   UPPER // Upper Elementary, grades 3–6
@@ -464,7 +464,7 @@ model Assignment {
   gameId       String?
   videoId      String?
   collectionId String?
-  // LaxtroSpeak tasks: a topic with the chosen library activities (pinned versions).
+  // LextroSpeak tasks: a topic with the chosen library activities (pinned versions).
   topicId      String?
   title        String    @default("")
   instructions String    @default("")
@@ -667,7 +667,7 @@ model RateLimit {
   @@index([resetAt])
 }
 
-// ---------------- LaxtroSpeak: email, billing ----------------
+// ---------------- LextroSpeak: email, billing ----------------
 
 model EmailVerificationToken {
   id        String   @id // sha256 of the emailed token
@@ -727,7 +727,7 @@ model Subscription {
   @@index([userId])
 }
 
-// ---------------- LaxtroSpeak: content library ----------------
+// ---------------- LextroSpeak: content library ----------------
 // Platform-wide content managed by administrators. Teachers browse published content by grade
 // and assign topics; students open the exact version that was assigned to them.
 

@@ -151,7 +151,7 @@ async function sendResetLink(email: string) {
     const name = escapeHtml(user.displayName);
     await sendEmail({
       to: email,
-      subject: `Tu enlace para cambiar la contraseña (${code}) · LaxtroSpeak`,
+      subject: `Tu enlace para cambiar la contraseña (${code}) · LextroSpeak`,
       text: `Hola ${user.displayName}:\n\nPara crear una contraseña nueva, abre este enlace. Vence en 30 minutos y solo funciona una vez:\n\n${link}\n\nSi no lo pediste, ignora este correo; tu contraseña no cambia.\n\n---\nTo choose a new password, open the link above (valid for 30 minutes, one use). If you didn't ask for this, ignore this email.\n\nCódigo / code: ${code}`,
       html: `<div style="font-family:'Century Gothic',CenturyGothic,'URW Gothic',sans-serif;font-size:16px;line-height:1.5;color:#1e2340">
 <p>Hola ${name}:</p>

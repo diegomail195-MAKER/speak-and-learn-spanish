@@ -10,7 +10,7 @@ export default async function AdminInvitePage({ params }: { params: Promise<{ to
   const { token } = await params;
   const inv = await inviteValid(token);
   return (
-    <AuthLayout title="Set up your admin access" subtitle="You were invited to administer LaxtroSpeak.">
+    <AuthLayout title="Set up your admin access" subtitle="You were invited to administer LextroSpeak.">
       {inv ? (
         <AcceptInviteForm token={token} email={inv.email} />
       ) : (

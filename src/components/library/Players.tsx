@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { Art, Icon, Pinita } from "@/components/ui/Art";
 import { GAME_TYPE_LABEL, libraryFileUrl, type AnyContent, type ContentFor, type ImageRef, type Kind, type Pair } from "@/lib/library/types";
 
-// Players for LaxtroSpeak library activities: flashcards, games (Memory, Picture Match,
+// Players for LextroSpeak library activities: flashcards, games (Memory, Picture Match,
 // Listen & Find, Quiz), songs, videos and printables. The same components run in the
 // admin preview, the teacher's "Preview Task" and the student's task.
 
@@ -429,7 +429,7 @@ export function PrintablePlayer({ content, title, onDone }: { content: ContentFo
       </div>
       <article className="mx-auto max-w-3xl rounded-[22px] border border-line bg-white p-8 print:border-0 print:p-0">
         <header className="mb-6 flex items-center justify-between border-b-2 border-line pb-3">
-          <img src="/brand/laxtrospeak-logo.png" alt="LaxtroSpeak" className="h-7 w-auto" />
+          <img src="/brand/lextrospeak-logo.png" alt="LextroSpeak" className="h-7 w-auto" />
           <span className="text-sm font-bold">Name: ____________________</span>
         </header>
         <h2 className="mb-5 font-display text-2xl font-extrabold">{sheet.heading || title}</h2>

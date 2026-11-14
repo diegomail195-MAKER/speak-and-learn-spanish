@@ -1,8 +1,8 @@
-# LaxtroSpeak
+# LextroSpeak
 
 **Speak & Learn Spanish — songs, videos, games and flashcards for elementary classes.**
 
-LaxtroSpeak (formerly Speak & Learn Spanish) adds a curated library on top of the voice activities:
+LextroSpeak (formerly Speak & Learn Spanish) adds a curated library on top of the voice activities:
 administrators publish content by topic and grade, teachers assign topics to groups or students,
 and students open their tasks with a class code + PIN or password.
 
@@ -50,9 +50,9 @@ BASE_URL=http://localhost:3100 E2E_STT_SCRIPT_FILE=/tmp/stt.json node e2e/flow.e
 BASE_URL=http://localhost:3100 E2E_STT_SCRIPT_FILE=/tmp/stt.json node e2e/videos.e2e.mjs
 BASE_URL=http://localhost:3100 E2E_STT_SCRIPT_FILE=/tmp/stt.json E2E_STT_LOG=/tmp/stt.log node e2e/templates.e2e.mjs  # server started with the same E2E_STT_LOG
 BASE_URL=http://localhost:3100 SERVER_LOG=/tmp/server.log node e2e/security.e2e.mjs  # server started with EMAIL_DRIVER=console, APP_URL=$BASE_URL, output in SERVER_LOG
-# LaxtroSpeak (requirement 7, desktop + iPad). Server started with EMAIL_DRIVER=console APP_URL=$BASE_URL
-# STRIPE_WEBHOOK_SECRET=whsec_e2e_test_secret STRIPE_SECRET_KEY=sk_test_x STRIPE_PRICE_ID=price_x ADMIN_EMAILS=admin-e2e@laxtro.test
-BASE_URL=http://localhost:3100 SERVER_LOG=/tmp/server.log E2E_ADMIN_EMAIL=admin-e2e@laxtro.test node e2e/laxtro.e2e.mjs
+# LextroSpeak (requirement 7, desktop + iPad). Server started with EMAIL_DRIVER=console APP_URL=$BASE_URL
+# STRIPE_WEBHOOK_SECRET=whsec_e2e_test_secret STRIPE_SECRET_KEY=sk_test_x STRIPE_PRICE_ID=price_x ADMIN_EMAILS=admin-e2e@lextro.test
+BASE_URL=http://localhost:3100 SERVER_LOG=/tmp/server.log E2E_ADMIN_EMAIL=admin-e2e@lextro.test node e2e/lextro.e2e.mjs
 ```
 
 ## How the oral activity works

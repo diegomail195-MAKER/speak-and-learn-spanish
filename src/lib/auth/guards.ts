@@ -55,7 +55,7 @@ export async function requireUser() {
 }
 
 /**
- * LaxtroSpeak administrators: accounts with the ADMIN role, given by a server process
+ * LextroSpeak administrators: accounts with the ADMIN role, given by a server process
  * (src/lib/auth/admin-role.ts) only after the email is verified. Guards every admin page,
  * server action and API route; teachers and students get 403 / a redirect.
  */

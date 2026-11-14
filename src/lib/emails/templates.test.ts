@@ -4,11 +4,11 @@ import { billingEmail, welcomeEmail } from "./templates";
 describe("welcomeEmail", () => {
   it("uses the template and shows My Classes only to teachers", () => {
     const t = welcomeEmail({ firstName: "Ana", dashboardUrl: "https://x/teacher", isTeacher: true, appUrl: "https://x" });
-    expect(t.subject).toBe("Welcome to LaxtroSpeak!");
+    expect(t.subject).toBe("Welcome to LextroSpeak!");
     expect(t.text).toContain("Hi Ana,");
-    expect(t.text).toContain("Welcome to LaxtroSpeak! Your account is ready.");
+    expect(t.text).toContain("Welcome to LextroSpeak! Your account is ready.");
     expect(t.text).toContain("go to My Classes");
-    expect(t.text).toContain("The LaxtroSpeak Team");
+    expect(t.text).toContain("The LextroSpeak Team");
     const s = welcomeEmail({ firstName: "Leo", dashboardUrl: "https://x/teacher", isTeacher: false, appUrl: "https://x" });
     expect(s.text).not.toContain("My Classes");
     expect(s.html).not.toContain("My Classes");

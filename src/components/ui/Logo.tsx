@@ -1,9 +1,9 @@
 /* eslint-disable @next/next/no-img-element */
-// LaxtroSpeak logo (the approved wordmark) with the LaxtroSpeak motto.
+// LextroSpeak logo (the approved wordmark) with the LextroSpeak motto.
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <span className="inline-flex flex-col gap-1 leading-none">
-      <img src="/brand/laxtrospeak-logo.png" alt="LaxtroSpeak" width={877} height={160} className={compact ? "h-6 w-auto sm:h-7" : "h-8 w-auto sm:h-9"} />
+      <img src="/brand/lextrospeak-logo.png" alt="LextroSpeak" width={884} height={160} className={compact ? "h-6 w-auto sm:h-7" : "h-8 w-auto sm:h-9"} />
       {!compact && <span className="text-[0.78rem] font-extrabold tracking-[0.02em] text-ink-2">Speak. Learn. Grow.</span>}
     </span>
   );

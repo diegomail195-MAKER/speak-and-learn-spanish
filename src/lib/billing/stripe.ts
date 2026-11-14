@@ -19,7 +19,7 @@ export function stripe(): Stripe {
   if (isLiveKey(key) && !(process.env.VERCEL_ENV === "production" && process.env.STRIPE_ALLOW_LIVE === "1")) {
     throw new Error("Live Stripe keys are only allowed in production with STRIPE_ALLOW_LIVE=1. Use a test key (sk_test_…).");
   }
-  return (client ??= new Stripe(key, { maxNetworkRetries: 2, appInfo: { name: "LaxtroSpeak" } }));
+  return (client ??= new Stripe(key, { maxNetworkRetries: 2, appInfo: { name: "LextroSpeak" } }));
 }
 
 /** Verifies a webhook signature. Needs only STRIPE_WEBHOOK_SECRET (no network call). */
@@ -31,4 +31,4 @@ export function verifyWebhook(rawBody: string, signature: string | null): Stripe
   return verifier.webhooks.constructEvent(rawBody, signature, secret);
 }
 
-export const PLAN_NAME = () => process.env.STRIPE_PLAN_NAME || "LaxtroSpeak Teacher";
+export const PLAN_NAME = () => process.env.STRIPE_PLAN_NAME || "LextroSpeak Teacher";

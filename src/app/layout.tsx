@@ -9,7 +9,7 @@ import "./globals.css";
 const gothic = Didact_Gothic({ variable: "--font-gothic-fallback", subsets: ["latin", "latin-ext"], weight: "400" });
 
 export const metadata: Metadata = {
-  title: { default: "LaxtroSpeak · Speak. Learn. Grow.", template: "%s · LaxtroSpeak" },
+  title: { default: "LextroSpeak · Speak. Learn. Grow.", template: "%s · LextroSpeak" },
   description: "Spanish songs, videos, games and flashcards for kids (ages 6–12). Speak. Learn. Grow.",
 };
 

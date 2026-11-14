@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function VerifyEmailPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   return (
-    <AuthLayout title="Confirm your email" subtitle="One tap and your LaxtroSpeak account is ready.">
+    <AuthLayout title="Confirm your email" subtitle="One tap and your LextroSpeak account is ready.">
       <ConfirmEmailForm token={token} />
     </AuthLayout>
   );

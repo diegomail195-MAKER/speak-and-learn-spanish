@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* LaxtroSpeak — design tokens (from the approved LaxtroSpeak design).
+/* LextroSpeak — design tokens (from the approved LextroSpeak design).
    Warm paper background, deep ink text, brand red for actions, Piñita's colors for topics,
    teal for anything voice-related. */
 @theme {
@@ -102,7 +102,7 @@ body {
   .tp-flip, .tp-spin, .tp-lid, .tp-pop, .tp-wave, .tp-slide, .tp-letter, .tp-pulse { animation: none; }
 }
 
-/* LaxtroSpeak art (inline SVG from src/lib/library/art.ts) fills its box. */
+/* LextroSpeak art (inline SVG from src/lib/library/art.ts) fills its box. */
 .art > svg { width: 100%; height: 100%; display: block; }
 
 /* Flashcard flip */

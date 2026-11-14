@@ -1,6 +1,6 @@
 import { ART, artSvg } from "@/lib/library/art";
 
-// Renders a built-in LaxtroSpeak illustration (static SVG markup we ship, never user input).
+// Renders a built-in LextroSpeak illustration (static SVG markup we ship, never user input).
 export function Art({ k, className = "", label }: { k: string | null | undefined; className?: string; label?: string }) {
   const svg = artSvg(k);
   if (!svg) return null;

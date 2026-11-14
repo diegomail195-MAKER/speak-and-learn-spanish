@@ -31,7 +31,7 @@ export function GradeChips({ grades }: { grades: string[] }) {
   );
 }
 
-/** Colored topic card (the approved LaxtroSpeak design). */
+/** Colored topic card (the approved LextroSpeak design). */
 export function TopicCard({ href, topic, kinds, footer }: { href: string; topic: { titleEn: string; titleEs: string; color: string; art: string }; kinds: Kind[]; footer?: React.ReactNode }) {
   return (
     <div className="flex flex-col overflow-hidden rounded-[28px] bg-card shadow-pop">

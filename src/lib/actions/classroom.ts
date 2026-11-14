@@ -156,7 +156,7 @@ export async function updateStudent(form: FormData) {
   revalidatePath(`/teacher/classes/${s.classroomId}`);
 }
 
-// ---------------- LaxtroSpeak roster ----------------
+// ---------------- LextroSpeak roster ----------------
 
 const rosterEdit = z.object({
   studentId: z.string(),
