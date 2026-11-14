@@ -5,6 +5,7 @@
 import { chromium } from "playwright";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
+import { addGroup, addLevel, addStudent } from "./class-helpers.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3100";
 const SCRIPT = process.env.E2E_STT_SCRIPT_FILE;
@@ -58,28 +59,14 @@ try {
   await page.waitForURL(/\/teacher\/classes\/.+/);
   const classUrl = page.url();
   const code = (await page.locator("span.font-mono").first().textContent()).trim();
-  await page.fill('input[aria-label="New level"]', "LE2");
-  await page.click("text=Add level");
-  await page.fill('input[aria-label="New group in LE2"]', "Group A");
-  await page.click("text=Add group");
-  await page.waitForSelector("text=Group A");
-  await page.fill('input[aria-label="First name"]', "Diego");
-  await page.fill('input[aria-label="Last initial"]', "P");
-  await page.selectOption('select[aria-label="Group"]', { label: "LE2 · Group A" });
-  await page.click("text=Add student");
-  const pinText = await page.locator("[role=status]:has-text('Diego') .font-mono").textContent();
-  const pin = pinText.trim();
+  await addLevel(page, classUrl, "LE2");
+  await addGroup(page, classUrl, "Group A", "LE2");
+  const pin = await addStudent(page, classUrl, "Diego", { initial: "P", group: "LE2 · Group A" });
   log("class", code, "student PIN", pin);
   // A second student in another group must NOT see the activity
-  await page.fill('input[aria-label="New level"]', "UE1");
-  await page.click("text=Add level");
-  await page.fill('input[aria-label="New group in UE1"]', "Group B");
-  await page.locator("form:has(input[aria-label='New group in UE1']) button").click();
-  await page.waitForSelector("text=Group B");
-  await page.fill('input[aria-label="First name"]', "Sofía");
-  await page.selectOption('select[aria-label="Group"]', { label: "UE1 · Group B" });
-  await page.click("text=Add student");
-  const pin2 = (await page.locator("[role=status]:has-text('Sofía') .font-mono").textContent()).trim();
+  await addLevel(page, classUrl, "UE1");
+  await addGroup(page, classUrl, "Group B", "UE1");
+  const pin2 = await addStudent(page, classUrl, "Sofía", { group: "UE1 · Group B" });
 
   // 3. Create game: Speak & Answer
   await page.goto(`${BASE}/teacher/games/new`);

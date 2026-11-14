@@ -8,7 +8,7 @@ export default function Privacy() {
       <PublicHeader />
       <main className="mx-auto max-w-2xl space-y-4 px-5 pb-16 pt-6 leading-relaxed text-ink-2">
         <h1 className="font-display text-3xl font-semibold text-ink">Privacy &amp; student data</h1>
-        <p>Speak &amp; Learn Spanish is designed for elementary schools. This page summarizes how the platform handles student information. It is not legal advice; schools should review it with their counsel (COPPA, FERPA and state student-privacy laws).</p>
+        <p>LextroSpeak (Speak &amp; Learn Spanish) is designed for elementary schools. This page summarizes how the platform handles student information. It is not legal advice; schools should review it with their counsel (COPPA, FERPA and state student-privacy laws).</p>
         <h2 className="font-display text-xl font-semibold text-ink">What we store about students</h2>
         <ul className="list-disc pl-5">
           <li>First name, last initial, an optional full name used only for the “Spell Your Name” activity, a hashed 4-digit PIN, class and group membership.</li>

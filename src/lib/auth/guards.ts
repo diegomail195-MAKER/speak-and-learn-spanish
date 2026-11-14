@@ -53,3 +53,21 @@ export async function requireUser() {
   if (!user) throw new HttpError(401, "Sign-in required");
   return user;
 }
+
+/**
+ * LextroSpeak administrators: accounts with the ADMIN role, given by a server process
+ * (src/lib/auth/admin-role.ts) only after the email is verified. Guards every admin page,
+ * server action and API route; teachers and students get 403 / a redirect.
+ */
+export async function requireAdmin() {
+  const res = await requireTeacher();
+  if (res.user.role !== "ADMIN") throw new HttpError(403, "Administrators only");
+  return res;
+}
+
+export async function requireAdminPage() {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  if (user.role !== "ADMIN" || !user.teacher) redirect(user.role === "STUDENT" ? "/learn" : "/teacher?admin=only");
+  return { user, teacher: user.teacher };
+}

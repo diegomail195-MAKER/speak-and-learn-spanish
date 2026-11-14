@@ -14,7 +14,7 @@ export default async function ClassLogin({ params }: { params: Promise<{ code: s
       name: true,
       code: true,
       // Only first name + last initial and avatar are exposed on this screen.
-      students: { where: { active: true }, select: { id: true, firstName: true, lastInitial: true, avatar: true }, orderBy: { firstName: "asc" } },
+      students: { where: { active: true }, select: { id: true, firstName: true, lastInitial: true, avatar: true, loginType: true }, orderBy: { firstName: "asc" } },
     },
   });
   if (!classroom) notFound();

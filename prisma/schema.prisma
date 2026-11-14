@@ -1,4 +1,4 @@
-// Speak & Learn Spanish — relational schema.
+// LextroSpeak (formerly Speak & Learn Spanish) — relational schema.
 // Every tenant-owned row carries schoolId so data from different schools never mixes.
 // Authorization is enforced in src/lib/auth + src/lib/access (server only).
 
@@ -59,6 +59,26 @@ enum SupportLevel {
   MODEL // after hearing the correct model
 }
 
+enum LoginType {
+  PIN // class code + name + 4-digit PIN
+  PASSWORD // class code + name + password
+}
+
+// LextroSpeak grade bands (the levels the platform uses everywhere).
+enum GradeBand {
+  LOWER // Lower Elementary, grades K–2
+  UPPER // Upper Elementary, grades 3–6
+}
+
+enum ResourceKind {
+  VIDEO
+  SONG
+  FLASHCARDS
+  GAME
+  PRINTABLE
+  WORKSHEET
+}
+
 enum MasteryStatus {
   INDEPENDENT
   GUIDED
@@ -85,20 +105,27 @@ model School {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  schoolId     String
-  role         Role
-  email        String?  @unique
-  passwordHash String?
-  displayName  String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String    @id @default(cuid())
+  schoolId         String
+  role             Role
+  email            String?   @unique
+  passwordHash     String?
+  displayName      String
+  // Set when the person opens the verification link (or accepts an admin invite).
+  emailVerifiedAt  DateTime?
+  // Set once, when the welcome email is claimed, so it is never sent twice.
+  welcomeSentAt    DateTime?
+  stripeCustomerId String?   @unique
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  school         School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  sessions       Session[]
-  passwordResets PasswordResetToken[]
-  teacher        Teacher?
-  student        Student?
+  school             School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sessions           Session[]
+  passwordResets     PasswordResetToken[]
+  emailVerifications EmailVerificationToken[]
+  subscriptions      Subscription[]
+  teacher            Teacher?
+  student            Student?
 
   @@index([schoolId, role])
 }
@@ -141,6 +168,8 @@ model Student {
   // Optional, only used by the "Spell your name" activity.
   spellingName String    @default("")
   username     String
+  // How the student signs in. The secret (PIN or password) is only stored hashed.
+  loginType    LoginType @default(PIN)
   pinHash      String
   avatar       String    @default("sun")
   active       Boolean   @default(true)
@@ -148,14 +177,15 @@ model Student {
   lockedUntil  DateTime?
   createdAt    DateTime  @default(now())
 
-  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  school        School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  classroom     Classroom             @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  memberships   GroupMembership[]
-  recipients    AssignmentRecipient[]
-  attempts      StudentAttempt[]
-  progress      ProgressRecord[]
-  videoProgress VideoProgress[]
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school           School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classroom        Classroom             @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  memberships      GroupMembership[]
+  recipients       AssignmentRecipient[]
+  attempts         StudentAttempt[]
+  progress         ProgressRecord[]
+  videoProgress    VideoProgress[]
+  activityProgress ActivityProgress[]
 
   @@unique([classroomId, username])
   @@index([schoolId])
@@ -434,6 +464,9 @@ model Assignment {
   gameId       String?
   videoId      String?
   collectionId String?
+  // LextroSpeak tasks: a topic with the chosen library activities (pinned versions).
+  topicId      String?
+  title        String    @default("")
   instructions String    @default("")
   startsAt     DateTime  @default(now())
   dueAt        DateTime?
@@ -446,8 +479,10 @@ model Assignment {
   game       Game?                 @relation(fields: [gameId], references: [id], onDelete: Cascade)
   video      Video?                @relation(fields: [videoId], references: [id], onDelete: Cascade)
   collection Collection?           @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  topic      Topic?                @relation(fields: [topicId], references: [id], onDelete: SetNull)
   recipients AssignmentRecipient[]
   attempts   StudentAttempt[]
+  activities AssignmentActivity[]
 
   @@index([schoolId, active])
 }
@@ -630,4 +665,183 @@ model RateLimit {
   resetAt DateTime
 
   @@index([resetAt])
+}
+
+// ---------------- LextroSpeak: email, billing ----------------
+
+model EmailVerificationToken {
+  id        String   @id // sha256 of the emailed token
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Administrator invitation for an email that has no account yet (or isn't verified).
+model AdminInvite {
+  id         String    @id // sha256 of the emailed token
+  email      String
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email])
+}
+
+// One row per automatic email that was claimed. The key makes each event send at most once
+// (e.g. "welcome:<userId>", "purchase:<subscriptionId>", "payment:<invoiceId>").
+model EmailLog {
+  key     String   @id
+  userId  String?
+  kind    String
+  to      String
+  subject String
+  status  String   @default("sent") // sent | failed
+  sentAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Stripe webhook events already processed (retries are acknowledged without redoing the work).
+model StripeEvent {
+  id          String   @id
+  type        String
+  processedAt DateTime @default(now())
+}
+
+model Subscription {
+  id               String    @id // Stripe subscription id
+  userId           String
+  customerId       String
+  status           String
+  priceId          String?
+  currentPeriodEnd DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------- LextroSpeak: content library ----------------
+// Platform-wide content managed by administrators. Teachers browse published content by grade
+// and assign topics; students open the exact version that was assigned to them.
+
+model Topic {
+  id        String        @id @default(cuid())
+  slug      String        @unique
+  titleEn   String
+  titleEs   String
+  category  String        @default("Vocabulary")
+  color     String        @default("#FF9F5A")
+  // Built-in illustration key (e.g. "topic:animals") shown on the topic card.
+  art       String        @default("")
+  sortOrder Int           @default(0)
+  status    ContentStatus @default(PUBLISHED)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  resources   TopicResource[]
+  assignments Assignment[]
+}
+
+model LibraryResource {
+  id               String        @id @default(cuid())
+  kind             ResourceKind
+  title            String
+  description      String        @default("")
+  status           ContentStatus @default(DRAFT)
+  grades           GradeBand[]
+  // Editable content (what the editor saves). Publishing copies it into a new version.
+  draft            Json          @default("{}")
+  currentVersionId String?       @unique
+  createdById      String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  currentVersion ResourceVersion?     @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  versions       ResourceVersion[]    @relation("Versions")
+  topics         TopicResource[]
+  activities     AssignmentActivity[]
+
+  @@index([status])
+}
+
+// Immutable snapshot of a published resource. Assignments point at a version, so later edits
+// never change (or erase) what students already have and the attempts they made.
+model ResourceVersion {
+  id         String   @id @default(cuid())
+  resourceId String
+  number     Int
+  title      String
+  content    Json
+  // Every library file the content references (used for access checks).
+  fileIds    String[]
+  createdAt  DateTime @default(now())
+
+  resource   LibraryResource      @relation("Versions", fields: [resourceId], references: [id], onDelete: Cascade)
+  currentOf  LibraryResource?     @relation("CurrentVersion")
+  activities AssignmentActivity[]
+
+  @@unique([resourceId, number])
+}
+
+model TopicResource {
+  topicId    String
+  resourceId String
+  position   Int
+
+  topic    Topic           @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  resource LibraryResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@id([topicId, resourceId])
+  @@index([resourceId])
+}
+
+// Uploaded file (video, song, PDF, image, audio). Stored privately; served after an access check.
+model LibraryFile {
+  id           String   @id @default(cuid())
+  storageKey   String   @unique
+  mimeType     String
+  sizeBytes    Int      @default(0)
+  originalName String
+  ready        Boolean  @default(false)
+  uploadedById String?
+  createdAt    DateTime @default(now())
+}
+
+model AssignmentActivity {
+  id           String @id @default(cuid())
+  assignmentId String
+  resourceId   String
+  versionId    String
+  position     Int
+
+  assignment Assignment         @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  resource   LibraryResource    @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+  version    ResourceVersion    @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  progress   ActivityProgress[]
+
+  @@index([assignmentId])
+  @@index([resourceId])
+}
+
+model ActivityProgress {
+  id          String    @id @default(cuid())
+  activityId  String
+  studentId   String
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  score       Int?
+  total       Int?
+
+  activity AssignmentActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  student  Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([activityId, studentId])
+  @@index([studentId])
 }

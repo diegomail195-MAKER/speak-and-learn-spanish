@@ -8,6 +8,7 @@
 import { chromium } from "playwright";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
+import { addGroup, addLevel, addStudent } from "./class-helpers.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3100";
 const SCRIPT = process.env.E2E_STT_SCRIPT_FILE;
@@ -50,15 +51,10 @@ try {
   await page.click("text=Spanish 2nd grade");
   await page.waitForURL(/\/teacher\/classes\/.+/);
   const code = (await page.locator("span.font-mono").first().textContent()).trim();
-  await page.fill('input[aria-label="New level"]', "LE2");
-  await page.click("text=Add level");
-  await page.fill('input[aria-label="New group in LE2"]', "Group A");
-  await page.click("text=Add group");
-  await page.waitForSelector("text=Group A");
-  await page.fill('input[aria-label="First name"]', "Diego");
-  await page.selectOption('select[aria-label="Group"]', { label: "LE2 · Group A" });
-  await page.click("text=Add student");
-  const pin = (await page.locator("[role=status]:has-text('Diego') .font-mono").textContent()).trim();
+  const classUrl = page.url();
+  await addLevel(page, classUrl, "LE2");
+  await addGroup(page, classUrl, "Group A", "LE2");
+  const pin = await addStudent(page, classUrl, "Diego", { group: "LE2 · Group A" });
   log("class", code, "PIN", pin);
 
   // 2. Practice game (one question) for Watch & Practice

@@ -12,6 +12,7 @@
 import { chromium } from "playwright";
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { addGroup, addLevel, addStudent } from "./class-helpers.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3100";
 const SCRIPT = process.env.E2E_STT_SCRIPT_FILE;
@@ -114,16 +115,10 @@ try {
   await page.click("text=Spanish 3rd grade");
   await page.waitForURL(/\/teacher\/classes\/.+/);
   const code = (await page.locator("span.font-mono").first().textContent()).trim();
-  await page.fill('input[aria-label="New level"]', "LE3");
-  await page.click("text=Add level");
-  await page.fill('input[aria-label="New group in LE3"]', "Group A");
-  await page.click("text=Add group");
-  await page.waitForSelector("text=Group A");
-  await page.fill('input[aria-label="First name"]', "Lucía");
-  await page.fill('input[aria-label="Last initial"]', "R");
-  await page.selectOption('select[aria-label="Group"]', { label: "LE3 · Group A" });
-  await page.click("text=Add student");
-  const pin = (await page.locator("[role=status]:has-text('Lucía') .font-mono").textContent()).trim();
+  const classUrl = page.url();
+  await addLevel(page, classUrl, "LE3");
+  await addGroup(page, classUrl, "Group A", "LE3");
+  const pin = await addStudent(page, classUrl, "Lucía", { initial: "R", group: "LE3 · Group A" });
   log("class", code, "student PIN", pin);
 
   // ── Test 1: dashboard button → template gallery with filters and oral indicator ────
