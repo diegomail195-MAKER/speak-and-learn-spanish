@@ -18,6 +18,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             { href: "/admin/content", label: "Library" },
             { href: "/admin/topics", label: "Topics & Activities" },
             { href: "/admin/grades", label: "Grades" },
+            { href: "/admin/settings/montessori", label: "Settings → Montessori Feedback" },
+            { href: "/teacher/progress", label: "Learning Feedback & Progress" },
             { href: "/admin/content/new", label: "+ Add Content", exact: true },
           ]}
         />

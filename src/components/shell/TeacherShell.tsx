@@ -13,6 +13,7 @@ const LINKS = [
   { href: "/teacher/games", label: "Voice Activities" },
   { href: "/teacher/videos", label: "Videos" },
   { href: "/teacher/assignments", label: "Results" },
+  { href: "/teacher/progress", label: "Learning Progress" },
 ];
 
 export function TeacherShell({ name, school, isAdmin, unverifiedEmail, children }: { name: string; school: string; isAdmin: boolean; unverifiedEmail: string | null; children: ReactNode }) {

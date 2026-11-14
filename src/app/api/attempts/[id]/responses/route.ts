@@ -7,6 +7,8 @@ import { readSettings, splitSpellingName } from "@/lib/games/service";
 import { templateByKey, templateOptions } from "@/lib/games/templates";
 import { scoreTurn } from "@/lib/games/turn";
 import { SPELL_TOKENS } from "@/lib/games/types";
+import { isShortForm } from "@/lib/montessori/activity";
+import { classifyError } from "@/lib/montessori/engine";
 
 const schema = z.object({
   questionId: z.string(),
@@ -56,6 +58,11 @@ export const POST = handle(async (req: Request, ctx: { params: Promise<{ id: str
     language: (question.answerLanguage ?? attempt.game.language) as "es-419" | "en-US" | "fr-FR",
     caseSensitive: templateOptions(templateByKey(attempt.game.templateKey), settings.options).caseSensitive === true,
   });
+  const accepted = question.acceptedAnswers.map((a) => a.text);
+  // Montessori evidence: a correct answer after an own mistake, with no hint or model in between.
+  const selfCorrected = ev.outcome === "CORRECT" && body.support === "NONE" && incorrectSoFar > 0;
+  const shortForm = body.input === "voice" && isShortForm(ev, expected, accepted);
+  const errorKind = classifyError({ outcome: ev.outcome, reason: body.tooQuiet ? "too_quiet" : ev.reason, score: ev.score, input: body.input, shortForm }) ?? "";
   await db.studentResponse.create({
     data: {
       attemptId: id,
@@ -70,7 +77,9 @@ export const POST = handle(async (req: Request, ctx: { params: Promise<{ id: str
       reason: body.tooQuiet ? "too_quiet" : ev.reason,
       score: ev.score,
       endsQuestion: ev.endsQuestion,
+      selfCorrected,
+      errorKind,
     },
   });
-  return NextResponse.json(ev);
+  return NextResponse.json({ ...ev, selfCorrected, shortForm });
 });

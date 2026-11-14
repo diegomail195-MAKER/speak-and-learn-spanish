@@ -6,6 +6,11 @@ import { db } from "@/lib/db";
 import { phrasesFor } from "@/lib/feedback";
 import { mediaUrl } from "@/lib/media/save";
 import { sttLocale, sttProvider } from "@/lib/stt";
+import { activityTypeForTemplate } from "@/lib/montessori/activity";
+import { pregeneratedLines } from "@/lib/montessori/messages";
+import { nounFor } from "@/lib/montessori/nouns";
+import { getMontessoriConfig } from "@/lib/montessori/server";
+import { ttsProvider } from "@/lib/tts";
 import { ensureAudio } from "@/lib/tts/generate";
 import { maxItemsFor, templateByKey, templateOptions } from "./templates";
 import { DEFAULT_SETTINGS, SPELL_TOKENS, type EditorGame, type FaceAudio, type GameSettings, type ItemData, type PlayFace, type PlayGame } from "./types";
@@ -321,6 +326,17 @@ export async function publishGame(schoolId: string, userId: string, id: string) 
     for (const text of phrasesFor(g.language)) {
       const r = await gen(text);
       if (r) phraseAudio[text] = r.asset.id;
+    }
+    // Montessori feedback lines for this activity, with the voices chosen in Settings → Montessori Feedback.
+    if (ttsProvider() && (g.language === "es-419" || g.language === "en-US")) {
+      const mc = await getMontessoriConfig();
+      const activityType = activityTypeForTemplate(g.templateKey, g.settings.options ?? {});
+      const noun = nounFor({ topic: g.topic, title: g.title, activityType, expected: qs.map((q) => q.expectedAnswer) });
+      for (const line of pregeneratedLines({ activityType, noun }, mc.messages, mc.disabledMessages)) {
+        const language = line.lang === "es" ? "es-419" : "en-US";
+        const r = await ensureAudio({ schoolId, userId, text: line.text, language, voiceId: mc.voices[line.lang] || undefined, rate });
+        if (r) phraseAudio[line.text] = r.asset.id;
+      }
     }
     const instr = g.instructions.trim() ? await gen(g.instructions) : null;
     await db.game.update({

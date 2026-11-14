@@ -97,5 +97,10 @@ src/app/learn/*, /play/*    student portal and activity player
 e2e/flow.e2e.mjs            end-to-end test of the full flow in Chromium with a fake microphone
 ```
 
+Feedback in every activity comes from the **Montessori Intelligent Feedback Engine**
+(`src/lib/montessori/`, see `docs/MONTESSORI.md`): descriptive bilingual messages, self-correction,
+five progress levels, the teacher page `/teacher/progress` and the admin page
+`/admin/settings/montessori`. Its e2e test: `BASE_URL=http://localhost:3100 node e2e/montessori.e2e.mjs`.
+
 See `docs/STATUS.md` for what is done, tested and pending, and `docs/PRIVACY.md` for the student
 data notes (COPPA/FERPA items that need legal review).

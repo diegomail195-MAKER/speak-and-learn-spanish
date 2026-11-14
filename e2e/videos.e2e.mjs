@@ -177,7 +177,7 @@ try {
   await s.click("text=¡A practicar!");
   await s.waitForURL(/\/play\/.+\?video=/);
   await s.click("text=🎤 Start");
-  await s.waitForSelector("text=¡Terminaste!", { timeout: 60000 });
+  await s.waitForSelector("[data-testid=montessori-summary]", { timeout: 60000 });
   log("practice game finished");
 
   // 9. Teacher results: watched + practice

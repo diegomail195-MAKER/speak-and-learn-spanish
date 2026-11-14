@@ -1,6 +1,7 @@
 "use client";
 
-import type { ReactNode, RefObject } from "react";
+import { createContext, useContext, type ReactNode, type RefObject } from "react";
+import type { FeedbackDecision } from "@/lib/montessori/types";
 import { Button } from "@/components/ui/Button";
 import type { MicState } from "@/lib/client/mic-session";
 import type { PlayGame, PlayQuestion } from "@/lib/games/types";
@@ -72,9 +73,63 @@ export function StartScreen({ s, onStart, preview, withMic }: { s: VoiceSession;
   );
 }
 
-export function FeedbackBubble({ feedback }: { feedback: Feedback }) {
+/** What the end screen can offer (set by GamePlayer). */
+export const PlayerActions = createContext<{ practice?: (ids: string[], as: "same" | "flashcards") => void; nextHref?: string | null }>({});
+
+/** 🔊 replay and mute for Montessori feedback. */
+function FeedbackAudio({ s }: { s: VoiceSession }) {
+  return (
+    <span className="mt-2 flex justify-center gap-2">
+      <button type="button" onClick={() => void s.replayFeedback()} className="rounded-full bg-card/80 px-3 py-1 text-sm font-bold text-ink-2 hover:bg-card" aria-label="Listen to the message again">🔊 Listen</button>
+      <button type="button" onClick={() => s.setMuted((m) => !m)} aria-pressed={s.muted} className="rounded-full bg-card/80 px-3 py-1 text-sm font-bold text-ink-2 hover:bg-card" aria-label={s.muted ? "Turn feedback voice on" : "Mute feedback voice"}>
+        {s.muted ? "🔇 Muted" : "🔈 Mute"}
+      </button>
+    </span>
+  );
+}
+
+function Highlighted({ h }: { h: NonNullable<NonNullable<Feedback>["highlight"]> }) {
+  return (
+    <span className="mt-2 block font-mono text-2xl tracking-wide" aria-label={`Look at this part: ${h.text.slice(h.start, h.end)}`}>
+      {h.text.slice(0, h.start)}
+      <mark className="rounded bg-coral-soft px-0.5 text-coral-dark underline decoration-2 underline-offset-4">{h.text.slice(h.start, h.end)}</mark>
+      {h.text.slice(h.end)}
+    </span>
+  );
+}
+
+function Compare({ c }: { c: NonNullable<NonNullable<Feedback>["compare"]> }) {
+  return (
+    <span className="mt-3 grid grid-cols-2 gap-3">
+      {[c.a, c.b].map((x, i) => (
+        <span key={i} className="flex flex-col items-center gap-1 rounded-xl bg-card p-2 text-ink">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {x.imageUrl && <img src={x.imageUrl} alt={x.label} className="h-24 w-24 rounded-lg object-contain" />}
+          <span className="text-lg font-semibold">{x.label}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+export function FeedbackBubble({ feedback, s }: { feedback: Feedback; s?: VoiceSession }) {
   if (!feedback) return <div className="h-14" />;
   const tone = { good: "bg-leaf text-white", retry: "bg-sun-soft text-[#6b4700]", unsure: "bg-sky-soft text-sky", info: "bg-paper-2 text-ink-2" }[feedback.tone];
+  if (feedback.lines || feedback.highlight) {
+    // Montessori feedback: short, both languages on separate lines, never a pop-up.
+    return (
+      <div key={(feedback.id ?? "") + feedback.text + (feedback.model ?? "")} className={`animate-pop-in max-w-xl rounded-2xl px-5 py-3 text-center ${tone}`} role="status" aria-live="polite" data-feedback-id={feedback.id}>
+        {feedback.lines?.map((l, i) => (
+          <span key={l.lang} lang={l.lang === "es" ? "es" : "en"} className={`block font-display ${i === 0 ? "text-2xl font-semibold" : "mt-0.5 text-xl font-medium opacity-90"}`}>{l.text}</span>
+        ))}
+        {feedback.detail && <span className="mt-1 block text-lg font-semibold">{feedback.detail}</span>}
+        {feedback.highlight && <Highlighted h={feedback.highlight} />}
+        {feedback.model && <span className="mt-1 block text-lg font-medium">“{feedback.model}”</span>}
+        {feedback.compare && <Compare c={feedback.compare} />}
+        {s && feedback.lines && <FeedbackAudio s={s} />}
+      </div>
+    );
+  }
   return (
     <div key={feedback.text + (feedback.model ?? "")} className={`animate-pop-in rounded-2xl px-5 py-3 text-center font-display text-2xl font-semibold ${tone}`} role="status" aria-live="polite">
       {feedback.text}
@@ -104,7 +159,7 @@ export function MicIndicator({ phase, micState, level }: { phase: Phase; micStat
 export function VoiceDock({ s, children, showControls = true }: { s: VoiceSession; children?: ReactNode; showControls?: boolean }) {
   return (
     <div className="mt-auto flex w-full flex-col items-center gap-4 pt-6">
-      <FeedbackBubble feedback={s.feedback} />
+      <FeedbackBubble feedback={s.feedback} s={s} />
       {s.usesMic && <MicIndicator phase={s.phase} micState={s.micState} level={s.level} />}
       {s.phase === "suspended" && (
         <div className="text-center">
@@ -114,7 +169,7 @@ export function VoiceDock({ s, children, showControls = true }: { s: VoiceSessio
       )}
       {s.phase === "idle" && (
         <div className="text-center">
-          <p className="mb-2 text-ink-2">¿Sigues ahí? (Are you still there?)</p>
+          {!s.engine && <p className="mb-2 text-ink-2">¿Sigues ahí? (Are you still there?)</p>}
           <Button variant="voice" size="lg" onClick={s.resume}>Continuar</Button>
         </div>
       )}
@@ -188,7 +243,54 @@ export function LetterTiles({ expected, heard, reveal }: { expected: string; hea
   );
 }
 
+/** End of activity with the Montessori summary: what was done, and the next useful step. */
+function MontessoriDone({ s, exitHref, extra, summary }: { s: VoiceSession; exitHref: string; extra?: ReactNode; summary: FeedbackDecision[] }) {
+  const actions = useContext(PlayerActions);
+  const cfg = s.engine!.config;
+  const shown = summary.filter((d) => d.display !== "silent");
+  const lines = (d: FeedbackDecision) => (cfg.language === "en" ? [d.en] : cfg.language === "es" ? [d.es] : [d.en, d.es]);
+  const buttons: ReactNode[] = [];
+  for (const d of summary) {
+    const ids = d.itemIds ?? [];
+    if ((d.action === "practice_missed" || d.action === "smaller_steps") && ids.length && actions.practice) {
+      buttons.push(
+        <Button key={d.id} variant="voice" size="lg" onClick={() => actions.practice!(ids, "same")} data-testid="practice-missed">
+          {d.action === "smaller_steps" ? `Work on the first ${ids.length}` : `Practice ${ids.length === 1 ? "this one" : `these ${ids.length}`}`}
+        </Button>,
+      );
+    }
+    if (d.action === "alternative_activity" && ids.length && actions.practice) {
+      buttons.push(<Button key={d.id} variant="secondary" size="lg" onClick={() => actions.practice!(ids, "flashcards")} data-testid="practice-flashcards">Practice as flashcards</Button>);
+    }
+    if (d.action === "challenge" && actions.nextHref) {
+      buttons.push(<a key={d.id} href={actions.nextHref} className="inline-flex h-14 items-center rounded-full bg-teal px-7 text-lg font-bold text-white" data-testid="new-challenge">New challenge →</a>);
+    }
+  }
+  const vals = Object.values(s.results);
+  const independent = vals.filter((r) => r === "NONE").length;
+  return (
+    <div className="animate-pop-in my-auto max-w-xl text-center" data-testid="montessori-summary">
+      {shown.map((d, i) => (
+        <div key={d.id} data-feedback-id={d.id} className={i === 0 ? "" : "mt-4"}>
+          {lines(d).map((t, j) => (
+            <p key={j} className={j === 0 ? `font-display ${i === 0 ? "text-4xl" : "text-2xl"} font-semibold` : "mt-1 text-xl text-ink-2"}>{t}</p>
+          ))}
+        </div>
+      ))}
+      {vals.length > 0 && <p className="mt-4 text-sm text-muted">{independent} of {vals.length} answered with no help.</p>}
+      {s.usesMic && <p className="mt-1 text-sm text-muted">The microphone is off.</p>}
+      <button type="button" onClick={() => void s.replayFeedback()} className="mt-3 rounded-full bg-paper-2 px-4 py-1.5 text-sm font-bold text-ink-2" aria-label="Listen to the message again">🔊 Listen</button>
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
+        {buttons}
+        {extra}
+        <a href={exitHref} className="inline-flex h-14 items-center rounded-full bg-coral px-7 text-lg font-bold text-white">Done</a>
+      </div>
+    </div>
+  );
+}
+
 export function DoneScreen({ s, exitHref, extra }: { s: VoiceSession; exitHref: string; extra?: ReactNode }) {
+  if (s.engine && s.summary) return <MontessoriDone s={s} exitHref={exitHref} extra={extra} summary={s.summary} />;
   const vals = Object.values(s.results);
   const independent = vals.filter((r) => r === "NONE").length;
   return (

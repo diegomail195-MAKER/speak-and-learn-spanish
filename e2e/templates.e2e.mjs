@@ -28,7 +28,8 @@ const clearSttLog = () => STT_LOG && writeFileSync(STT_LOG, "");
 const assert = (ok, msg) => {
   if (!ok) throw new Error(msg);
 };
-const CORRECT = "text=/¡Muy bien!|¡Lo lograste!|¡Excelente!|¡Buen trabajo!|¡Así se dice!|¡Perfecto!/";
+// Montessori feedback (any success message, by its stable id) or the original phrases (alphabet page).
+const CORRECT = '[data-feedback-id^="success."], :text-matches("¡Muy bien!|¡Lo lograste!|¡Excelente!|¡Buen trabajo!|¡Así se dice!|¡Perfecto!")';
 
 // Fake browser voices that record what is spoken, in which language; counts microphone opens.
 const INIT = () => {
@@ -204,7 +205,7 @@ try {
   log("Test 12 low-confidence answer → “didn't hear you well” (uncertain, not incorrect)");
   await s.waitForSelector(CORRECT, { timeout: 40000 });
   await shot(s, "t03-flashcard-correct");
-  await s.waitForSelector("text=¡Terminaste!", { timeout: 60000 });
+  await s.waitForSelector("[data-testid=montessori-summary]", { timeout: 60000 });
   const fcSummary = (await s.locator("main").textContent()).replace(/\s+/g, " ");
   assert(fcSummary.includes("2 of 2 on your own"), `flashcards summary: ${fcSummary}`);
   const spoken = await s.evaluate(() => window.__spoken);
@@ -237,7 +238,7 @@ try {
   await preview(spId);
   await page.click("text=🎤 Start");
   await page.waitForSelector("text=Te escucho", { timeout: 15000 });
-  await page.waitForSelector("text=¡Terminaste!", { timeout: 90000 });
+  await page.waitForSelector("[data-testid=montessori-summary]", { timeout: 90000 });
   const spSummary = (await page.locator("main").textContent()).replace(/\s+/g, " ");
   assert(spSummary.includes("2 of 2 on your own"), `spelling summary: ${spSummary}`);
   assert(sttLog().every((l) => l.mode === "LETTERS"), "spelling answers are recognized in letters mode");
@@ -258,7 +259,7 @@ try {
   await page.waitForSelector("text=Revisa la tilde.", { timeout: 10000 });
   await box.fill("árbol");
   await page.click("button:text-is('Check')");
-  await page.waitForSelector("text=¡Terminaste!", { timeout: 20000 });
+  await page.waitForSelector("[data-testid=montessori-summary]", { timeout: 20000 });
   assert((await page.evaluate(() => window.__gum)) === gumBefore, "typing mode must not open the microphone");
   log("Test 4 typed spelling: “arbol” → missing-accent feedback, “árbol” → correct; microphone never opened");
 
@@ -289,7 +290,7 @@ try {
   await page.click("button[aria-label='Point 1']");
   await page.locator("[aria-label=Labels] button:text-is('la cola'):not([disabled])").click();
   await page.click("button[aria-label='Point 2']");
-  await page.waitForSelector("text=¡Terminaste!", { timeout: 20000 });
+  await page.waitForSelector("[data-testid=montessori-summary]", { timeout: 20000 });
   log("Test 5 diagram: points placed by clicking the picture; wrong label rejected, both labels placed");
 
   // ── Spin the Wheel ───────────────────────────────────────────────────────────────────
@@ -312,7 +313,7 @@ try {
     await page.waitForSelector(CORRECT, { timeout: 30000 });
     await page.waitForTimeout(1200);
   }
-  await page.waitForSelector("text=¡Terminaste!", { timeout: 20000 });
+  await page.waitForSelector("[data-testid=montessori-summary]", { timeout: 20000 });
   log("Spin the Wheel: two spins answered by voice, completed slices removed");
 
   // ── Open the Box ─────────────────────────────────────────────────────────────────────
@@ -333,7 +334,7 @@ try {
   await page.waitForSelector(CORRECT, { timeout: 30000 });
   await page.waitForSelector("button[aria-label='Box 2']:not([disabled])", { timeout: 15000 });
   await page.click("button[aria-label='Box 2']");
-  await page.waitForSelector("text=¡Terminaste!", { timeout: 40000 });
+  await page.waitForSelector("[data-testid=montessori-summary]", { timeout: 40000 });
   log("Open the Box: sequential order enforced, both boxes answered by voice");
 
   // ── Match & Speak ────────────────────────────────────────────────────────────────────
@@ -358,7 +359,7 @@ try {
   await page.waitForSelector("[aria-label=Words] button:text-is('el gato'):not([disabled])", { timeout: 15000 });
   await page.locator("[aria-label=Words] button:text-is('el gato')").click();
   await page.locator("[aria-label='Picture — drop a word here']").first().click();
-  await page.waitForSelector("text=¡Terminaste!", { timeout: 40000 });
+  await page.waitForSelector("[data-testid=montessori-summary]", { timeout: 40000 });
   log("Match & Speak: matched by tapping, then each word said out loud");
 
   // ── Alphabet page: Ñ, Listen and Repeat ──────────────────────────────────────────────

@@ -3,11 +3,9 @@ import { redirect } from "next/navigation";
 import { isPlatformAdmin } from "./admin";
 import { getSessionUser } from "./session";
 
-export class HttpError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-  }
-}
+import { HttpError } from "@/lib/http-error";
+
+export { HttpError };
 
 /** For pages: redirects to the right login when the role does not match. */
 export async function requireTeacherPage() {
