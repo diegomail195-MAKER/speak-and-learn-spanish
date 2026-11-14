@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { FormError, Input, Label, Select } from "@/components/ui/Field";
 import { addLibraryContent, deleteResource, publishResource, updateResourceMeta } from "@/lib/actions/library";
-import { GAME_TYPES, GAME_TYPE_LABEL, GRADES, GRADE_LABEL, KINDS, KIND_LABEL, UPLOAD_FOR, embedFor, libraryFileUrl, publicUrl, type Kind } from "@/lib/library/types";
+import { GAME_TYPES, GAME_TYPE_LABEL, GRADES, GRADE_LABEL, KINDS, KIND_LABEL, UPLOAD_FOR, embedFor, libraryFileUrl, publicUrl, youtubeIdFrom, type Kind } from "@/lib/library/types";
 import { uploadLibraryFile, type Uploaded } from "./upload";
 
 type TopicOpt = { id: string; titleEn: string; titleEs: string };
@@ -49,9 +49,16 @@ const METHODS: Record<Kind, Method[]> = {
   GAME: ["build", "link"],
 };
 const METHOD_LABEL: Record<Method, (k: Kind) => string> = {
-  link: () => "Add Link",
-  upload: () => "Upload File",
+  link: (k) => (k === "VIDEO" ? "Add YouTube Link" : "Add Link"),
+  upload: (k) => (k === "VIDEO" ? "Upload Video" : "Upload File"),
   build: (k) => (k === "FLASHCARDS" || k === "GAME" ? "Create in LextroSpeak" : k === "PRINTABLE" || k === "WORKSHEET" ? "Build a sheet" : k === "SONG" ? "Open the editor (lyrics)" : "Open the editor (captions)"),
+};
+
+/** What each way of adding a video means for students (shown under "How do you want to add it?"). */
+const VIDEO_MODE: Record<Method, { name: string; note: string }> = {
+  link: { name: "YouTube Educational Video", note: "Plays inside LextroSpeak with YouTube's official player. YouTube's own logo and title in the player can still open YouTube; only YouTube Player for Education removes them." },
+  upload: { name: "LextroSpeak Hosted Video", note: "Your own video, or one you have permission to use. Plays with LextroSpeak's player: no YouTube logo, no suggested videos, no links to other sites." },
+  build: { name: "Video with captions", note: "Opens the editor, where you can upload the file or paste a YouTube link and write captions." },
 };
 
 /** Preview of a pasted link: embedded when the site allows it here, otherwise "Open Link". */
@@ -80,7 +87,12 @@ export function NewResourceForm({ topics, topicId }: { topics: TopicOpt[]; topic
   const methods = METHODS[kind];
   const chooseKind = (k: Kind) => { setKind(k); setFile(null); setUpErr(undefined); setMethod(METHODS[k][0]); };
   const accept = UPLOAD_FOR[kind];
-  const urlError = method === "link" && url.trim() && !publicUrl(url) ? "Paste a public link that starts with https:// or http://" : undefined;
+  const urlError = method === "link" && url.trim()
+    ? !publicUrl(url) ? "Paste a public link that starts with https:// or http://"
+      : kind === "VIDEO" && !youtubeIdFrom(url) ? "Paste a YouTube link: youtube.com/watch?v=…, youtu.be/…, youtube.com/shorts/… or youtube.com/embed/…" : undefined
+    : undefined;
+  const [rights, setRights] = useState(false);
+  const needsRights = kind === "VIDEO" && method === "upload";
   const onFile = async (f: File) => {
     setUpErr(undefined); setFile(null); setPct(0);
     try {
@@ -119,12 +131,15 @@ export function NewResourceForm({ topics, topicId }: { topics: TopicOpt[]; topic
             </label>
           ))}
         </div>
+        {kind === "VIDEO" && (
+          <p className="mt-2 rounded-xl bg-paper px-3 py-2 text-sm text-ink-2" data-testid="video-mode-note"><strong>{VIDEO_MODE[method].name}.</strong> {VIDEO_MODE[method].note}</p>
+        )}
       </fieldset>
       {method === "link" && (
         <div className="space-y-3">
           <div>
             <Label htmlFor="url">Link</Label>
-            <Input id="url" name="url" type="url" inputMode="url" placeholder="https://www.youtube.com/watch?v=… or any public page" value={url} onChange={(e) => setUrl(e.target.value)} required maxLength={2000} />
+            <Input id="url" name="url" type="url" inputMode="url" placeholder={kind === "VIDEO" ? "https://www.youtube.com/watch?v=…  ·  youtu.be/…  ·  /shorts/…" : "https://www.youtube.com/watch?v=… or any public page"} value={url} onChange={(e) => setUrl(e.target.value)} required maxLength={2000} />
             {urlError && <p role="alert" className="mt-1 text-sm font-bold text-coral-dark">{urlError}</p>}
           </div>
           <LinkPreview url={url} />
@@ -146,6 +161,12 @@ export function NewResourceForm({ topics, topicId }: { topics: TopicOpt[]; topic
           <input type="hidden" name="file" value={file ? JSON.stringify({ fileId: file.id, name: file.name, mime: file.mime }) : ""} />
           {pct !== null && <p className="mt-1 text-sm font-bold text-teal-dark" role="status">Uploading… {pct}%</p>}
           {upErr && <p className="mt-1 text-sm font-bold text-coral-dark" role="alert">{upErr}</p>}
+          {needsRights && (
+            <label className="mt-3 flex items-start gap-2 text-sm font-semibold text-ink-2">
+              <input type="checkbox" name="rights" checked={rights} onChange={(e) => setRights(e.target.checked)} className="mt-0.5 h-4 w-4" data-testid="video-rights" />
+              I made this video or have permission to use it. (Don&apos;t upload videos downloaded from YouTube.)
+            </label>
+          )}
         </div>
       )}
       {method === "build" && kind === "GAME" && (
@@ -161,7 +182,7 @@ export function NewResourceForm({ topics, topicId }: { topics: TopicOpt[]; topic
         <MetaFields topics={topics} topicIds={topicId ? [topicId] : []} optional />
       </div>
       <FormError message={state?.error} />
-      <Button disabled={pending || pct !== null || (method === "upload" && !file) || !!urlError}>{pending ? "Saving…" : "Save"}</Button>
+      <Button disabled={pending || pct !== null || (method === "upload" && !file) || (needsRights && !rights) || !!urlError}>{pending ? "Saving…" : "Save"}</Button>
       {method === "build" && <p className="text-sm text-muted">Save opens the editor. Then preview and publish.</p>}
     </form>
   );

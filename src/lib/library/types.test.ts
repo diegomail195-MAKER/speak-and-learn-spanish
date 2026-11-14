@@ -26,7 +26,7 @@ describe("links (Add Link)", () => {
     for (const bad of ["javascript:alert(1)", "ftp://example.org/x", "https://localhost/x", "http://127.0.0.1/", "https://user:pw@example.org/", "example.org", "", "https://intranet/"]) expect(publicUrl(bad)).toBeNull();
   });
   it("embeds YouTube, Vimeo and Google documents; other sites open in a new tab", () => {
-    expect(embedFor("https://youtu.be/dQw4w9WgXcQ")?.src).toBe("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0");
+    expect(embedFor("https://youtu.be/dQw4w9WgXcQ")?.src).toBe("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&playsinline=1");
     expect(embedFor("https://vimeo.com/76979871")?.src).toBe("https://player.vimeo.com/video/76979871");
     expect(embedFor("https://docs.google.com/document/d/1AbCdEfGhIjKlMnOp/edit")?.src).toBe("https://docs.google.com/document/d/1AbCdEfGhIjKlMnOp/preview");
     expect(embedFor("https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view")?.src).toBe("https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/preview");
@@ -35,5 +35,36 @@ describe("links (Add Link)", () => {
   it("a link alone is publishable for every type", () => {
     for (const k of KINDS) expect(publishProblem(k, parseContent(k, { link: { url: "https://example.org/a" } }) as AnyContent)).toBeNull();
     expect(() => parseContent("VIDEO", { link: { url: "javascript:alert(1)" } })).toThrow();
+  });
+});
+
+describe("YouTube links (Add YouTube Link)", () => {
+  const id = "dQw4w9WgXcQ";
+  it("reads watch, youtu.be, shorts and embed links", () => {
+    for (const url of [
+      `https://www.youtube.com/watch?v=${id}`,
+      `https://youtube.com/watch?feature=share&v=${id}&t=42`,
+      `https://m.youtube.com/watch?v=${id}`,
+      `https://youtu.be/${id}?si=abc`,
+      `https://www.youtube.com/shorts/${id}`,
+      `https://www.youtube.com/embed/${id}?start=10`,
+      `https://www.youtube-nocookie.com/embed/${id}`,
+    ]) expect(youtubeIdFrom(url), url).toBe(id);
+  });
+  it("rejects other sites, look-alike hosts and broken ids", () => {
+    for (const url of [
+      `https://vimeo.com/123456789`,
+      `https://youtube.com.evil.example/watch?v=${id}`,
+      `https://notyoutube.com/watch?v=${id}`,
+      `https://www.youtube.com/watch?v=short`,
+      `https://www.youtube.com/watch?v=${id}"><script>`,
+      `javascript:alert(1)`,
+      `<iframe src="https://www.youtube.com/embed/${id}"></iframe>`,
+    ]) expect(youtubeIdFrom(url), url).toBeNull();
+  });
+  it("embeds on the privacy-enhanced domain with documented parameters only", () => {
+    const e = embedFor(`https://www.youtube.com/shorts/${id}`);
+    expect(e?.src).toBe(`https://www.youtube-nocookie.com/embed/${id}?rel=0&playsinline=1`);
+    expect(e?.src).not.toMatch(/modestbranding|showinfo/);
   });
 });

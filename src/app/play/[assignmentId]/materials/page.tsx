@@ -9,7 +9,10 @@ import { safeContent, type AnyContent, type Kind } from "@/lib/library/types";
 
 export const metadata = { title: "Materials" };
 
-/** Library resources an administrator added to the assigned activity (published versions only). */
+/**
+ * Library resources an administrator added to the assigned activity (published versions only),
+ * in student focus mode: no LextroSpeak links to other sites, "Continue" back to the activity.
+ */
 export default async function ActivityMaterials({ params }: { params: Promise<{ assignmentId: string }> }) {
   const { assignmentId } = await params;
   const { student } = await requireStudentPage();
@@ -33,7 +36,7 @@ export default async function ActivityMaterials({ params }: { params: Promise<{ 
             <section key={resourceId} data-testid="material">
               <KindBadge kind={kind} />
               <h2 className="mb-4 mt-2 font-display text-2xl font-extrabold">{v.title}</h2>
-              <ResourcePlayer kind={kind} content={safeContent(kind, v.content) as AnyContent} title={v.title} />
+              <ResourcePlayer kind={kind} content={safeContent(kind, v.content) as AnyContent} title={v.title} focus continueHref={`/play/${a.id}`} />
             </section>
           );
         })}

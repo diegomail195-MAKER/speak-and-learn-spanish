@@ -159,7 +159,10 @@ export function VideoPlayer({
         videoId: video.youtubeId,
         width: "100%",
         height: "100%",
-        playerVars: { rel: 0, modestbranding: 1, playsinline: 1, start: startAt > 5 ? Math.floor(startAt) : 0, cc_lang_pref: "es", hl: "es" },
+        // Documented parameters only (developers.google.com/youtube/player_parameters). rel=0 limits
+        // end-of-video suggestions to the same channel; it does not remove them. The deprecated
+        // modestbranding flag is not used: YouTube's logo and title links can still open YouTube.
+        playerVars: { rel: 0, playsinline: 1, iv_load_policy: 3, start: startAt > 5 ? Math.floor(startAt) : 0, cc_lang_pref: "es", hl: "es" },
         events: {
           onReady: () => {
             clearTimeout(timeout);
@@ -229,7 +232,7 @@ export function VideoPlayer({
     <div>
       <div className="overflow-hidden rounded-2xl bg-ink">
         {video.source === "HOSTED" ? (
-          <video ref={videoRef} src={video.url ?? undefined} controls playsInline preload="metadata" poster={video.coverUrl ?? undefined} className="aspect-video w-full bg-black" crossOrigin="anonymous">
+          <video ref={videoRef} data-testid="video-file" src={video.url ?? undefined} controls playsInline preload="metadata" poster={video.coverUrl ?? undefined} className="aspect-video w-full bg-black" crossOrigin="anonymous">
             {video.captionsUrl && <track kind="subtitles" src={video.captionsUrl} srcLang={video.captionsLanguage} label={video.captionsLanguage === "es" ? "Español" : video.captionsLanguage} default />}
           </video>
         ) : ytError ? (

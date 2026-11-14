@@ -190,7 +190,7 @@ export function publicUrl(input: string): string | null {
  */
 export function embedFor(url: string): { src: string; provider: string } | null {
   const yt = youtubeIdFrom(url);
-  if (yt) return { src: `https://www.youtube-nocookie.com/embed/${yt}?rel=0`, provider: "YouTube" };
+  if (yt) return { src: `https://www.youtube-nocookie.com/embed/${yt}?rel=0&playsinline=1`, provider: "YouTube" };
   let u: URL;
   try {
     u = new URL(url);

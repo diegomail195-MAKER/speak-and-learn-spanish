@@ -49,7 +49,9 @@ export async function activityForStudent(student: { id: string; classroomId: str
     include: { version: true, resource: { select: { kind: true } }, assignment: { select: { id: true, title: true } } },
   });
   if (!act) throw new HttpError(404, "Not found");
-  return { act, kind: act.resource.kind as Kind, content: safeContent(act.resource.kind as Kind, act.version.content) as AnyContent };
+  // The next activity of the same task, for "Continue" (student focus mode).
+  const next = await db.assignmentActivity.findFirst({ where: { assignmentId, position: { gt: act.position } }, orderBy: { position: "asc" }, select: { id: true } });
+  return { act, nextActivityId: next?.id ?? null, kind: act.resource.kind as Kind, content: safeContent(act.resource.kind as Kind, act.version.content) as AnyContent };
 }
 
 /** Resources an administrator can pick with "Add from Library" (everything except archived). */

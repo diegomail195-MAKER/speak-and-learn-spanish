@@ -55,6 +55,7 @@ BASE_URL=http://localhost:3100 SERVER_LOG=/tmp/server.log node e2e/security.e2e.
 BASE_URL=http://localhost:3100 SERVER_LOG=/tmp/server.log E2E_ADMIN_EMAIL=admin-e2e@lextro.test node e2e/lextro.e2e.mjs
 # Grades, Library and Add from Library (add lib-e2e@lextro.test to ADMIN_EMAILS):
 BASE_URL=http://localhost:3100 SERVER_LOG=/tmp/server.log E2E_LIB_ADMIN_EMAIL=lib-e2e@lextro.test node e2e/library.e2e.mjs
+BASE_URL=http://localhost:3100 SERVER_LOG=/tmp/server.log E2E_VP_ADMIN_EMAIL=vp-e2e@lextro.test node e2e/video-player.e2e.mjs
 ```
 
 ## How the oral activity works

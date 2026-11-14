@@ -205,7 +205,13 @@ export async function addLibraryContent(_: LibState, form: FormData): Promise<Li
     const url = publicUrl(String(form.get("url") ?? ""));
     if (!url) return { error: "Paste a public link that starts with https:// or http://" };
     draft.link = { url };
-    if (kind.data === "VIDEO") draft.youtubeId = youtubeIdFrom(url);
+    if (kind.data === "VIDEO") {
+      // "Add YouTube Link": only YouTube links (watch, youtu.be, shorts, embed); the id is validated here.
+      const yt = youtubeIdFrom(url);
+      if (!yt) return { error: "Paste a YouTube link: youtube.com/watch?v=…, youtu.be/…, youtube.com/shorts/… or youtube.com/embed/…" };
+      draft.youtubeId = yt;
+      draft.link = { url: `https://www.youtube.com/watch?v=${yt}` };
+    }
   } else if (method.data === "upload") {
     const accept = UPLOAD_FOR[kind.data];
     if (!accept) return { error: "This type is built with the editor or saved as a link." };
@@ -218,6 +224,7 @@ export async function addLibraryContent(_: LibState, form: FormData): Promise<Li
     const row = await db.libraryFile.findUnique({ where: { id: file.fileId } });
     if (!row?.ready) return { error: "The file didn't finish uploading. Upload it again." };
     if (!accept.test(row.mimeType)) return { error: `That file doesn't fit a ${kind.data.toLowerCase()}. Use: ${accept.label}.` };
+    if (kind.data === "VIDEO" && form.get("rights") !== "on") return { error: "Confirm that you made this video or have permission to use it." };
     draft.file = { fileId: row.id, name: row.originalName, mime: row.mimeType };
   } else {
     if (kind.data === "GAME") draft.gameType = z.enum(GAME_TYPES).catch("MEMORY").parse(form.get("gameType"));

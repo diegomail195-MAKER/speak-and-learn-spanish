@@ -18,7 +18,7 @@ export default async function StudentActivityPage({ params }: { params: Promise<
     <>
       <Link href={`/learn/tasks/${assignmentId}`} className="no-print font-bold text-sky hover:underline">‹ {data.act.assignment.title || "My task"}</Link>
       <h1 className="mb-6 mt-2 font-display text-4xl font-extrabold">{data.act.version.title}</h1>
-      <StudentActivity assignmentId={assignmentId} activityId={activityId} kind={data.kind} content={data.content} title={data.act.version.title} />
+      <StudentActivity assignmentId={assignmentId} activityId={activityId} kind={data.kind} content={data.content} title={data.act.version.title} continueHref={data.nextActivityId ? `/learn/tasks/${assignmentId}/${data.nextActivityId}` : `/learn/tasks/${assignmentId}`} />
     </>
   );
 }

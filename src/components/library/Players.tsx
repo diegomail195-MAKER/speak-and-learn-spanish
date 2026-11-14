@@ -1,8 +1,10 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { VideoPlayer as PlatformVideoPlayer } from "@/components/video/VideoPlayer";
 import { Art, Icon, Pinita } from "@/components/ui/Art";
+import type { PlayVideo } from "@/lib/videos";
 import { DOCX_MIME, GAME_TYPE_LABEL, embedFor, libraryFileUrl, publicUrl, type AnyContent, type ContentFor, type ImageRef, type Kind, type Pair } from "@/lib/library/types";
 
 // Players for LextroSpeak library activities: flashcards, games (Memory, Picture Match,
@@ -387,19 +389,37 @@ export function SongPlayer({ content, onDone }: { content: ContentFor<"SONG">; o
 }
 
 // ---------- Video ----------
-export function VideoPlayer({ content, onDone }: { content: ContentFor<"VIDEO">; onDone?: Done }) {
-  useEffect(() => { if (content.youtubeId) onDone?.(1, 1); }, [content.youtubeId]); // eslint-disable-line react-hooks/exhaustive-deps
+/**
+ * Two modes, chosen by the administrator in Add Content:
+ * - YouTube Educational Video: YouTube's official IFrame Player (privacy-enhanced youtube-nocookie
+ *   domain, documented parameters only). The player is never covered or altered, so YouTube's own
+ *   logo/title links stay as YouTube ships them.
+ * - LextroSpeak Hosted Video: an uploaded file played with the browser's native player (play,
+ *   pause, volume, fullscreen), with no links to other sites.
+ * `continueHref` (student focus mode) shows "Continue" when the video ends.
+ */
+export function VideoPlayer({ content, title = "Video", onDone, continueHref }: { content: ContentFor<"VIDEO">; title?: string; onDone?: Done; continueHref?: string }) {
+  const [ended, setEnded] = useState(false);
+  const video = useMemo<PlayVideo | null>(() => {
+    const base = { id: "library", title, description: "", captionsUrl: null, captionsLanguage: "es", durationSec: null, practiceGameId: null };
+    if (content.file) return { ...base, source: "HOSTED", url: libraryFileUrl(content.file.fileId), youtubeId: null, coverUrl: null };
+    if (content.youtubeId) return { ...base, source: "YOUTUBE", url: null, youtubeId: content.youtubeId, coverUrl: null };
+    return null;
+  }, [content.file, content.youtubeId, title]);
+  const finish = useCallback(() => { setEnded(true); onDone?.(1, 1); }, [onDone]);
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="overflow-hidden rounded-[28px] bg-ink shadow-pop">
-        {content.file ? (
-          <video controls playsInline preload="metadata" src={libraryFileUrl(content.file.fileId)} onEnded={() => onDone?.(1, 1)} className="aspect-video w-full" data-testid="video-file" />
-        ) : content.youtubeId ? (
-          <iframe title="Video" src={`https://www.youtube-nocookie.com/embed/${content.youtubeId}?rel=0`} allow="encrypted-media; picture-in-picture; fullscreen" className="aspect-video w-full" />
-        ) : (
-          <p className="p-10 text-center text-white">No video yet.</p>
-        )}
-      </div>
+    <div className="mx-auto max-w-3xl" data-testid={video ? (video.source === "HOSTED" ? "video-hosted" : "video-youtube") : undefined}>
+      {video ? (
+        <>
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted" data-testid="video-mode">{video.source === "HOSTED" ? "LextroSpeak Hosted Video" : "YouTube Educational Video"}</p>
+          <PlatformVideoPlayer video={video} onEnded={finish} />
+        </>
+      ) : (
+        <p className="rounded-[28px] bg-ink p-10 text-center text-white">No video yet.</p>
+      )}
+      {ended && continueHref && (
+        <a href={continueHref} data-testid="video-continue" className="mt-4 inline-flex items-center gap-2 rounded-full bg-teal px-6 py-3 font-bold text-white shadow-[0_2px_0_var(--color-teal-dark)]">Continue →</a>
+      )}
       {content.captions && <p className="mt-4 whitespace-pre-line rounded-[22px] bg-card p-4 text-ink-2">{content.captions}</p>}
     </div>
   );
@@ -488,12 +508,16 @@ function ConnectSheet({ words }: { words: Pair[] }) {
 }
 
 // ---------- Links (Add Link) ----------
-/** A saved link: shown inside LextroSpeak when the site allows it, otherwise an "Open Link" button. */
-export function LinkPlayer({ url, title, onDone }: { url: string; title: string; onDone?: Done }) {
+/**
+ * A saved link: shown inside LextroSpeak when the site allows it, otherwise an "Open Link" button.
+ * In student focus mode LextroSpeak adds no buttons to other sites: non-embeddable links show a note.
+ */
+export function LinkPlayer({ url, title, onDone, focus = false }: { url: string; title: string; onDone?: Done; focus?: boolean }) {
   useEffect(() => { onDone?.(1, 1); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const safe = publicUrl(url);
   if (!safe) return <p className="text-muted">This link isn&apos;t available.</p>;
   const embed = embedFor(safe);
+  if (focus && !embed) return <p className="rounded-[22px] bg-card p-5 text-ink-2" data-testid="link-unavailable">This material lives on another website, so it can&apos;t be shown here. Ask your teacher about it.</p>;
   return (
     <div className="mx-auto max-w-3xl space-y-3">
       {embed && (
@@ -501,7 +525,7 @@ export function LinkPlayer({ url, title, onDone }: { url: string; title: string;
           <iframe title={title} src={embed.src} allow="encrypted-media; picture-in-picture; fullscreen" className="aspect-video w-full" data-testid="link-embed" />
         </div>
       )}
-      <a href={safe} target="_blank" rel="noopener noreferrer" data-testid="open-link" className={embed ? "inline-flex text-sm font-bold text-sky hover:underline" : "inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3 font-bold text-white"}>Open Link ↗</a>
+      {!focus && <a href={safe} target="_blank" rel="noopener noreferrer" data-testid="open-link" className={embed ? "inline-flex text-sm font-bold text-sky hover:underline" : "inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3 font-bold text-white"}>Open Link ↗</a>}
     </div>
   );
 }
@@ -512,7 +536,8 @@ export function LinkPlayer({ url, title, onDone }: { url: string; title: string;
 const noop = () => () => {};
 const useInBrowser = () => useSyncExternalStore(noop, () => true, () => false);
 
-export function ResourcePlayer({ kind, content, title, onDone }: { kind: Kind; content: AnyContent; title: string; onDone?: Done }) {
+/** `focus`: student focus mode (no LextroSpeak buttons to other sites). `continueHref`: where "Continue" goes after a video. */
+export function ResourcePlayer({ kind, content, title, onDone, focus = false, continueHref }: { kind: Kind; content: AnyContent; title: string; onDone?: Done; focus?: boolean; continueHref?: string }) {
   const inBrowser = useInBrowser();
   if (!inBrowser && (kind === "GAME" || kind === "PRINTABLE" || kind === "WORKSHEET")) {
     return <div className="mx-auto grid h-64 max-w-3xl place-items-center rounded-[28px] bg-card shadow-pop"><Pinita mood="happy" className="h-24 w-24 animate-wiggle" /></div>;
@@ -523,12 +548,12 @@ export function ResourcePlayer({ kind, content, title, onDone }: { kind: Kind; c
     : kind === "SONG" ? !!(content as ContentFor<"SONG">).file || (content as ContentFor<"SONG">).lyrics.length > 0
     : kind === "VIDEO" ? !!(content as ContentFor<"VIDEO">).file || !!(content as ContentFor<"VIDEO">).youtubeId
     : !!(content as ContentFor<"PRINTABLE">).file || !!(content as ContentFor<"PRINTABLE">).sheet?.words.length;
-  if (link?.url && !hasNative) return <LinkPlayer url={link.url} title={title} onDone={onDone} />;
+  if (link?.url && !hasNative) return <LinkPlayer url={link.url} title={title} onDone={onDone} focus={focus} />;
   switch (kind) {
     case "FLASHCARDS": return <FlashcardsPlayer content={content as ContentFor<"FLASHCARDS">} onDone={onDone} />;
     case "GAME": return <GamePlayer content={content as ContentFor<"GAME">} onDone={onDone} />;
     case "SONG": return <SongPlayer content={content as ContentFor<"SONG">} onDone={onDone} />;
-    case "VIDEO": return <VideoPlayer content={content as ContentFor<"VIDEO">} onDone={onDone} />;
+    case "VIDEO": return <VideoPlayer content={content as ContentFor<"VIDEO">} title={title} onDone={onDone} continueHref={continueHref} />;
     case "PRINTABLE":
     case "WORKSHEET": return <PrintablePlayer content={content as ContentFor<"PRINTABLE">} title={title} onDone={onDone} />;
   }
