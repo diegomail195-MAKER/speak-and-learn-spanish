@@ -49,6 +49,8 @@ export async function sendEmail(msg: Email): Promise<boolean> {
 
 /** Public base URL for links in emails. Never taken from the request's Host header. */
 export function appUrl(): string {
-  const configured = process.env.APP_URL ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
+  // Preview deployments link to their own branch URL, so verification and invite links open the preview.
+  const preview = process.env.VERCEL_ENV === "preview" && process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : null;
+  const configured = process.env.APP_URL ?? preview ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
   return configured.replace(/\/$/, "");
 }
