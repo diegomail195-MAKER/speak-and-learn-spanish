@@ -395,6 +395,7 @@ model Game {
   assignments      Assignment[]
   attempts         StudentAttempt[]
   practiceFor      Video[]          @relation("PracticeGame")
+  libraryResources GameResource[]
 
   @@index([schoolId, status])
   @@index([teacherId])
@@ -742,11 +743,42 @@ model Topic {
   art       String        @default("")
   sortOrder Int           @default(0)
   status    ContentStatus @default(PUBLISHED)
+  // Grade created by an administrator (Admin › Grades). Optional; topics may cover several bands.
+  gradeId   String?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
+  grade       Grade?          @relation(fields: [gradeId], references: [id], onDelete: SetNull)
   resources   TopicResource[]
   assignments Assignment[]
+
+  @@index([gradeId])
+}
+
+// Grades the administrator creates ("Add Grade"). nameKey is the trimmed, lower-cased name so
+// "Grade 1" and " grade 1 " can't both exist.
+model Grade {
+  id        String   @id @default(cuid())
+  name      String
+  nameKey   String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  topics Topic[]
+}
+
+// Library resources added to an activity (Game) with "Add from Library". Removing the link never
+// deletes the resource from the library.
+model GameResource {
+  gameId     String
+  resourceId String
+  position   Int
+
+  game     Game            @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  resource LibraryResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@id([gameId, resourceId])
+  @@index([resourceId])
 }
 
 model LibraryResource {
@@ -767,6 +799,7 @@ model LibraryResource {
   versions       ResourceVersion[]    @relation("Versions")
   topics         TopicResource[]
   activities     AssignmentActivity[]
+  games          GameResource[]
 
   @@index([status])
 }

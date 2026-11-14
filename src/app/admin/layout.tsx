@@ -15,8 +15,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           dark
           links={[
             { href: "/admin", label: "Admin", exact: true },
-            { href: "/admin/content", label: "Content" },
+            { href: "/admin/content", label: "Library" },
             { href: "/admin/topics", label: "Topics & Activities" },
+            { href: "/admin/grades", label: "Grades" },
             { href: "/admin/content/new", label: "+ Add Content", exact: true },
           ]}
         />

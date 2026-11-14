@@ -6,9 +6,18 @@ import { sniffAudio, sniffImage, sniffVideo } from "@/lib/media/validate";
 
 export const LIBRARY_MAX_BYTES = Number(process.env.VIDEO_MAX_MB ?? 500) * 1024 * 1024;
 
-export type FileGroup = "video" | "audio" | "pdf" | "image";
+export type FileGroup = "video" | "audio" | "pdf" | "image" | "document";
 
-export function sniffLibraryFile(head: Uint8Array): { mime: string; group: FileGroup } | null {
+const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+export function sniffLibraryFile(head: Uint8Array, name = ""): { mime: string; group: FileGroup } | null {
+  // Word document (.docx): a ZIP whose first entry is one of the Office package parts.
+  if (head.length >= 34 && head[0] === 0x50 && head[1] === 0x4b && head[2] === 0x03 && head[3] === 0x04 && /\.docx$/i.test(name)) {
+    const nameLen = head[26] | (head[27] << 8);
+    const first = String.fromCharCode(...head.slice(30, 30 + Math.min(nameLen, head.length - 30)));
+    if (/^(\[Content_Types\]\.xml|_rels\/|word\/|docProps\/)/.test(first)) return { mime: DOCX, group: "document" };
+    return null;
+  }
   const img = sniffImage(head);
   if (img) return { mime: img, group: "image" };
   if (head.length >= 5 && String.fromCharCode(...head.slice(0, 5)) === "%PDF-") return { mime: "application/pdf", group: "pdf" };
@@ -28,4 +37,5 @@ export const EXT: Record<string, string> = {
   "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp",
   "application/pdf": "pdf", "video/mp4": "mp4", "video/webm": "webm",
   "audio/mpeg": "mp3", "audio/wav": "wav", "audio/ogg": "ogg", "audio/mp4": "m4a",
+  [DOCX]: "docx",
 };

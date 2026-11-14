@@ -30,11 +30,11 @@ export const POST = handle(async (_req: Request, ctx: { params: Promise<{ id: st
     }
     head = (await store.get(file.storageKey)).subarray(0, 64);
   }
-  const kind = sniffLibraryFile(head);
+  const kind = sniffLibraryFile(head, file.originalName);
   if (!kind || size > LIBRARY_MAX_BYTES) {
     await store.remove(file.storageKey);
     await db.libraryFile.delete({ where: { id } });
-    throw new HttpError(415, size > LIBRARY_MAX_BYTES ? "File too large" : "Use MP4/WebM video, MP3/M4A/WAV/OGG audio, PDF, or PNG/JPG/GIF/WebP images.");
+    throw new HttpError(415, size > LIBRARY_MAX_BYTES ? "File too large" : "Use MP4/WebM video, MP3/M4A/WAV/OGG audio, PDF or DOCX documents, or PNG/JPG/GIF/WebP images.");
   }
   const name = file.originalName.replace(/\.[^.]*$/, "") + "." + (EXT[kind.mime] ?? "bin");
   await db.libraryFile.update({ where: { id }, data: { ready: true, mimeType: kind.mime, sizeBytes: size, originalName: name } });

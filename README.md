@@ -8,7 +8,7 @@ and students open their tasks with a class code + PIN or password.
 
 | Area | Routes |
 |---|---|
-| Admin (role ADMIN only) | `/admin`, `/admin/content`, `/admin/content/new`, `/admin/content/[id]` (+ `/preview`), `/admin/topics`, `/admin/topics/[id]` (Manage Activities) |
+| Admin (role ADMIN only) | `/admin`, `/admin/content` (Library; alias `/admin/library`), `/admin/content/new` (Add Content: Add Link, Upload File or the editors), `/admin/content/[id]` (+ `/preview`), `/admin/topics`, `/admin/topics/[id]` (Manage Activities, Add from Library), `/admin/grades` (Add Grade). Activities (`/teacher/games/[id]/edit`) show an admin-only Add from Library panel |
 | Teacher | `/teacher/classes/[id]` (+ `/students/new`, `/students/list`, `/groups/new`, `/groups/[groupId]`, `/roster`, `/print`), `/teacher/library`, `/teacher/library/topics/[slug]`, `/teacher/library/resources/[id]`, `/teacher/tasks/assign`, `/teacher/tasks/[id]`, `/teacher/billing` |
 | Student | `/learn` (My Tasks), `/learn/tasks/[assignmentId]`, `/learn/tasks/[assignmentId]/[activityId]` |
 | Accounts | `/verify-email/[token]`, `/admin-invite/[token]` |
@@ -53,6 +53,8 @@ BASE_URL=http://localhost:3100 SERVER_LOG=/tmp/server.log node e2e/security.e2e.
 # LextroSpeak (requirement 7, desktop + iPad). Server started with EMAIL_DRIVER=console APP_URL=$BASE_URL
 # STRIPE_WEBHOOK_SECRET=whsec_e2e_test_secret STRIPE_SECRET_KEY=sk_test_x STRIPE_PRICE_ID=price_x ADMIN_EMAILS=admin-e2e@lextro.test
 BASE_URL=http://localhost:3100 SERVER_LOG=/tmp/server.log E2E_ADMIN_EMAIL=admin-e2e@lextro.test node e2e/lextro.e2e.mjs
+# Grades, Library and Add from Library (add lib-e2e@lextro.test to ADMIN_EMAILS):
+BASE_URL=http://localhost:3100 SERVER_LOG=/tmp/server.log E2E_LIB_ADMIN_EMAIL=lib-e2e@lextro.test node e2e/library.e2e.mjs
 ```
 
 ## How the oral activity works

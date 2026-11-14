@@ -6,11 +6,11 @@ import { Badge, EmptyState, PageHeader, Panel } from "@/components/ui/Panel";
 import { db } from "@/lib/db";
 import { GRADES, GRADE_LABEL, KINDS, KIND_LABEL, type Kind } from "@/lib/library/types";
 
-export const metadata = { title: "Content" };
+export const metadata = { title: "Library" };
 
 const STATUS = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
 
-export default async function ContentList({ searchParams }: { searchParams: Promise<{ status?: string; kind?: string; grade?: string; q?: string }> }) {
+export default async function ContentList({ searchParams }: { searchParams: Promise<{ status?: string; kind?: string; grade?: string; q?: string; saved?: string }> }) {
   const sp = await searchParams;
   const status = STATUS.find((s) => s === sp.status);
   const kind = KINDS.find((k) => k === sp.kind);
@@ -21,9 +21,11 @@ export default async function ContentList({ searchParams }: { searchParams: Prom
     orderBy: { updatedAt: "desc" },
     take: 200,
   });
+  const saved = sp.saved ? await db.libraryResource.findUnique({ where: { id: sp.saved }, select: { title: true } }) : null;
   return (
     <>
-      <PageHeader title="Content" actions={<ButtonLink href="/admin/content/new">Add Content</ButtonLink>} />
+      <PageHeader title="Library" subtitle="Every resource is uploaded once and can be added to many topics and activities." actions={<ButtonLink href="/admin/content/new">Add Content</ButtonLink>} />
+      {saved && <p role="status" className="mb-4 rounded-[18px] bg-leaf-soft px-4 py-2 font-bold text-leaf">Saved “{saved.title}” to the Library.</p>}
       <form className="mb-4 flex flex-wrap gap-2">
         <Input name="q" defaultValue={sp.q} placeholder="Search titles" className="w-56" aria-label="Search" />
         <Select name="status" defaultValue={status ?? ""} className="w-40" aria-label="Status"><option value="">Any status</option>{STATUS.map((s) => <option key={s} value={s}>{s.toLowerCase()}</option>)}</Select>
@@ -36,16 +38,21 @@ export default async function ContentList({ searchParams }: { searchParams: Prom
       ) : (
         <Panel className="overflow-x-auto p-0 sm:p-0">
           <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="bg-sky-soft"><tr><th className="px-3 py-3">Title</th><th className="px-3 py-3">Type</th><th className="px-3 py-3">Topics</th><th className="px-3 py-3">Grades</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Tasks</th></tr></thead>
+            <thead className="bg-sky-soft"><tr><th className="px-3 py-3">Title</th><th className="px-3 py-3">Type</th><th className="px-3 py-3">Topics</th><th className="px-3 py-3">Grades</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Tasks</th><th className="px-3 py-3"><span className="sr-only">Actions</span></th></tr></thead>
             <tbody className="divide-y divide-line">
               {items.map((r) => (
-                <tr key={r.id}>
+                <tr key={r.id} data-testid="library-row">
                   <td className="px-3 py-3"><Link href={`/admin/content/${r.id}`} className="font-bold text-sky hover:underline">{r.title}</Link></td>
                   <td className="px-3 py-3"><KindBadge kind={r.kind as Kind} /></td>
                   <td className="px-3 py-3">{r.topics.map((t) => t.topic.titleEn).join(", ") || <span className="text-muted">—</span>}</td>
                   <td className="px-3 py-3"><GradeChips grades={r.grades} /></td>
                   <td className="px-3 py-3"><Badge tone={r.status === "PUBLISHED" ? "leaf" : r.status === "DRAFT" ? "sun" : "neutral"}>{r.status.toLowerCase()}{r.currentVersion ? ` · v${r.currentVersion.number}` : ""}</Badge></td>
                   <td className="px-3 py-3">{r._count.activities}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-right">
+                    <Link href={`/admin/content/${r.id}/preview`} className="font-bold text-sky hover:underline">Preview</Link>
+                    <span className="mx-1 text-line">·</span>
+                    <Link href={`/admin/content/${r.id}`} className="font-bold text-sky hover:underline">Open</Link>
+                  </td>
                 </tr>
               ))}
             </tbody>

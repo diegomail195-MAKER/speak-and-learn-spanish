@@ -22,7 +22,7 @@ export const GET = handle(async (req: Request, ctx: { params: Promise<{ id: stri
     "Cache-Control": "private, max-age=86400, immutable",
     "X-Content-Type-Options": "nosniff",
     "Accept-Ranges": "bytes",
-    "Content-Disposition": `inline; filename="${file.originalName.replace(/[^\w.-]/g, "_")}"`,
+    "Content-Disposition": `${file.mimeType.startsWith("application/vnd.") ? "attachment" : "inline"}; filename="${file.originalName.replace(/[^\w.-]/g, "_")}"`,
   };
   const range = req.headers.get("range")?.match(/bytes=(\d*)-(\d*)/);
   if (range && (range[1] || range[2])) {

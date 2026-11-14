@@ -95,10 +95,11 @@ async function studentSignIn(ctx, code, name, secret) {
 async function newResource(p, topicId, kind, title, { grades = ["LOWER"], gameType } = {}) {
   await p.goto(`${BASE}/admin/content/new?topicId=${topicId}`);
   await p.check(`input[name=kind][value=${kind}]`);
+  await p.check("input[name=method][value=build]"); // open the editor (upload / build there)
   if (gameType) await p.selectOption("#gameType", gameType);
   await p.fill("#title", title);
   for (const g of grades) await p.check(`input[name=grades][value=${g}]`);
-  await p.click("button:text-is('Create draft and continue')");
+  await p.click("button:text-is('Save')");
   await p.waitForURL(/\/admin\/content\/(?!new)[^/]+$/);
   return p.url().split("/").at(-1);
 }

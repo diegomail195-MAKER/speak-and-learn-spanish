@@ -39,6 +39,10 @@ export type ImageRef = z.infer<typeof imageRef>;
 
 const text = (max: number) => z.string().trim().max(max).default("");
 
+/** External link saved as a resource ("Add Link"): YouTube or any public http(s) page. */
+export const linkRef = z.object({ url: z.string().trim().max(2000).refine((u) => publicUrl(u) !== null, "Paste a public link that starts with https:// or http://") });
+export type LinkRef = z.infer<typeof linkRef>;
+
 export const flashcard = z.object({
   front: text(120), // Spanish
   back: text(120), // English
@@ -59,23 +63,26 @@ export const question = z.object({
 export type Question = z.infer<typeof question>;
 
 export const contentSchemas = {
-  FLASHCARDS: z.object({ instructions: text(400), cards: z.array(flashcard).max(60).default([]) }),
+  FLASHCARDS: z.object({ instructions: text(400), cards: z.array(flashcard).max(60).default([]), link: linkRef.nullish() }),
   GAME: z.object({
     gameType: z.enum(GAME_TYPES).default("MEMORY"),
     instructions: text(400),
     pairs: z.array(pair).max(40).default([]),
     questions: z.array(question).max(40).default([]),
+    link: linkRef.nullish(),
   }),
-  VIDEO: z.object({ file: fileRef.nullish(), youtubeId: z.string().regex(/^[\w-]{11}$/).nullish(), captions: text(4000) }),
-  SONG: z.object({ file: fileRef.nullish(), lyrics: z.array(z.object({ es: text(200), en: text(200), art: z.string().max(60).optional() })).max(60).default([]) }),
+  VIDEO: z.object({ file: fileRef.nullish(), youtubeId: z.string().regex(/^[\w-]{11}$/).nullish(), captions: text(4000), link: linkRef.nullish() }),
+  SONG: z.object({ file: fileRef.nullish(), lyrics: z.array(z.object({ es: text(200), en: text(200), art: z.string().max(60).optional() })).max(60).default([]), link: linkRef.nullish() }),
   PRINTABLE: z.object({
     file: fileRef.nullish(),
     // Generated sheet (no upload): built from words with pictures.
     sheet: z.object({ style: z.enum(["dictionary", "write", "connect"]), heading: text(160), words: z.array(pair).max(16) }).nullish(),
+    link: linkRef.nullish(),
   }),
   WORKSHEET: z.object({
     file: fileRef.nullish(),
     sheet: z.object({ style: z.enum(["dictionary", "write", "connect"]), heading: text(160), words: z.array(pair).max(16) }).nullish(),
+    link: linkRef.nullish(),
   }),
 } satisfies Record<Kind, z.ZodTypeAny>;
 
@@ -113,6 +120,7 @@ export function fileIdsOf(content: unknown): string[] {
 
 /** Whether content has what a student needs before it can be published. */
 export function publishProblem(kind: Kind, content: AnyContent): string | null {
+  if ((content as { link?: LinkRef | null }).link?.url) return null;
   switch (kind) {
     case "FLASHCARDS": {
       const c = content as ContentFor<"FLASHCARDS">;
@@ -161,5 +169,58 @@ export function youtubeIdFrom(input: string): string | null {
     return null;
   }
 }
+
+/** A public web address (http or https, a real host name, no credentials), normalized; otherwise null. */
+export function publicUrl(input: string): string | null {
+  try {
+    const u = new URL(input.trim());
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    if (u.username || u.password) return null;
+    const h = u.hostname.toLowerCase();
+    if (!h.includes(".") || h.endsWith(".local") || h.endsWith(".internal") || h === "localhost" || /^[\d.]+$/.test(h) || h.includes(":")) return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Where a link can be shown inside LextroSpeak (an embeddable player or document viewer that the
+ * site's Content-Security-Policy allows). Other sites get an "Open Link" button instead.
+ */
+export function embedFor(url: string): { src: string; provider: string } | null {
+  const yt = youtubeIdFrom(url);
+  if (yt) return { src: `https://www.youtube-nocookie.com/embed/${yt}?rel=0`, provider: "YouTube" };
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  const host = u.hostname.toLowerCase().replace(/^www\./, "");
+  if (host === "vimeo.com" || host === "player.vimeo.com") {
+    const id = u.pathname.match(/(?:^|\/)(\d{6,12})(?:\/|$)/)?.[1];
+    if (id) return { src: `https://player.vimeo.com/video/${id}`, provider: "Vimeo" };
+  }
+  if (host === "docs.google.com") {
+    const m = u.pathname.match(/^\/(document|presentation|spreadsheets|forms)\/d\/([\w-]{10,})/);
+    if (m) return { src: `https://docs.google.com/${m[1]}/d/${m[2]}/${m[1] === "forms" ? "viewform?embedded=true" : "preview"}`, provider: "Google" };
+  }
+  if (host === "drive.google.com") {
+    const id = u.pathname.match(/^\/file\/d\/([\w-]{10,})/)?.[1];
+    if (id) return { src: `https://drive.google.com/file/d/${id}/preview`, provider: "Google Drive" };
+  }
+  return null;
+}
+
+/** Library file types each kind of content accepts for "Upload File". */
+export const UPLOAD_FOR: Partial<Record<Kind, { accept: string; label: string; test: (mime: string) => boolean }>> = {
+  VIDEO: { accept: "video/mp4,video/webm", label: "Video file (MP4 or WebM)", test: (m) => m.startsWith("video/") },
+  SONG: { accept: "audio/mpeg,audio/mp4,audio/wav,audio/ogg,.mp3,.m4a,.wav,.ogg", label: "Song (MP3, M4A, WAV or OGG)", test: (m) => m.startsWith("audio/") },
+  PRINTABLE: { accept: "application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,image/gif", label: "Document (PDF, DOCX or image)", test: (m) => m === "application/pdf" || m === DOCX_MIME || m.startsWith("image/") },
+  WORKSHEET: { accept: "application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,image/gif", label: "Document (PDF, DOCX or image)", test: (m) => m === "application/pdf" || m === DOCX_MIME || m.startsWith("image/") },
+};
+
+export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export const libraryFileUrl = (fileId: string) => `/api/library/files/${fileId}`;

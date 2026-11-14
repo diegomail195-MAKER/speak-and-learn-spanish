@@ -7,8 +7,10 @@ import { Art } from "@/components/ui/Art";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Field";
 import { Badge, Panel } from "@/components/ui/Panel";
-import { addToTopic, archiveResource, duplicateResource, moveInTopic, removeFromTopic, replaceInTopic, restoreResource } from "@/lib/actions/library";
+import { LibraryPicker } from "@/components/admin/LibraryPicker";
+import { addResourcesToTopic, archiveResource, duplicateResource, moveInTopic, removeFromTopic, replaceInTopic, restoreResource } from "@/lib/actions/library";
 import { db } from "@/lib/db";
+import { pickableLibrary } from "@/lib/library/service";
 import { KIND_LABEL, type Kind } from "@/lib/library/types";
 
 export const metadata = { title: "Manage Activities" };
@@ -20,11 +22,15 @@ export default async function ManageActivities({ params }: { params: Promise<{ i
   const { id } = await params;
   const topic = await db.topic.findUnique({
     where: { id },
-    include: { resources: { orderBy: { position: "asc" }, include: { resource: { include: { currentVersion: { select: { number: true } }, _count: { select: { activities: true } } } } } } },
+    include: { grade: { select: { name: true } }, resources: { orderBy: { position: "asc" }, include: { resource: { include: { currentVersion: { select: { number: true } }, _count: { select: { activities: true } } } } } } },
   });
   if (!topic) notFound();
   const inTopic = new Set(topic.resources.map((r) => r.resourceId));
-  const others = await db.libraryResource.findMany({ where: { id: { notIn: [...inTopic] }, status: { not: "ARCHIVED" } }, orderBy: [{ kind: "asc" }, { title: "asc" }], select: { id: true, title: true, kind: true, status: true } });
+  const [others, grades, library] = await Promise.all([
+    db.libraryResource.findMany({ where: { id: { notIn: [...inTopic] }, status: { not: "ARCHIVED" } }, orderBy: [{ kind: "asc" }, { title: "asc" }], select: { id: true, title: true, kind: true, status: true } }),
+    db.grade.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true } }),
+    pickableLibrary(),
+  ]);
   const back = `/admin/topics/${topic.id}`;
   return (
     <>
@@ -33,7 +39,7 @@ export default async function ManageActivities({ params }: { params: Promise<{ i
         <Art k={topic.art} className="h-20 w-20" />
         <div className="flex-1">
           <h1 className="font-display text-4xl font-extrabold leading-none">Manage Activities · {topic.titleEs}</h1>
-          <p className="mt-1 font-bold text-ink/75">{topic.titleEn} · {topic.category}</p>
+          <p className="mt-1 font-bold text-ink/75">{topic.titleEn} · {topic.category}{topic.grade ? ` · ${topic.grade.name}` : ""}</p>
         </div>
         <ButtonLink href={`/admin/content/new?topicId=${topic.id}`}>Add content</ButtonLink>
       </div>
@@ -79,20 +85,14 @@ export default async function ManageActivities({ params }: { params: Promise<{ i
           ))}
           {topic.resources.length === 0 && <li className="py-3 text-muted">No activities yet.</li>}
         </ol>
-        {others.length > 0 && (
-          <form action={addToTopic} className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
-            <input type="hidden" name="topicId" value={topic.id} />
-            <Select name="resourceId" aria-label="Add from the library" className="w-80" defaultValue="" required>
-              <option value="" disabled>Add from the library…</option>
-              {others.map((o) => <option key={o.id} value={o.id}>{KIND_LABEL[o.kind as Kind].label}: {o.title}{o.status === "DRAFT" ? " (draft)" : ""}</option>)}
-            </Select>
-            <Button variant="secondary" size="sm">Add to topic</Button>
-          </form>
-        )}
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
+          <LibraryPicker items={library} excludeIds={[...inTopic]} onAdd={addResourcesToTopic.bind(null, topic.id)} />
+          <span className="text-sm text-muted">Pick resources already in the Library. They stay in the Library when you remove them from this topic.</span>
+        </div>
       </Panel>
       <Panel>
         <h2 className="mb-3 font-display text-xl font-extrabold">Topic details</h2>
-        <TopicForm topic={topic} />
+        <TopicForm topic={topic} grades={grades} />
       </Panel>
     </>
   );

@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Art, Icon, Pinita } from "@/components/ui/Art";
-import { GAME_TYPE_LABEL, libraryFileUrl, type AnyContent, type ContentFor, type ImageRef, type Kind, type Pair } from "@/lib/library/types";
+import { DOCX_MIME, GAME_TYPE_LABEL, embedFor, libraryFileUrl, publicUrl, type AnyContent, type ContentFor, type ImageRef, type Kind, type Pair } from "@/lib/library/types";
 
 // Players for LextroSpeak library activities: flashcards, games (Memory, Picture Match,
 // Listen & Find, Quiz), songs, videos and printables. The same components run in the
@@ -411,6 +411,16 @@ export function PrintablePlayer({ content, title, onDone }: { content: ContentFo
   if (content.file) {
     const url = libraryFileUrl(content.file.fileId);
     const isPdf = content.file.mime === "application/pdf" || content.file.name.toLowerCase().endsWith(".pdf");
+    if (content.file.mime === DOCX_MIME || /\.docx$/i.test(content.file.name)) {
+      return (
+        <div className="mx-auto max-w-xl rounded-[28px] bg-card p-8 text-center shadow-pop">
+          <Icon name="book" className="mx-auto h-10 w-10" />
+          <p className="mt-3 font-display text-xl font-extrabold">{content.file.name}</p>
+          <p className="mt-1 text-sm text-muted">Word document. Download it to open or print it.</p>
+          <a href={url} download className="mt-5 inline-flex rounded-full bg-ink px-5 py-3 font-bold text-white">Download</a>
+        </div>
+      );
+    }
     return (
       <div>
         <div className="no-print mb-3 flex gap-2">
@@ -477,6 +487,25 @@ function ConnectSheet({ words }: { words: Pair[] }) {
   );
 }
 
+// ---------- Links (Add Link) ----------
+/** A saved link: shown inside LextroSpeak when the site allows it, otherwise an "Open Link" button. */
+export function LinkPlayer({ url, title, onDone }: { url: string; title: string; onDone?: Done }) {
+  useEffect(() => { onDone?.(1, 1); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const safe = publicUrl(url);
+  if (!safe) return <p className="text-muted">This link isn&apos;t available.</p>;
+  const embed = embedFor(safe);
+  return (
+    <div className="mx-auto max-w-3xl space-y-3">
+      {embed && (
+        <div className="overflow-hidden rounded-[28px] bg-ink shadow-pop">
+          <iframe title={title} src={embed.src} allow="encrypted-media; picture-in-picture; fullscreen" className="aspect-video w-full" data-testid="link-embed" />
+        </div>
+      )}
+      <a href={safe} target="_blank" rel="noopener noreferrer" data-testid="open-link" className={embed ? "inline-flex text-sm font-bold text-sky hover:underline" : "inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3 font-bold text-white"}>Open Link ↗</a>
+    </div>
+  );
+}
+
 // ---------- Dispatcher ----------
 // Games and sheets shuffle their cards, so they render only in the browser: a server-rendered
 // order would not match the browser's and taps would land on the wrong card.
@@ -488,6 +517,13 @@ export function ResourcePlayer({ kind, content, title, onDone }: { kind: Kind; c
   if (!inBrowser && (kind === "GAME" || kind === "PRINTABLE" || kind === "WORKSHEET")) {
     return <div className="mx-auto grid h-64 max-w-3xl place-items-center rounded-[28px] bg-card shadow-pop"><Pinita mood="happy" className="h-24 w-24 animate-wiggle" /></div>;
   }
+  const link = (content as { link?: { url: string } | null }).link;
+  const hasNative = kind === "FLASHCARDS" ? (content as ContentFor<"FLASHCARDS">).cards.length > 0
+    : kind === "GAME" ? (content as ContentFor<"GAME">).pairs.length > 0 || (content as ContentFor<"GAME">).questions.length > 0
+    : kind === "SONG" ? !!(content as ContentFor<"SONG">).file || (content as ContentFor<"SONG">).lyrics.length > 0
+    : kind === "VIDEO" ? !!(content as ContentFor<"VIDEO">).file || !!(content as ContentFor<"VIDEO">).youtubeId
+    : !!(content as ContentFor<"PRINTABLE">).file || !!(content as ContentFor<"PRINTABLE">).sheet?.words.length;
+  if (link?.url && !hasNative) return <LinkPlayer url={link.url} title={title} onDone={onDone} />;
   switch (kind) {
     case "FLASHCARDS": return <FlashcardsPlayer content={content as ContentFor<"FLASHCARDS">} onDone={onDone} />;
     case "GAME": return <GamePlayer content={content as ContentFor<"GAME">} onDone={onDone} />;

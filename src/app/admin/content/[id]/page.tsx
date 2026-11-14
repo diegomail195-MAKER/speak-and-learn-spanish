@@ -22,7 +22,7 @@ export default async function EditResource({ params }: { params: Promise<{ id: s
   const changed = !r.currentVersion || JSON.stringify(safeContent(kind, r.currentVersion.content)) !== JSON.stringify(draft);
   return (
     <>
-      <Link href="/admin/content" className="text-sm font-bold text-sky hover:underline">‹ Content</Link>
+      <Link href="/admin/content" className="text-sm font-bold text-sky hover:underline">‹ Library</Link>
       <div className="mb-6 mt-2 flex flex-wrap items-center gap-3">
         <KindBadge kind={kind} />
         <h1 className="font-display text-4xl font-extrabold">{r.title}</h1>

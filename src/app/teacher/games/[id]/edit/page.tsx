@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { GameLibraryPanel } from "@/components/admin/GameLibraryPanel";
 import { GameEditor } from "@/components/editor/GameEditor";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
@@ -14,5 +15,10 @@ export default async function EditGame({ params }: { params: Promise<{ id: strin
   if (!game) notFound();
   const template = templateByKey(game.templateKey)!;
   const categories = await db.category.findMany({ where: { schoolId: user.schoolId }, orderBy: [{ sortOrder: "asc" }, { nameEn: "asc" }], select: { id: true, nameEn: true, nameEs: true } });
-  return <GameEditor initial={game} template={template} categories={categories} />;
+  return (
+    <>
+      <GameEditor initial={game} template={template} categories={categories} />
+      {user.role === "ADMIN" && <GameLibraryPanel gameId={game.id} />}
+    </>
+  );
 }

@@ -8,7 +8,7 @@ import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { assertFilesReady } from "@/lib/library/service";
-import { GAME_TYPES, GRADES, KINDS, emptyContent, parseContent, publishProblem, type AnyContent, type Kind } from "@/lib/library/types";
+import { GAME_TYPES, GRADES, KINDS, UPLOAD_FOR, emptyContent, parseContent, publicUrl, publishProblem, youtubeIdFrom, type AnyContent, type Kind } from "@/lib/library/types";
 
 // Administrator-only operations on the content library. Every action starts with requireAdmin(),
 // so a teacher or student calling them directly gets 403.
@@ -117,7 +117,6 @@ export async function publishResource(_: LibState, form: FormData): Promise<LibS
   const problem = publishProblem(r.kind as Kind, content);
   if (problem) return { error: problem };
   if (!r.grades.length) return { error: "Choose at least one grade before publishing." };
-  if (!r.topics.length) return { error: "Add it to a topic before publishing." };
   const fileIds = await assertFilesReady(content);
   const last = await db.resourceVersion.aggregate({ where: { resourceId: r.id }, _max: { number: true } });
   const number = (last._max.number ?? 0) + 1;
@@ -179,6 +178,150 @@ export async function duplicateResource(form: FormData) {
   redirect(`/admin/content/${copy.id}`);
 }
 
+// ---- Library: "Add Content" (Add Link, Upload File, or build with the editors) ----
+
+const fileInput = z.object({ fileId: z.string().min(1), name: z.string().max(200).default(""), mime: z.string().max(100).default("") });
+
+/**
+ * "Save" on Add Content. A link or an uploaded file is saved and published right away, so it can
+ * be added to topics and activities ("Add from Library"). Flashcards, games and generated sheets
+ * open the editor as a draft.
+ */
+export async function addLibraryContent(_: LibState, form: FormData): Promise<LibState> {
+  const { user } = await requireAdmin();
+  const title = z.string().trim().min(2, "Write a title.").max(120).safeParse(form.get("title"));
+  if (!title.success) return { error: title.error.issues[0].message };
+  const kind = z.enum(KINDS).safeParse(form.get("kind"));
+  if (!kind.success) return { error: "Choose the type of content." };
+  const method = z.enum(["link", "upload", "build"]).safeParse(form.get("method"));
+  if (!method.success) return { error: "Choose how to add it: Add Link, Upload File or the editor." };
+  const grades = readGrades(form);
+  const topicIds = ids(form, "topicIds");
+  if (topicIds.length && (await db.topic.count({ where: { id: { in: topicIds } } })) !== topicIds.length) return { error: "Unknown topic." };
+  const description = z.string().trim().max(400).catch("").parse(form.get("description") ?? "");
+
+  const draft = emptyContent(kind.data) as Record<string, unknown>;
+  if (method.data === "link") {
+    const url = publicUrl(String(form.get("url") ?? ""));
+    if (!url) return { error: "Paste a public link that starts with https:// or http://" };
+    draft.link = { url };
+    if (kind.data === "VIDEO") draft.youtubeId = youtubeIdFrom(url);
+  } else if (method.data === "upload") {
+    const accept = UPLOAD_FOR[kind.data];
+    if (!accept) return { error: "This type is built with the editor or saved as a link." };
+    let file: z.infer<typeof fileInput>;
+    try {
+      file = fileInput.parse(JSON.parse(String(form.get("file") ?? "null")));
+    } catch {
+      return { error: "Upload the file first." };
+    }
+    const row = await db.libraryFile.findUnique({ where: { id: file.fileId } });
+    if (!row?.ready) return { error: "The file didn't finish uploading. Upload it again." };
+    if (!accept.test(row.mimeType)) return { error: `That file doesn't fit a ${kind.data.toLowerCase()}. Use: ${accept.label}.` };
+    draft.file = { fileId: row.id, name: row.originalName, mime: row.mimeType };
+  } else {
+    if (kind.data === "GAME") draft.gameType = z.enum(GAME_TYPES).catch("MEMORY").parse(form.get("gameType"));
+  }
+
+  const content = parseContent(kind.data, draft) as AnyContent;
+  const publishNow = method.data !== "build";
+  const fileIds = publishNow ? await assertFilesReady(content) : [];
+  const r = await db.$transaction(async (tx) => {
+    const r = await tx.libraryResource.create({
+      data: { kind: kind.data, title: title.data, description, grades: grades.length ? grades : [...GRADES], status: "DRAFT", draft: content as Prisma.InputJsonValue, createdById: user.id },
+    });
+    if (topicIds.length) await syncTopics(tx, r.id, topicIds);
+    if (publishNow) {
+      const v = await tx.resourceVersion.create({ data: { resourceId: r.id, number: 1, title: title.data, content: content as Prisma.InputJsonValue, fileIds } });
+      await tx.libraryResource.update({ where: { id: r.id }, data: { status: "PUBLISHED", currentVersionId: v.id } });
+    }
+    return r;
+  });
+  await audit(user.schoolId, user.id, "library.create", "LibraryResource", r.id, { kind: kind.data, method: method.data });
+  revalidateLibrary();
+  redirect(publishNow ? `/admin/content?saved=${r.id}` : `/admin/content/${r.id}`);
+}
+
+// ---- Grades ----
+
+const gradeKey = (name: string) => name.normalize("NFC").trim().replace(/\s+/g, " ").toLowerCase();
+
+/** "Add Grade" → "Save Grade". The name must have content and be unique (ignoring case and spaces). */
+export async function createGrade(_: LibState, form: FormData): Promise<LibState> {
+  const { user } = await requireAdmin();
+  const name = String(form.get("name") ?? "").normalize("NFC").trim().replace(/\s+/g, " ");
+  if (!name) return { error: "Write the grade name." };
+  if (name.length > 60) return { error: "Use 60 characters or fewer." };
+  const nameKey = gradeKey(name);
+  if (await db.grade.findUnique({ where: { nameKey } })) return { error: `“${name}” already exists.` };
+  const count = await db.grade.count();
+  try {
+    const g = await db.grade.create({ data: { name, nameKey, sortOrder: count } });
+    await audit(user.schoolId, user.id, "grade.create", "Grade", g.id);
+  } catch {
+    return { error: `“${name}” already exists.` };
+  }
+  revalidateLibrary();
+  return { ok: true, message: `Grade “${name}” saved.` };
+}
+
+async function readGradeId(form: FormData): Promise<string | null | false> {
+  const raw = String(form.get("gradeId") ?? "");
+  if (!raw) return null;
+  return (await db.grade.findUnique({ where: { id: raw }, select: { id: true } })) ? raw : false;
+}
+
+// ---- "Add from Library" on topics and activities ----
+
+async function existingResources(resourceIds: string[]) {
+  const unique = [...new Set(resourceIds.filter(Boolean))].slice(0, 100);
+  const found = await db.libraryResource.findMany({ where: { id: { in: unique }, status: { not: "ARCHIVED" } }, select: { id: true } });
+  const ok = new Set(found.map((f) => f.id));
+  return unique.filter((id) => ok.has(id));
+}
+
+/** Links library resources to a topic (the same resource can be in many topics; nothing is copied). */
+export async function addResourcesToTopic(topicId: string, resourceIds: string[]): Promise<LibState> {
+  const { user } = await requireAdmin();
+  if (!(await db.topic.findUnique({ where: { id: topicId }, select: { id: true } }))) return { error: "Unknown topic." };
+  const valid = await existingResources(resourceIds);
+  await db.$transaction(async (tx) => { for (const id of valid) await syncTopicAdd(tx, topicId, id); });
+  await audit(user.schoolId, user.id, "topic.add_from_library", "Topic", topicId, { resourceIds: valid });
+  revalidateLibrary();
+  revalidatePath(`/admin/topics/${topicId}`);
+  return { ok: true, message: `Added ${valid.length}.` };
+}
+
+/** Links library resources to an activity (Game) of the administrator's school. */
+export async function addResourcesToGame(gameId: string, resourceIds: string[]): Promise<LibState> {
+  const { user } = await requireAdmin();
+  const game = await db.game.findFirst({ where: { id: gameId, schoolId: user.schoolId }, select: { id: true } });
+  if (!game) return { error: "Unknown activity." };
+  const valid = await existingResources(resourceIds);
+  await db.$transaction(async (tx) => {
+    for (const resourceId of valid) {
+      if (await tx.gameResource.findUnique({ where: { gameId_resourceId: { gameId, resourceId } } })) continue;
+      const last = await tx.gameResource.aggregate({ where: { gameId }, _max: { position: true } });
+      await tx.gameResource.create({ data: { gameId, resourceId, position: (last._max.position ?? -1) + 1 } });
+    }
+  });
+  await audit(user.schoolId, user.id, "game.add_from_library", "Game", gameId, { resourceIds: valid });
+  revalidatePath(`/teacher/games/${gameId}/edit`);
+  return { ok: true, message: `Added ${valid.length}.` };
+}
+
+/** Removes a resource from an activity. It stays in the library and in every topic that has it. */
+export async function removeFromGame(form: FormData) {
+  const { user } = await requireAdmin();
+  const gameId = String(form.get("gameId"));
+  const resourceId = String(form.get("resourceId"));
+  const game = await db.game.findFirst({ where: { id: gameId, schoolId: user.schoolId }, select: { id: true } });
+  if (!game) return;
+  await db.gameResource.deleteMany({ where: { gameId, resourceId } });
+  await audit(user.schoolId, user.id, "game.remove_resource", "Game", gameId, { resourceId });
+  revalidatePath(`/teacher/games/${gameId}/edit`);
+}
+
 // ---- Topics ----
 
 const topicSchema = z.object({
@@ -198,9 +341,16 @@ export async function createTopic(_: LibState, form: FormData): Promise<LibState
   if (!p.success) return { error: p.error.issues[0].message };
   let slug = slugify(p.data.titleEn);
   for (let i = 2; await db.topic.findUnique({ where: { slug } }); i++) slug = `${slugify(p.data.titleEn)}-${i}`;
+  const gradeId = await readGradeId(form);
+  if (gradeId === false) return { error: "Unknown grade." };
   const count = await db.topic.count();
-  const t = await db.topic.create({ data: { ...p.data, slug, sortOrder: count, status: "PUBLISHED" } });
-  await audit(user.schoolId, user.id, "topic.create", "Topic", t.id);
+  const resourceIds = await existingResources(ids(form, "resourceIds"));
+  const t = await db.$transaction(async (tx) => {
+    const t = await tx.topic.create({ data: { ...p.data, gradeId, slug, sortOrder: count, status: "PUBLISHED" } });
+    for (const id of resourceIds) await syncTopicAdd(tx, t.id, id);
+    return t;
+  });
+  await audit(user.schoolId, user.id, "topic.create", "Topic", t.id, { resourceIds });
   revalidateLibrary();
   redirect(`/admin/topics/${t.id}`);
 }
@@ -210,7 +360,9 @@ export async function updateTopic(_: LibState, form: FormData): Promise<LibState
   const id = String(form.get("topicId"));
   const p = topicSchema.safeParse(Object.fromEntries(form));
   if (!p.success) return { error: p.error.issues[0].message };
-  await db.topic.update({ where: { id }, data: p.data });
+  const gradeId = await readGradeId(form);
+  if (gradeId === false) return { error: "Unknown grade." };
+  await db.topic.update({ where: { id }, data: { ...p.data, gradeId } });
   await audit(user.schoolId, user.id, "topic.update", "Topic", id);
   revalidateLibrary();
   return { ok: true, message: "Topic saved." };

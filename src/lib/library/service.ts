@@ -52,6 +52,11 @@ export async function activityForStudent(student: { id: string; classroomId: str
   return { act, kind: act.resource.kind as Kind, content: safeContent(act.resource.kind as Kind, act.version.content) as AnyContent };
 }
 
+/** Resources an administrator can pick with "Add from Library" (everything except archived). */
+export async function pickableLibrary() {
+  return db.libraryResource.findMany({ where: { status: { not: "ARCHIVED" } }, orderBy: [{ title: "asc" }], select: { id: true, title: true, kind: true, status: true }, take: 1000 });
+}
+
 /** Who may download a library file. */
 export async function canReadLibraryFile(user: SessionUser, fileId: string): Promise<boolean> {
   if (user.role === "ADMIN") return true;
@@ -60,7 +65,12 @@ export async function canReadLibraryFile(user: SessionUser, fileId: string): Pro
     return !!(await db.resourceVersion.findFirst({ where: { fileIds: { has: fileId }, resource: { status: { in: ["PUBLISHED", "ARCHIVED"] } } }, select: { id: true } }));
   }
   if (user.student) {
-    return !!(await db.assignmentActivity.findFirst({ where: { version: { fileIds: { has: fileId } }, assignment: assignmentsForStudentWhere(user.student) }, select: { id: true } }));
+    if (await db.assignmentActivity.findFirst({ where: { version: { fileIds: { has: fileId } }, assignment: assignmentsForStudentWhere(user.student) }, select: { id: true } })) return true;
+    // Library resources added to an activity (Game) that was assigned to the student.
+    return !!(await db.gameResource.findFirst({
+      where: { resource: { status: { in: ["PUBLISHED", "ARCHIVED"] }, currentVersion: { fileIds: { has: fileId } } }, game: { assignments: { some: assignmentsForStudentWhere(user.student) } } },
+      select: { gameId: true },
+    }));
   }
   return false;
 }

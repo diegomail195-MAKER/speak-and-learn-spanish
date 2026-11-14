@@ -273,6 +273,12 @@ export function ContentEditor({ resourceId, kind, initial }: { resourceId: strin
         </div>
       </div>
       {body}
+      <div className="mt-6 border-t border-line pt-4">
+        <Label htmlFor="ext-link" hint="optional">External link (YouTube or any public page)</Label>
+        <Input id="ext-link" defaultValue={(c as { link?: { url: string } | null }).link?.url ?? ""} placeholder="https://…" maxLength={2000}
+          onBlur={(e) => { const url = e.target.value.trim(); const cur = (c as { link?: { url: string } | null }).link?.url ?? ""; if (url !== cur) set({ link: url ? { url } : null } as Partial<AnyContent>); }} />
+        <p className="mt-1 text-xs text-muted">Students see the content above; with only a link they see it embedded when the site allows it, or an Open Link button.</p>
+      </div>
       <div className="mt-4 space-y-2">
         <FormError message={msg.error} />
         {msg.message && <p role="status" className="text-sm font-bold text-leaf">{msg.message}</p>}

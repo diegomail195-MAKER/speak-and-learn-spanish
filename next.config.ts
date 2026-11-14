@@ -21,7 +21,7 @@ const securityHeaders = [
       "font-src 'self'",
       "connect-src 'self'" + storageOrigin,
       "worker-src 'self' blob:",
-      "frame-src https://www.youtube-nocookie.com https://www.youtube.com",
+      "frame-src https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com https://docs.google.com https://drive.google.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
