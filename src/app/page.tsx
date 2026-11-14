@@ -40,9 +40,9 @@ export default async function Home() {
             </div>
           </div>
           <figure className="relative mx-auto w-full max-w-md">
-            <div className="rounded-[28px] bg-card p-4 shadow-pop">
+            <div className="mx-auto w-fit rounded-[24px] bg-card px-5 py-3 shadow-pop">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/pinita-tv-espanol.webp" alt="Piñita TV Español" width={720} height={493} className="mx-auto h-auto w-full max-w-sm" />
+              <img src="/brand/pinita-tv-espanol.webp" alt="Piñita TV Español" width={720} height={493} className="mx-auto h-auto w-40 sm:w-48" />
             </div>
             {topics.length > 0 && (
               <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
