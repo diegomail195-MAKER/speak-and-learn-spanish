@@ -1,7 +1,8 @@
 {
   "git": {
     "deploymentEnabled": {
-      "claude/lextrospeak-library": false
+      "claude/lextrospeak-library": false,
+      "claude/montessori-feedback": false
     }
   }
 }
