@@ -146,7 +146,7 @@ export const ART: ArtApi = (function () {
 
   const logoMark = () => svg(`
     <path d="M14 10 h52 a10 10 0 0 1 10 10 v30 a10 10 0 0 1 -10 10 h-30 l-14 12 v-12 h-8 a10 10 0 0 1 -10 -10 v-30 a10 10 0 0 1 10 -10Z" fill="#FF5A4E"/>
-    <text x="40" y="47" text-anchor="middle" font-family="'Baloo 2', 'Nunito', sans-serif" font-weight="800" font-size="34" fill="#fff">ñ</text>
+    <text x="40" y="47" text-anchor="middle" font-family="inherit" font-weight="800" font-size="34" fill="#fff">ñ</text>
     <circle cx="70" cy="12" r="9" fill="#FFC93C"/>`, '0 0 80 80');
 
   /* Topic illustrations */
@@ -154,13 +154,13 @@ export const ART: ArtApi = (function () {
     greetings: () => svg(`
       <rect x="24" y="36" width="152" height="96" rx="30" fill="#fff"/>
       <path d="M60 128 l-10 30 l34 -28Z" fill="#fff"/>
-      <text x="100" y="100" text-anchor="middle" font-family="'Baloo 2', sans-serif" font-weight="800" font-size="42" fill="${INK}">¡Hola!</text>
+      <text x="100" y="100" text-anchor="middle" font-family="inherit" font-weight="800" font-size="42" fill="${INK}">¡Hola!</text>
       <circle cx="160" cy="150" r="22" fill="#FF8A3D"/><path d="M150 150 q10 10 20 0" stroke="${INK}" stroke-width="3.5" fill="none" stroke-linecap="round"/>
       <circle cx="153" cy="143" r="3" fill="${INK}"/><circle cx="167" cy="143" r="3" fill="${INK}"/>`),
     numbers: () => svg(`
-      <rect x="20" y="96" width="52" height="52" rx="12" fill="#FF5A4E"/><text x="46" y="136" text-anchor="middle" font-family="'Baloo 2', sans-serif" font-weight="800" font-size="40" fill="#fff">1</text>
-      <rect x="74" y="64" width="52" height="52" rx="12" fill="#FFC93C"/><text x="100" y="104" text-anchor="middle" font-family="'Baloo 2', sans-serif" font-weight="800" font-size="40" fill="${INK}">2</text>
-      <rect x="128" y="96" width="52" height="52" rx="12" fill="#3DD6A3"/><text x="154" y="136" text-anchor="middle" font-family="'Baloo 2', sans-serif" font-weight="800" font-size="40" fill="${INK}">3</text>
+      <rect x="20" y="96" width="52" height="52" rx="12" fill="#FF5A4E"/><text x="46" y="136" text-anchor="middle" font-family="inherit" font-weight="800" font-size="40" fill="#fff">1</text>
+      <rect x="74" y="64" width="52" height="52" rx="12" fill="#FFC93C"/><text x="100" y="104" text-anchor="middle" font-family="inherit" font-weight="800" font-size="40" fill="${INK}">2</text>
+      <rect x="128" y="96" width="52" height="52" rx="12" fill="#3DD6A3"/><text x="154" y="136" text-anchor="middle" font-family="inherit" font-weight="800" font-size="40" fill="${INK}">3</text>
       <rect x="20" y="150" width="160" height="10" rx="5" fill="#fff" opacity=".7"/>`),
     colors: () => svg(`
       <path d="M100 30 C40 30 20 80 30 120 C40 160 80 172 96 150 C108 134 92 120 108 112 C124 104 140 124 160 112 C188 96 176 30 100 30Z" fill="#fff"/>
@@ -221,7 +221,7 @@ export const ART: ArtApi = (function () {
     comoestas: () => frame('#E5DBFF', `<circle cx="84" cy="112" r="46" fill="#FFC93C" stroke="${INK}" stroke-width="4"/>
       ${eyes(68, 100, 104, 6)}<path d="M70 128 h28" stroke="${INK}" stroke-width="4" stroke-linecap="round"/>
       <rect x="116" y="30" width="64" height="58" rx="20" fill="#fff" stroke="${INK}" stroke-width="4"/><path d="M124 84 l-10 18 l24 -14" fill="#fff" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>
-      <text x="148" y="76" text-anchor="middle" font-family="'Baloo 2', sans-serif" font-weight="800" font-size="44" fill="#B57BFF">?</text>`, '¿cómo estás?'),
+      <text x="148" y="76" text-anchor="middle" font-family="inherit" font-weight="800" font-size="44" fill="#B57BFF">?</text>`, '¿cómo estás?'),
     muybien: () => frame('#C9F5DF', `<path d="M58 96 h22 v74 h-22Z" fill="#4CB8F5" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>
       <path d="M80 100 L104 50 C108 38 126 40 124 56 L118 86 H150 C160 86 166 96 162 106 L150 154 C147 164 140 170 130 170 H80Z" fill="#FFCFA3" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>
       <path d="M150 40 l4 9 l9 4 l-9 4 l-4 9 l-4 -9 l-9 -4 l9 -4Z" fill="#FFC93C"/>`, 'muy bien'),
@@ -240,7 +240,7 @@ export const ART: ArtApi = (function () {
       if (k < n) cells += `<circle cx="${x + 14}" cy="${y + 15}" r="10" fill="${NUM_COLORS[n - 1]}"/>`;
     }
     return svg(`<rect x="10" y="38" width="180" height="104" rx="22" fill="#FFF1DE" stroke="${INK}" stroke-width="3"/>${cells}
-      <rect x="66" y="150" width="68" height="40" rx="14" fill="${NUM_COLORS[n - 1]}"/><text x="100" y="181" text-anchor="middle" font-family="'Baloo 2', sans-serif" font-weight="800" font-size="32" fill="#fff">${n}</text>`, '0 0 200 200', label);
+      <rect x="66" y="150" width="68" height="40" rx="14" fill="${NUM_COLORS[n - 1]}"/><text x="100" y="181" text-anchor="middle" font-family="inherit" font-weight="800" font-size="32" fill="#fff">${n}</text>`, '0 0 200 200', label);
   }
 
   /* ---------- Colors: paint splats ---------- */

@@ -28,8 +28,10 @@
   --color-sky: #2f86c9;
   --color-sky-soft: #e1ebf8;
 
-  --font-sans: var(--font-body), ui-rounded, "Nunito", system-ui, sans-serif;
-  --font-display: var(--font-display-face), ui-rounded, system-ui, sans-serif;
+  /* One typeface everywhere: Century Gothic (when installed), else Didact Gothic (temporary, OFL). */
+  --font-gothic: "Century Gothic", "CenturyGothic", var(--font-gothic-fallback), "URW Gothic", sans-serif;
+  --font-sans: var(--font-gothic);
+  --font-display: var(--font-gothic);
 
   --radius-xl2: 1.25rem;
   --radius-card: 28px;

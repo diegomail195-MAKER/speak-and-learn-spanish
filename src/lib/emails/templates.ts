@@ -15,7 +15,7 @@ function button(href: string, label: string) {
 }
 
 function layout(appUrl: string, inner: string) {
-  return `<div style="font-family:Nunito,Arial,Helvetica,sans-serif;font-size:16px;line-height:1.55;color:${INK};max-width:560px">
+  return `<div style="font-family:'Century Gothic',CenturyGothic,'URW Gothic',sans-serif;font-size:16px;line-height:1.55;color:${INK};max-width:560px">
 <p style="margin:0 0 20px"><img src="${escapeHtml(appUrl)}/brand/laxtrospeak-logo.png" alt="LaxtroSpeak" width="180" style="display:block;height:auto"></p>
 ${inner}
 <hr style="border:none;border-top:1px solid #EADFCB;margin:28px 0 12px">

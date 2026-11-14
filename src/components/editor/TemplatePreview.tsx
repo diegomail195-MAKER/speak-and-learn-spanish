@@ -36,10 +36,10 @@ function Spell() {
       {letters.map((l, i) => (
         <g key={i} className="tp-letter" style={{ animationDelay: `${i * 0.45}s` }}>
           <rect x={30 + i * 36} y="36" width="30" height="38" rx="7" fill={i % 2 ? C.sun : C.teal} />
-          <text x={45 + i * 36} y="62" textAnchor="middle" fontSize="20" fontWeight="700" fill={C.white} fontFamily="system-ui">{l}</text>
+          <text x={45 + i * 36} y="62" textAnchor="middle" fontSize="20" fontWeight="700" fill={C.white} fontFamily="inherit">{l}</text>
         </g>
       ))}
-      <text x="100" y="98" textAnchor="middle" fontSize="11" fill={C.ink} fontFamily="system-ui" opacity=".7">ce · a · ese · a</text>
+      <text x="100" y="98" textAnchor="middle" fontSize="11" fill={C.ink} fontFamily="inherit" opacity=".7">ce · a · ese · a</text>
       <Mic x={176} y={22} />
     </svg>
   );
@@ -78,7 +78,7 @@ function Diagram() {
       <line x1="114" y1="26" x2="140" y2="20" stroke={C.ink} strokeWidth="1.5" />
       <g className="tp-pop">
         <rect x="140" y="11" width="50" height="18" rx="9" fill={C.leaf} />
-        <text x="165" y="24" textAnchor="middle" fontSize="10" fontWeight="700" fill={C.white} fontFamily="system-ui">la cabeza</text>
+        <text x="165" y="24" textAnchor="middle" fontSize="10" fontWeight="700" fill={C.white} fontFamily="inherit">la cabeza</text>
       </g>
       <circle cx="129" cy="80" r="5" fill={C.ink} stroke={C.white} strokeWidth="2" />
       <circle cx="91" cy="106" r="5" fill={C.ink} stroke={C.white} strokeWidth="2" />
@@ -92,12 +92,12 @@ function Boxes() {
       {[0, 1, 2].map((i) => (
         <g key={i}>
           <rect x={22 + i * 56} y="56" width="44" height="40" rx="6" fill={i === 1 ? "#c98a12" : C.sun} />
-          <text x={44 + i * 56} y="83" textAnchor="middle" fontSize="16" fontWeight="700" fill={C.ink} fontFamily="system-ui">{i + 1}</text>
+          <text x={44 + i * 56} y="83" textAnchor="middle" fontSize="16" fontWeight="700" fill={C.ink} fontFamily="inherit">{i + 1}</text>
           {i === 1 ? (
             <>
               <g className="tp-pop">
                 <circle cx={100} cy="40" r="14" fill={C.coral} />
-                <text x={100} y="45" textAnchor="middle" fontSize="13" fill={C.white} fontFamily="system-ui">?</text>
+                <text x={100} y="45" textAnchor="middle" fontSize="13" fill={C.white} fontFamily="inherit">?</text>
               </g>
               <rect x={74} y="48" width="52" height="10" rx="4" fill={C.ink} className="tp-lid" />
             </>
@@ -119,7 +119,7 @@ function ListenRepeat() {
       {bars.map((h, i) => (
         <rect key={i} x={80 + i * 10} y={60 - h / 2} width="6" height={h} rx="3" fill={C.teal} className="tp-wave" style={{ animationDelay: `${i * 0.12}s` }} />
       ))}
-      <text x="120" y="104" textAnchor="middle" fontSize="12" fontWeight="700" fill={C.ink} fontFamily="system-ui">¡Buenos días!</text>
+      <text x="120" y="104" textAnchor="middle" fontSize="12" fontWeight="700" fill={C.ink} fontFamily="inherit">¡Buenos días!</text>
       <Mic x={176} y={22} />
     </svg>
   );
@@ -135,7 +135,7 @@ function ImageSpeak() {
       <circle cx="43" cy="45" r="1.8" fill={C.ink} />
       <g className="tp-pop">
         <path d="M118 30 h62 a8 8 0 0 1 8 8 v22 a8 8 0 0 1 -8 8 h-50 l-10 10 v-10 h-2 a8 8 0 0 1 -8 -8 v-22 a8 8 0 0 1 8 -8 z" fill={C.teal} />
-        <text x="149" y="54" textAnchor="middle" fontSize="12" fontWeight="700" fill={C.white} fontFamily="system-ui">Es un gato</text>
+        <text x="149" y="54" textAnchor="middle" fontSize="12" fontWeight="700" fill={C.white} fontFamily="inherit">Es un gato</text>
       </g>
       <Mic x={176} y={100} />
     </svg>
@@ -154,7 +154,7 @@ function Match() {
       ))}
       <g className="tp-slide" style={{ ["--tx" as string]: "-44px", ["--ty" as string]: "-27px" }}>
         <rect x="80" y="96" width="48" height="16" rx="8" fill={C.teal} />
-        <text x="104" y="108" textAnchor="middle" fontSize="10" fontWeight="700" fill={C.white} fontFamily="system-ui">la fresa</text>
+        <text x="104" y="108" textAnchor="middle" fontSize="10" fontWeight="700" fill={C.white} fontFamily="inherit">la fresa</text>
       </g>
       <Mic x={176} y={104} />
     </svg>
@@ -165,7 +165,7 @@ function Generic({ glyph, color }: { glyph: string; color: string }) {
   return (
     <svg viewBox="0 0 200 120" className="h-full w-full">
       <rect x="60" y="20" width="80" height="80" rx="20" fill={color} />
-      <text x="100" y="72" textAnchor="middle" fontSize="30" fontWeight="700" fill={C.white} fontFamily="system-ui">{glyph}</text>
+      <text x="100" y="72" textAnchor="middle" fontSize="30" fontWeight="700" fill={C.white} fontFamily="inherit">{glyph}</text>
       <Mic x={160} y={96} />
     </svg>
   );

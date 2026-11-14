@@ -153,7 +153,7 @@ async function sendResetLink(email: string) {
       to: email,
       subject: `Tu enlace para cambiar la contraseña (${code}) · LaxtroSpeak`,
       text: `Hola ${user.displayName}:\n\nPara crear una contraseña nueva, abre este enlace. Vence en 30 minutos y solo funciona una vez:\n\n${link}\n\nSi no lo pediste, ignora este correo; tu contraseña no cambia.\n\n---\nTo choose a new password, open the link above (valid for 30 minutes, one use). If you didn't ask for this, ignore this email.\n\nCódigo / code: ${code}`,
-      html: `<div style="font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#1e2340">
+      html: `<div style="font-family:'Century Gothic',CenturyGothic,'URW Gothic',sans-serif;font-size:16px;line-height:1.5;color:#1e2340">
 <p>Hola ${name}:</p>
 <p>Para crear una contraseña nueva, pulsa el botón. Vence en 30 minutos y solo funciona una vez.</p>
 <p style="margin:24px 0"><a href="${link}" style="background:#e4553c;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px;display:inline-block">Crear una contraseña nueva</a></p>

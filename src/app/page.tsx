@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PublicHeader } from "@/components/shell/PublicHeader";
-import { Art, Pinita } from "@/components/ui/Art";
+import { Art } from "@/components/ui/Art";
 import { ButtonLink } from "@/components/ui/Button";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth/session";
@@ -22,9 +22,9 @@ export default async function Home() {
             <h1 className="font-display text-5xl font-extrabold leading-[1.02] tracking-tight text-ink sm:text-6xl">
               Speak.
               <br />
-              <span className="text-brand">Play.</span>
+              <span className="text-brand">Learn.</span>
               <br />
-              Learn.
+              Grow.
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-ink-2">
               LaxtroSpeak brings Spanish songs, videos, games, flashcards and printables to elementary classrooms. Teachers add their class, assign a topic in a few taps, and
@@ -40,12 +40,9 @@ export default async function Home() {
             </div>
           </div>
           <figure className="relative mx-auto w-full max-w-md">
-            <div className="flex items-center gap-4 rounded-[28px] bg-card p-5 shadow-pop">
-              <Pinita mood="cheer" className="h-28 w-28 shrink-0" />
-              <p className="font-display text-2xl font-bold leading-tight">
-                ¡Hola! Soy Piñita.
-                <span className="mt-1 block text-base font-semibold text-ink-2">Hi! I’m Piñita. Let’s learn Spanish together!</span>
-              </p>
+            <div className="rounded-[28px] bg-card p-4 shadow-pop">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/pinita-tv-espanol.webp" alt="Piñita TV Español" width={720} height={493} className="mx-auto h-auto w-full max-w-sm" />
             </div>
             {topics.length > 0 && (
               <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -89,7 +86,7 @@ export default async function Home() {
       </main>
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-6 text-sm text-muted">
-          <span>LaxtroSpeak · Speak &amp; Learn Spanish</span>
+          <span>LaxtroSpeak · Speak. Learn. Grow.</span>
           <Link href="/privacy" className="font-semibold hover:text-ink">Privacy &amp; student data</Link>
         </div>
       </footer>
