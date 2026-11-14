@@ -156,14 +156,14 @@ try {
   await s.waitForSelector("text=Te escucho", { timeout: 15000 });
   log("microphone open, listening without any click");
   await shot(s, "04-student-activity");
-  await s.waitForSelector("text=/¡Muy bien!|¡Lo lograste!|¡Excelente!|¡Buen trabajo!|¡Así se dice!|¡Perfecto!/", { timeout: 40000 });
+  await s.waitForSelector('[data-feedback-id^="success."]', { timeout: 40000 });
   log("Q1 correct");
   await s.waitForSelector("text=Hace miau.", { timeout: 60000 });
   log("Q2 wrong answer → hint shown");
-  await s.waitForSelector("text=¡Terminaste!", { timeout: 60000 });
+  await s.waitForSelector("[data-testid=montessori-summary]", { timeout: 60000 });
   const summary = await s.locator("main").textContent();
   log("finished:", summary.replace(/\s+/g, " ").trim());
-  if (!summary.includes("1 of 2 on your own")) throw new Error("Expected 1 of 2 independent");
+  if (!summary.includes("1 of 2 answered with no help")) throw new Error("Expected 1 of 2 independent");
 
   // 7. Teacher sees real results
   await page.goto(resultsUrl);

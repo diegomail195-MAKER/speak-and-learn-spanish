@@ -109,6 +109,7 @@ export function FlashcardsBoard({ s, questions, exitHref }: { s: VoiceSession; q
   const flip = () => {
     if (oneSide) return;
     if (!flipped && speaks(q)) s.raiseSupport("MODEL"); // seeing the answer first means it's not independent
+    if (!flipped && q.back?.imageUrl) s.markPictureUsed(); // evidence for "You used the picture…"
     setFlipped((f) => !f);
   };
   const front: PlayFace = { text: q.displayText, imageUrl: q.imageUrl, imageAlt: q.imageAlt, audio: q.audio };

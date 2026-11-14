@@ -309,7 +309,7 @@ try {
       await tiles.nth(1).click();
       await teacher.waitForTimeout(700);
     }
-    await teacher.waitForSelector("text=¡Muy bien!");
+    await teacher.waitForSelector("[data-testid=celebrate]");
     await teacher.goto(`${BASE}/teacher/library/resources/${songId}`);
     await teacher.waitForSelector("[data-testid=song-audio]");
     await teacher.goto(`${BASE}/teacher/library/resources/${videoId}`);
@@ -385,7 +385,7 @@ try {
             await tiles.nth(1).click();
             await s.waitForTimeout(700);
           }
-          await s.waitForSelector("text=¡Muy bien!");
+          await s.waitForSelector("[data-testid=celebrate]");
         }
         if (await s.locator("[data-testid=song-audio]").count()) {
           const src = await s.locator("[data-testid=song-audio]").getAttribute("src");

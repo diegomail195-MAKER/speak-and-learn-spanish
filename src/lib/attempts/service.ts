@@ -2,6 +2,7 @@ import "server-only";
 import type { MasteryStatus } from "@prisma/client";
 import { HttpError } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
+import { recordAttemptSkills } from "@/lib/montessori/server";
 import { questionResult, questionStatus } from "./outcome";
 
 /** Recomputes an attempt's counters and the student's mastery for each question it touched. */
@@ -36,7 +37,7 @@ export async function finalizeAttempt(attemptId: string, studentId: string, extr
       },
     });
   }
-  return db.studentAttempt.update({
+  const updated = await db.studentAttempt.update({
     where: { id: attempt.id },
     data: {
       completedAt: attempt.completedAt ?? new Date(),
@@ -49,6 +50,16 @@ export async function finalizeAttempt(attemptId: string, studentId: string, extr
       independentCount: independent,
     },
   });
+  // Montessori skill records, once per attempt (the first time it is completed). A failure here
+  // never blocks saving the attempt itself.
+  if (!attempt.completedAt) {
+    try {
+      await recordAttemptSkills(attempt.id, studentId);
+    } catch (e) {
+      console.error("montessori: could not record skills", (e as Error).message);
+    }
+  }
+  return updated;
 }
 
 /** Questions already finished in an attempt and how (to continue an incomplete activity). */

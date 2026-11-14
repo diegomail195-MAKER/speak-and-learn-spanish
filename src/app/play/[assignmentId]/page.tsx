@@ -5,6 +5,7 @@ import { finishedQuestions } from "@/lib/attempts/service";
 import { requireStudentPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { buildPlayGame, splitSpellingName } from "@/lib/games/service";
+import { montessoriSetup, nextActivityHref } from "@/lib/montessori/server";
 import { practiceTarget } from "@/lib/videos";
 
 export const metadata = { title: "Activity" };
@@ -32,6 +33,8 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
   const game = await buildPlayGame(student.schoolId, gameId, splitSpellingName(student.spellingName, student.firstName));
   if (a.instructions) game.instructions = [a.instructions, game.instructions].filter(Boolean).join(" ");
   const done = open ? await finishedQuestions(open.id) : {};
+  const topic = (await db.game.findUnique({ where: { id: gameId }, select: { topic: true } }))?.topic ?? "";
+  const [feedback, nextHref] = await Promise.all([montessoriSetup(game, { topic, studentId: student.id }), nextActivityHref(student, a.id).catch(() => null)]);
   const materials = videoId ? 0 : await db.gameResource.count({ where: { gameId, resource: { status: { in: ["PUBLISHED", "ARCHIVED"] }, currentVersionId: { not: null } } } });
   return (
     <>
@@ -40,7 +43,7 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
           <Link href={`/play/${a.id}/materials`} data-testid="materials-link" className="inline-flex items-center gap-2 rounded-full bg-card px-4 py-2 font-bold shadow-pop">📚 Materials ({materials})</Link>
         </div>
       )}
-      <StudentPlay game={game} assignmentId={a.id} videoId={videoId ?? null} done={done} exitHref={exitHref} />
+      <StudentPlay game={game} assignmentId={a.id} videoId={videoId ?? null} done={done} exitHref={exitHref} feedback={feedback} nextHref={nextHref} />
     </>
   );
 }

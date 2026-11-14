@@ -58,6 +58,16 @@ place of the browser's speech synthesis (headless Chromium has no voices):
 - Joined multilingual audio (Azure SSML with one `<voice>` per language; Google per-segment
   WAV joined) is unit-tested only: **no TTS key here, never called for real**.
 
+### Montessori Intelligent Feedback Engine (`e2e/montessori.e2e.mjs`, `src/lib/montessori/engine.test.ts`)
+
+- Rules and messages unit-tested (the 16 required scenarios, error kinds, levels, settings, recommendation).
+- e2e: server-side self-correction and error kinds, silence not graded, resumed attempt, skill
+  records shared across a voice activity and a library game, Listen & Find bilingual feedback,
+  teacher dashboard and level editing, admin language change, and access rules (other school's
+  teacher, student, non-admin teacher).
+- The voice-board path (microphone → feedback bubble → end summary, practice rounds) is covered by
+  `flow`/`templates`, which need the fake microphone (see below).
+
 ## Built, not covered by automated tests
 
 - Editor: Duplicate, Save draft, draft recovery banner, "Add the Spanish alphabet", per-language

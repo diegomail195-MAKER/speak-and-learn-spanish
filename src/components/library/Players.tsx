@@ -3,6 +3,9 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Art, Icon, Pinita } from "@/components/ui/Art";
+import type { MontessoriConfig } from "@/lib/montessori/config";
+import type { FeedbackDecision, Support } from "@/lib/montessori/types";
+import { FeedbackLines, narrate, useLibraryEngine } from "./feedback";
 import { DOCX_MIME, GAME_TYPE_LABEL, embedFor, libraryFileUrl, publicUrl, type AnyContent, type ContentFor, type ImageRef, type Kind, type Pair } from "@/lib/library/types";
 
 // Players for LextroSpeak library activities: flashcards, games (Memory, Picture Match,
@@ -72,19 +75,30 @@ function SpeakButton({ text, fileId, label = "Listen" }: { text: string; fileId?
   );
 }
 
-function Celebrate({ score, total, onAgain }: { score: number; total: number; onAgain: () => void }) {
+function Celebrate({ score, total, onAgain, decisions, config, onPractice, practiceCount }: { score: number; total: number; onAgain: () => void; decisions?: FeedbackDecision[] | null; config?: MontessoriConfig | null; onPractice?: () => void; practiceCount?: number }) {
   const stars = total ? Math.max(1, Math.round((score / total) * 3)) : 3;
+  const shown = decisions?.filter((d) => d.display !== "silent") ?? [];
+  useEffect(() => {
+    if (config && shown[0]) narrate(shown[0], config);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div role="status" className="flex flex-col items-center gap-3 rounded-[28px] bg-card p-8 text-center shadow-pop">
+    <div role="status" data-testid="celebrate" className="flex flex-col items-center gap-3 rounded-[28px] bg-card p-8 text-center shadow-pop">
       <Pinita mood="cheer" className="h-32 w-32 animate-wiggle" />
-      <p className="font-display text-3xl font-extrabold">¡Muy bien!</p>
+      {config && shown.length ? shown.map((d, i) => <FeedbackLines key={d.id} d={d} config={config} big={i === 0} />) : <p className="font-display text-3xl font-extrabold">¡Muy bien!</p>}
       <p className="text-lg font-bold text-ink-2">
         {score} / {total}
       </p>
       <p className="flex gap-1 text-sun" aria-label={`${stars} of 3 stars`}>
         {[0, 1, 2].map((i) => <Icon key={i} name="star" className={`h-9 w-9 ${i < stars ? "" : "opacity-25"}`} />)}
       </p>
-      <button type="button" onClick={onAgain} className="mt-2 rounded-full bg-ink px-6 py-3 font-bold text-white">Play again</button>
+      <div className="mt-2 flex flex-wrap justify-center gap-3">
+        {onPractice && !!practiceCount && (
+          <button type="button" onClick={onPractice} data-testid="practice-missed" className="rounded-full bg-teal px-6 py-3 font-bold text-white">
+            Practice {practiceCount === 1 ? "this one" : `these ${practiceCount}`}
+          </button>
+        )}
+        <button type="button" onClick={onAgain} className="rounded-full bg-ink px-6 py-3 font-bold text-white">Play again</button>
+      </div>
     </div>
   );
 }
@@ -167,6 +181,9 @@ function MemoryGame({ pairs, onDone }: { pairs: Pair[]; onDone: Done }) {
   const [open, setOpen] = useState<string[]>([]);
   const [found, setFound] = useState<Set<number>>(new Set());
   const [tries, setTries] = useState(0);
+  const [run, setRun] = useState(0);
+  // Memory turns are part of the game, never academic mistakes: no per-pair messages, no records.
+  const { engine, config } = useLibraryEngine("memory", "", run);
   const done = found.size === pairs.length;
   useEffect(() => {
     if (done) onDone(pairs.length, Math.max(pairs.length, tries));
@@ -174,7 +191,10 @@ function MemoryGame({ pairs, onDone }: { pairs: Pair[]; onDone: Done }) {
   // Taps can arrive faster than React re-renders: read the open cards from a ref, not the closure.
   const openRef = useRef<string[]>([]);
   const setOpenBoth = (v: string[]) => { openRef.current = v; setOpen(v); };
-  if (done) return <Celebrate score={pairs.length} total={Math.max(pairs.length, tries)} onAgain={() => { setTiles(make()); setFound(new Set()); setOpenBoth([]); setTries(0); }} />;
+  if (done) {
+    const decisions = engine?.onComplete({ items: pairs.map((p, i) => ({ id: String(i), label: p.es, result: "NONE" as const })), turns: tries });
+    return <Celebrate score={pairs.length} total={Math.max(pairs.length, tries)} decisions={decisions} config={config} onAgain={() => { setTiles(make()); setFound(new Set()); setOpenBoth([]); setTries(0); setRun((r) => r + 1); }} />;
+  }
   const flip = (t: Tile) => {
     const cur = openRef.current;
     if (cur.length === 2 || cur.includes(t.key) || found.has(t.pair)) return;
@@ -205,27 +225,65 @@ function MemoryGame({ pairs, onDone }: { pairs: Pair[]; onDone: Done }) {
   );
 }
 
+/** Items of a library game run: index → support used (NONE/HINT) or null when missed. */
+type RunResults = Record<number, Support | null>;
+
+function completion(engine: ReturnType<typeof useLibraryEngine>["engine"], pairs: { label: string }[], idx: number[], results: RunResults) {
+  return engine?.onComplete({ items: idx.map((i) => ({ id: String(i), label: pairs[i].label, result: results[i] })) }) ?? null;
+}
+
+function needsPractice(results: RunResults) {
+  return Object.entries(results).filter(([, r]) => r !== "NONE").map(([i]) => Number(i));
+}
+
 function MatchGame({ pairs, onDone }: { pairs: Pair[]; onDone: Done }) {
+  const [only, setOnly] = useState<number[] | null>(null);
+  const [run, setRun] = useState(0);
+  const pool = useMemo(() => only ?? pairs.map((_, i) => i), [only, pairs]);
   const [round, setRound] = useState(0);
-  const rounds = useMemo(() => { const s = shuffle(pairs.map((_, i) => i)); const out: number[][] = []; for (let i = 0; i < s.length; i += 4) out.push(s.slice(i, i + 4)); return out; }, [pairs]);
+  const rounds = useMemo(() => { const s = shuffle(pool); const out: number[][] = []; for (let i = 0; i < s.length; i += 4) out.push(s.slice(i, i + 4)); return out; }, [pool]);
   const [words, setWords] = useState<number[]>(() => shuffle(rounds[0] ?? []));
   const [pick, setPick] = useState<number | null>(null);
   const [matched, setMatched] = useState<Set<number>>(new Set());
   const [miss, setMiss] = useState(0);
   const [wrong, setWrong] = useState<number | null>(null);
+  const missesFor = useRef<Record<number, number>>({});
+  const results = useRef<RunResults>({});
+  const { engine, config, report } = useLibraryEngine("matching", "", run);
+  // New rounds (Play again / practice): the words of the first round.
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (firstRun.current) { firstRun.current = false; return; }
+    setWords(shuffle(rounds[0] ?? []));
+  }, [rounds, run]);
   const finished = round >= rounds.length;
-  useEffect(() => { if (finished) onDone(pairs.length, pairs.length + miss); }, [finished]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (finished) return <Celebrate score={pairs.length} total={pairs.length + miss} onAgain={() => { setRound(0); setWords(shuffle(rounds[0])); setMatched(new Set()); setMiss(0); }} />;
+  useEffect(() => {
+    if (!finished) return;
+    onDone(pool.length, pool.length + miss);
+    report?.(pool.map((i) => ({ label: pairs[i].es, result: results.current[i] ?? null })));
+  }, [finished]); // eslint-disable-line react-hooks/exhaustive-deps
+  const restart = (subset: number[] | null) => {
+    setOnly(subset); setRound(0); setMatched(new Set()); setMiss(0); setPick(null);
+    missesFor.current = {}; results.current = {}; setRun((r) => r + 1);
+  };
+  if (finished) {
+    const labels = pairs.map((p) => ({ label: p.es }));
+    const practice = needsPractice(results.current);
+    return <Celebrate score={pool.length} total={pool.length + miss} decisions={completion(engine, labels, pool, results.current)} config={config} onAgain={() => restart(null)} onPractice={engine && practice.length ? () => restart(practice) : undefined} practiceCount={practice.length} />;
+  }
   const cur = rounds[round];
   const choose = (w: number) => {
     if (pick === null) return;
     if (w === pick) {
       speak(pairs[w].es);
+      // Matched on the first try: independent; after other tries on this picture: with help.
+      results.current[w] = (missesFor.current[w] ?? 0) === 0 ? "NONE" : "HINT";
       const m = new Set(matched).add(w);
       setMatched(m);
       setPick(null);
       if (cur.every((x) => m.has(x))) setTimeout(() => { const r = round + 1; setRound(r); if (rounds[r]) setWords(shuffle(rounds[r])); }, 700);
     } else {
+      missesFor.current[pick] = (missesFor.current[pick] ?? 0) + 1;
       setMiss((n) => n + 1);
       setWrong(w);
       setTimeout(() => setWrong(null), 600);
@@ -256,27 +314,55 @@ function MatchGame({ pairs, onDone }: { pairs: Pair[]; onDone: Done }) {
 }
 
 function ListenGame({ pairs, onDone }: { pairs: Pair[]; onDone: Done }) {
-  const order = useMemo(() => shuffle(pairs.map((_, i) => i)), [pairs]);
+  const [only, setOnly] = useState<number[] | null>(null);
+  const [run, setRun] = useState(0);
+  const order = useMemo(() => shuffle(only ?? pairs.map((_, i) => i)), [pairs, only, run]); // eslint-disable-line react-hooks/exhaustive-deps
   const [q, setQ] = useState(0);
   const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState<"ok" | "no" | null>(null);
   const [firstTry, setFirstTry] = useState(true);
+  const wrongTries = useRef(0);
+  const results = useRef<RunResults>({});
+  const [fb, setFb] = useState<FeedbackDecision | null>(null);
+  const { engine, config, report } = useLibraryEngine("listening", "", run);
   const options = useMemo(() => {
     const target = order[q];
     if (target === undefined) return [];
     return shuffle([target, ...shuffle(pairs.map((_, i) => i).filter((i) => i !== target)).slice(0, Math.min(3, pairs.length - 1))]);
   }, [q, order, pairs]);
   const finished = q >= order.length;
-  useEffect(() => { if (!finished) setTimeout(() => speak(pairs[order[q]].es), 300); }, [q]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (finished) onDone(score, order.length); }, [finished]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (finished) return <Celebrate score={score} total={order.length} onAgain={() => { setQ(0); setScore(0); }} />;
+  useEffect(() => { if (!finished) setTimeout(() => speak(pairs[order[q]].es), 300); }, [q, run]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!finished) return;
+    onDone(score, order.length);
+    report?.(order.map((i) => ({ label: pairs[i].es, result: results.current[i] ?? null })));
+  }, [finished]); // eslint-disable-line react-hooks/exhaustive-deps
+  const restart = (subset: number[] | null) => { setOnly(subset); setQ(0); setScore(0); setFb(null); setFirstTry(true); wrongTries.current = 0; results.current = {}; setRun((r) => r + 1); };
+  if (finished) {
+    const practice = needsPractice(results.current);
+    return <Celebrate score={score} total={order.length} decisions={completion(engine, pairs.map((p) => ({ label: p.es })), order, results.current)} config={config} onAgain={() => restart(null)} onPractice={engine && practice.length ? () => restart(practice) : undefined} practiceCount={practice.length} />;
+  }
   const target = order[q];
   const answer = (i: number) => {
     if (feedback === "ok") return;
-    if (i === target) {
+    const correct = i === target;
+    if (!correct) wrongTries.current++;
+    if (engine) {
+      const d = engine.onAnswer({
+        itemId: String(target), outcome: correct ? "CORRECT" : "INCORRECT", reason: correct ? "match" : "different_answer", input: "choice",
+        // After a wrong picture the others are fewer: the answer is no longer independent.
+        support: firstTry ? "NONE" : "HINT", incorrectSoFar: wrongTries.current, endsQuestion: correct, hasHint: false, hasImage: true, model: pairs[target].es,
+      });
+      setFb(d);
+      narrate(d, config);
+      // "Listen to the word once more": the word is played again.
+      if (d.action === "model") setTimeout(() => speak(pairs[target].es), 1200);
+    }
+    if (correct) {
+      results.current[target] = firstTry ? "NONE" : "HINT";
       setFeedback("ok");
       if (firstTry) setScore((s) => s + 1);
-      setTimeout(() => { setFeedback(null); setFirstTry(true); setQ((x) => x + 1); }, 800);
+      setTimeout(() => { setFeedback(null); setFb(null); setFirstTry(true); wrongTries.current = 0; setQ((x) => x + 1); }, engine ? 1600 : 800);
     } else {
       setFeedback("no");
       setFirstTry(false);
@@ -297,36 +383,63 @@ function ListenGame({ pairs, onDone }: { pairs: Pair[]; onDone: Done }) {
           </button>
         ))}
       </div>
-      <p aria-live="polite" className="mt-4 min-h-8 font-display text-2xl font-extrabold">{feedback === "ok" ? "¡Muy bien!" : feedback === "no" ? "¡Inténtalo otra vez!" : ""}</p>
+      <div aria-live="polite" className="mt-4 min-h-8">
+        {engine && config ? (fb && <FeedbackLines d={{ ...fb, model: undefined }} config={config} />) : <p className="font-display text-2xl font-extrabold">{feedback === "ok" ? "¡Muy bien!" : feedback === "no" ? "¡Inténtalo otra vez!" : ""}</p>}
+      </div>
     </div>
   );
 }
 
 function QuizGame({ questions, onDone }: { questions: ContentFor<"GAME">["questions"]; onDone: Done }) {
+  const [only, setOnly] = useState<number[] | null>(null);
+  const [run, setRun] = useState(0);
+  const list = useMemo(() => only ?? questions.map((_, i) => i), [only, questions]);
   const [q, setQ] = useState(0);
   const [score, setScore] = useState(0);
   const [chosen, setChosen] = useState<number | null>(null);
-  const finished = q >= questions.length;
-  useEffect(() => { if (finished) onDone(score, questions.length); }, [finished]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (finished) return <Celebrate score={score} total={questions.length} onAgain={() => { setQ(0); setScore(0); setChosen(null); }} />;
-  const cur = questions[q];
+  const [fb, setFb] = useState<FeedbackDecision | null>(null);
+  const results = useRef<RunResults>({});
+  const { engine, config, report } = useLibraryEngine("multiple_choice", "", run);
+  const finished = q >= list.length;
+  const answerText = (i: number) => questions[i].choices[questions[i].answer] ?? "";
+  useEffect(() => {
+    if (!finished) return;
+    onDone(score, list.length);
+    report?.(list.map((i) => ({ label: answerText(i), result: results.current[i] ?? null })).filter((x) => x.label));
+  }, [finished]); // eslint-disable-line react-hooks/exhaustive-deps
+  const restart = (subset: number[] | null) => { setOnly(subset); setQ(0); setScore(0); setChosen(null); setFb(null); results.current = {}; setRun((r) => r + 1); };
+  if (finished) {
+    const practice = needsPractice(results.current);
+    return <Celebrate score={score} total={list.length} decisions={completion(engine, questions.map((_, i) => ({ label: answerText(i) })), list, results.current)} config={config} onAgain={() => restart(null)} onPractice={engine && practice.length ? () => restart(practice) : undefined} practiceCount={practice.length} />;
+  }
+  const idx = list[q];
+  const cur = questions[idx];
   return (
     <div className="mx-auto max-w-xl text-center">
-      <p className="mb-2 font-bold text-muted">{q + 1} / {questions.length}</p>
+      <p className="mb-2 font-bold text-muted">{q + 1} / {list.length}</p>
       {(cur.image.art || cur.image.fileId) && <div className="mx-auto mb-3 h-40 w-40"><Picture image={cur.image} /></div>}
       <p className="font-display text-3xl font-extrabold">{cur.prompt}</p>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         {cur.choices.map((c, i) => c && (
           <button key={i} type="button" data-testid="quiz-choice" data-correct={i === cur.answer} disabled={chosen !== null} onClick={() => {
             setChosen(i);
-            if (i === cur.answer) setScore((s) => s + 1);
-            setTimeout(() => { setChosen(null); setQ((x) => x + 1); }, 900);
+            const correct = i === cur.answer;
+            results.current[idx] = correct ? "NONE" : null;
+            if (correct) setScore((s) => s + 1);
+            if (engine) {
+              // One choice per question: a wrong choice shows the answer and the quiz moves on.
+              const d = engine.onAnswer({ itemId: String(idx), outcome: correct ? "CORRECT" : "INCORRECT", reason: correct ? "match" : "different_answer", input: "choice", support: "NONE", incorrectSoFar: correct ? 0 : 1, endsQuestion: true, hasHint: false, hasImage: false, model: answerText(idx) });
+              setFb(d);
+              narrate(d, config);
+            }
+            setTimeout(() => { setChosen(null); setFb(null); setQ((x) => x + 1); }, engine ? 2200 : 900);
           }}
             className={`min-h-14 rounded-full px-5 py-3 font-display text-xl font-extrabold shadow-pop ${chosen === null ? "bg-ink text-white" : i === cur.answer ? "bg-leaf-soft text-leaf" : chosen === i ? "bg-coral-soft text-coral-dark" : "bg-card text-muted"}`}>
             {c}
           </button>
         ))}
       </div>
+      {engine && config && fb && <div aria-live="polite" className="mt-4"><FeedbackLines d={fb} config={config} /></div>}
     </div>
   );
 }

@@ -186,6 +186,7 @@ model Student {
   progress         ProgressRecord[]
   videoProgress    VideoProgress[]
   activityProgress ActivityProgress[]
+  skillProgress    SkillProgress[]
 
   @@unique([classroomId, username])
   @@index([schoolId])
@@ -536,21 +537,25 @@ model StudentAttempt {
 
 // One evaluated spoken answer. Audio is NOT stored; only the transcript and scoring data.
 model StudentResponse {
-  id           String          @id @default(cuid())
-  attemptId    String
-  questionId   String
-  tryNumber    Int
-  outcome      ResponseOutcome
-  support      SupportLevel
-  transcript   String          @default("")
-  confidence   Float?
-  language     String
-  provider     String
-  reason       String          @default("")
-  score        Float?
+  id            String          @id @default(cuid())
+  attemptId     String
+  questionId    String
+  tryNumber     Int
+  outcome       ResponseOutcome
+  support       SupportLevel
+  transcript    String          @default("")
+  confidence    Float?
+  language      String
+  provider      String
+  reason        String          @default("")
+  score         Float?
   // True for the response that closed the question (correct, or moved on after the last try).
-  endsQuestion Boolean         @default(false)
-  createdAt    DateTime        @default(now())
+  endsQuestion  Boolean         @default(false)
+  // Montessori feedback: correct after an own mistake, before any hint or model.
+  selfCorrected Boolean         @default(false)
+  // Montessori feedback: why the answer was not accepted (vocabulary, pronunciation, silence…).
+  errorKind     String          @default("")
+  createdAt     DateTime        @default(now())
 
   attempt  StudentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
   question Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -877,4 +882,58 @@ model ActivityProgress {
 
   @@index([activityId, studentId])
   @@index([studentId])
+}
+
+// ---------------- Montessori Intelligent Feedback Engine ----------------
+
+enum ProgressLevel {
+  EXPLORING
+  DEVELOPING
+  PROGRESSING
+  PROFICIENT
+  EXTENDING
+}
+
+// Settings → Montessori Feedback (one row, id "platform"). The JSON is validated by
+// src/lib/montessori/config.ts; missing fields fall back to defaults.
+model MontessoriSettings {
+  id          String   @id
+  config      Json     @default("{}")
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
+
+// One student's evidence for one skill (a word or phrase), across every activity that practises
+// it. skillKey = "vocab:<language>:<normalized answer>", so "perro" in flashcards and in a
+// speaking game is the same skill. The level is computed from the evidence; a teacher may set
+// teacherLevel, which then wins until cleared.
+model SkillProgress {
+  id                 String         @id @default(cuid())
+  studentId          String
+  skillKey           String
+  label              String
+  topic              String         @default("")
+  attempts           Int            @default(0)
+  correct            Int            @default(0)
+  independentCorrect Int            @default(0)
+  missed             Int            @default(0)
+  hintsUsed          Int            @default(0)
+  selfCorrections    Int            @default(0)
+  streak             Int            @default(0)
+  independentDays    String[]       @default([])
+  contexts           String[]       @default([])
+  level              ProgressLevel  @default(EXPLORING)
+  teacherLevel       ProgressLevel?
+  teacherNote        String         @default("")
+  teacherUpdatedAt   DateTime?
+  teacherUpdatedById String?
+  lastActivity       String         @default("")
+  lastNeededHelpAt   DateTime?
+  lastPracticedAt    DateTime       @default(now())
+  createdAt          DateTime       @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, skillKey])
+  @@index([studentId, topic])
 }

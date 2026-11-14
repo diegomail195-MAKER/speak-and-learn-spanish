@@ -5,8 +5,13 @@
 // while the app speaks), one speaker, one recognizer. Boards (cards, wheel, boxes…) decide
 // *which* question comes next; this hook runs the question itself: present → listen → check
 // on the server → feedback → hint → model → next.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { pick, type PhraseKind } from "@/lib/feedback";
+import { diffSegment, findConfusion, isShortForm } from "@/lib/montessori/activity";
+import { FeedbackEngine, linesFor } from "@/lib/montessori/engine";
+import { addResult, computeLevel, EMPTY_EVIDENCE } from "@/lib/montessori/levels";
+import type { MontessoriSetup } from "@/lib/montessori/setup";
+import type { FeedbackDecision, ProgressLevel } from "@/lib/montessori/types";
 import { MicSession, type MicState } from "@/lib/client/mic-session";
 import { Speaker } from "@/lib/client/speaker";
 import { ServerEngine, WebSpeechEngine, webSpeechAvailable, type EngineResult, type SpeechEngine } from "@/lib/client/speech-engine";
@@ -20,9 +25,22 @@ import type { AppLanguage } from "@/lib/tts/voices";
 
 export type Support = "NONE" | "HINT" | "MODEL";
 export type Phase = "start" | "intro" | "speaking" | "listening" | "thinking" | "feedback" | "idle" | "suspended" | "error" | "ready" | "done";
-export type Feedback = { tone: "good" | "retry" | "unsure" | "info"; text: string; model?: string } | null;
+export type Feedback = {
+  tone: "good" | "retry" | "unsure" | "info";
+  text: string;
+  model?: string;
+  /** Montessori engine: stable message id and the line(s) to show (English and/or Spanish). */
+  id?: string;
+  lines?: Array<{ lang: "en" | "es"; text: string }>;
+  /** Extra precise help (e.g. "Check the accent mark."). */
+  detail?: string;
+  /** Typed answer with the part that needs attention. */
+  highlight?: { text: string; start: number; end: number };
+  /** Two items to compare. */
+  compare?: { a: { label: string; imageUrl: string | null }; b: { label: string; imageUrl: string | null } };
+} | null;
 export type Input = "voice" | "typed" | "choice";
-export type TurnResult = Evaluation & { endsQuestion: boolean };
+export type TurnResult = Evaluation & { endsQuestion: boolean; selfCorrected?: boolean; shortForm?: boolean };
 
 export type SubmitTurn = (
   q: PlayQuestion,
@@ -60,6 +78,8 @@ export interface SessionOptions {
   submitTurn?: SubmitTurn;
   onFinish?: (summary: { presented: number; durationMs: number }) => Promise<void> | void;
   done?: Record<string, Support | null>;
+  /** Montessori Intelligent Feedback Engine (absent: the original phrases are used). */
+  feedback?: MontessoriSetup;
 }
 
 export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
@@ -72,14 +92,19 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
   const [error, setError] = useState("");
   const [diag, setDiag] = useState<Diagnostic[]>([]);
   const [results, setResults] = useState<Record<string, Support | null>>(() => ({ ...sessionOpts.done }));
+  // Kept in step with `results` synchronously, so finish() right after record() sees the last answer.
+  const resultsRef = useRef(results);
+  resultsRef.current = results;
   const [heardLetters, setHeardLetters] = useState<string[] | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [supportLevel, setSupportLevel] = useState<Support>("NONE");
   const [usesMic, setUsesMic] = useState(false);
+  const usesMicRef = useRef(false);
+  usesMicRef.current = usesMic;
 
   const mic = useRef<MicSession | null>(null);
   const speaker = useRef<Speaker | null>(null);
-  const engine = useRef<SpeechEngine | null>(null);
+  const recognizer = useRef<SpeechEngine | null>(null);
   const runId = useRef(0);
   const resumeWaiter = useRef<(() => void) | null>(null);
   const skipFlag = useRef(false);
@@ -89,13 +114,28 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
   const presented = useRef(new Set<string>());
   const tries = useRef<Record<string, { n: number; incorrect: number }>>({});
   const current = useRef<PlayQuestion | null>(null);
+  const pictureUsed = useRef(false);
+  const [summary, setSummary] = useState<FeedbackDecision[] | null>(null);
+  const [muted, setMuted] = useState(false);
+  const mutedRef = useRef(false);
+  mutedRef.current = muted;
+  const lastSpoken = useRef<Array<{ lang: "en" | "es"; text: string }>>([]);
+
+  // The engine runs for English and Spanish activities; other languages keep the original phrases.
+  const setup = sessionOpts.feedback;
+  const engine = useMemo(
+    () => (setup && (game.language === "es-419" || game.language === "en-US") ? new FeedbackEngine({ config: setup.config, activityType: setup.activityType, noun: setup.noun, history: setup.history, targetIsSpanish: game.language === "es-419" }) : null),
+    // One engine per activity run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   useEffect(() => {
     speaker.current = new Speaker();
     return () => {
       runId.current++;
       speaker.current?.stop();
-      engine.current?.cancel();
+      recognizer.current?.cancel();
       mic.current?.stop();
     };
   }, []);
@@ -133,6 +173,39 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
     [say, game.phraseAudio, lang],
   );
 
+  const LANG = { en: "en-US", es: "es-419" } as const;
+
+  /** Says the lines of a decision (or the last one again), unless muted or narration is off. */
+  const speakLines = useCallback(
+    async (lines: Array<{ lang: "en" | "es"; text: string }>, force = false) => {
+      if (!force && (mutedRef.current || !setup?.config.autoNarration)) return;
+      for (const l of lines) await say(l.text, game.phraseAudio[l.text], LANG[l.lang]);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [say, game.phraseAudio, setup],
+  );
+
+  /** Shows (and, when allowed, says) one engine decision. Silent decisions show nothing. */
+  const showDecision = useCallback(
+    async (d: FeedbackDecision, extra?: Partial<NonNullable<Feedback>>) => {
+      if (d.display === "silent" || !setup) {
+        if (extra?.highlight || extra?.detail) setFeedback({ tone: d.tone, text: extra.detail ?? "", ...extra });
+        return;
+      }
+      const { show, say: sayLines } = linesFor(d, setup.config, game.language === "en-US" ? "en" : "es");
+      setFeedback({ tone: d.tone, text: show.map((l) => l.text).join(" "), lines: show, id: d.id, model: d.model, ...extra });
+      lastSpoken.current = sayLines;
+      await speakLines(sayLines);
+      if (extra?.detail && !mutedRef.current && setup.config.autoNarration) await say(extra.detail);
+    },
+    [setup, speakLines, say],
+  );
+
+  /** "🔊" on the feedback: replays the message even when narration is off. */
+  const replayFeedback = useCallback(async () => {
+    if (lastSpoken.current.length) await speakLines(lastSpoken.current, true);
+  }, [speakLines]);
+
   const waitForResume = () => new Promise<void>((r) => (resumeWaiter.current = r));
 
   const present = useCallback(
@@ -150,7 +223,10 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
 
   const addDiag = useCallback((d: Diagnostic) => setDiag((x) => [d, ...x].slice(0, 30)), []);
 
-  const record = useCallback((id: string, support: Support | null) => setResults((r) => ({ ...r, [id]: support })), []);
+  const record = useCallback((id: string, support: Support | null) => {
+    resultsRef.current = { ...resultsRef.current, [id]: support };
+    setResults((r) => ({ ...r, [id]: support }));
+  }, []);
 
   /** Raises the support level of the current question (e.g. the student flipped the card). */
   const raiseSupport = useCallback((s: Support) => {
@@ -197,8 +273,8 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
           setMicState(m.state);
           return false;
         }
-        if (game.sttProvider) engine.current = new ServerEngine();
-        else if (webSpeechAvailable()) engine.current = new WebSpeechEngine();
+        if (game.sttProvider) recognizer.current = new ServerEngine();
+        else if (webSpeechAvailable()) recognizer.current = new WebSpeechEngine();
         else {
           m.stop();
           setError("This browser can't recognize speech. Please use Google Chrome, or ask your teacher to set up the speech service.");
@@ -207,12 +283,103 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
       }
       startedAt.current = Date.now();
       setPhase("intro");
+      if (practiceIds.current) {
+        setPhase("ready");
+        return true;
+      }
       if (game.instructions) await say(game.instructions);
+      // Reopened unfinished activity: continue from the last step.
+      if (engine && Object.keys(optsRef.current.done ?? {}).length > 0) await showDecision(engine.onResume());
       setPhase("ready");
       return true;
     },
-    [game.sttProvider, game.instructions, say],
+    [game.sttProvider, game.instructions, say, engine, showDecision],
   );
+
+  const modelOf = useCallback((q: PlayQuestion) => (q.mode === "PHRASE" ? plainText(q.expected) : lettersOf(q.expected).join(" - ")), []);
+  const sayModel = useCallback(
+    async (q: PlayQuestion) => {
+      if (q.mode === "PHRASE") await say(q.expected, q.modelAudioUrl, q.answerLanguage);
+      else await say(spellOut(q.expected), null, "es-419");
+    },
+    [say, spellOut],
+  );
+
+  /**
+   * Montessori feedback for one spoken answer. Returns the support used when the question is
+   * answered, null when it closes without a correct answer, or "continue" to listen again.
+   */
+  const montessoriVoice = async (q: PlayQuestion, ev: TurnResult, t: { n: number; incorrect: number }, alternatives: Array<{ text: string; confidence: number | null }>, alive: () => boolean): Promise<Support | null | "continue" | "aborted"> => {
+    const fe = engine!;
+    const incorrect = ev.outcome === "INCORRECT";
+    if (incorrect) t.incorrect++;
+    const confused = incorrect ? findConfusion(ev.transcript || alternatives[0]?.text || "", { ...q, expected: q.expected }, game.questions) : null;
+    const d = fe.onAnswer({
+      itemId: q.id,
+      outcome: ev.outcome,
+      reason: ev.reason,
+      input: "voice",
+      support: supportRef.current,
+      incorrectSoFar: t.incorrect,
+      endsQuestion: ev.endsQuestion,
+      hasHint: !!q.hint,
+      hasImage: !!q.imageUrl,
+      model: modelOf(q),
+      shortForm: ev.shortForm ?? isShortForm(ev, q.expected, q.accepted),
+      score: ev.score,
+      confusedWith: confused ? { label: plainText(confused.displayText || confused.expected), imageUrl: confused.imageUrl } : null,
+      usedPicture: pictureUsed.current,
+      pictureClue: game.board === "flashcards" && !!q.back?.imageUrl,
+    });
+    if (ev.outcome === "CORRECT") {
+      await showDecision(d);
+      if (d.action === "model_optional_retry") await fullSentenceOnce(q, alive);
+      return supportRef.current;
+    }
+    if (ev.outcome === "UNCERTAIN") {
+      await showDecision(d);
+      return "continue";
+    }
+    if (ev.endsQuestion) {
+      await showDecision(d, { model: modelOf(q) });
+      await sayModel(q);
+      return null;
+    }
+    switch (d.action) {
+      case "hint":
+        raiseSupport("HINT");
+        setShowHint(true);
+        await showDecision(d);
+        if (q.hint) await say(q.hint, q.hintAudioUrl);
+        break;
+      case "model":
+        raiseSupport("MODEL");
+        await showDecision(d, { model: modelOf(q) });
+        await sayModel(q);
+        break;
+      case "compare":
+        raiseSupport("HINT");
+        await showDecision(d, { compare: { a: { label: plainText(q.displayText || q.expected), imageUrl: q.imageUrl }, b: d.compareWith ?? { label: "", imageUrl: null } } });
+        break;
+      default:
+        await showDecision(d);
+    }
+    return "continue";
+  };
+
+  /**
+   * After a short answer ("perro"), the full sentence is presented and the student may say it
+   * once. This extra try is feedback only: the question already counts as answered.
+   */
+  const fullSentenceOnce = async (q: PlayQuestion, alive: () => boolean) => {
+    await sayModel(q);
+    if (!alive() || !recognizer.current || !mic.current) return;
+    setPhase("listening");
+    const r = await recognizer.current.listen(mic.current, { language: q.answerLanguage, locale: game.sttLocales[q.answerLanguage] ?? game.sttLocale, mode: q.mode, timeoutMs: 6000 });
+    if (!alive() || r.kind !== "result") return;
+    const ev = scoreTurn({ alternatives: r.alternatives, expected: q.expected, accepted: q.accepted, mode: q.mode, acceptShortAnswer: false, incorrectSoFar: 0, maxTries: 1, input: "voice", language: q.answerLanguage });
+    if (ev.outcome === "CORRECT" && !isShortForm(ev, q.expected, q.accepted)) await showDecision(engine!.message("speaking.complete_sentence"));
+  };
 
   /**
    * Runs one spoken question to its end. Returns the support used when answered correctly,
@@ -225,6 +392,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
       const myRun = runId.current;
       const alive = () => runId.current === myRun;
       current.current = q;
+      pictureUsed.current = false;
       supportRef.current = o?.initialSupport ?? "NONE";
       setSupportLevel(supportRef.current);
       setShowHint(false);
@@ -244,7 +412,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
           return "skipped";
         }
         setPhase("listening");
-        const r: EngineResult = await engine.current!.listen(mic.current!, {
+        const r: EngineResult = await recognizer.current!.listen(mic.current!, {
           language: q.answerLanguage,
           locale: game.sttLocales[q.answerLanguage] ?? game.sttLocale,
           mode: q.mode,
@@ -260,6 +428,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
         }
         if (r.kind === "cancelled") continue;
         if (r.kind === "interrupted") {
+          if (engine) void showDecision(engine.onTechnical());
           setPhase("suspended");
           await waitForResume();
           if (!alive()) return "aborted";
@@ -279,12 +448,14 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
           if (timeouts >= 2) {
             // Nobody is answering: stop listening until the student comes back.
             mic.current?.pause();
+            if (engine) void showDecision(engine.onInactivity());
             setPhase("idle");
             await waitForResume();
             if (!alive()) return "aborted";
             timeouts = 0;
             await presentIt();
-          } else await sayPhrase("waiting", "info");
+          } else if (engine) await showDecision(engine.onWaiting());
+          else await sayPhrase("waiting", "info");
           continue;
         }
         timeouts = 0;
@@ -307,7 +478,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
         setPhase("thinking");
         t.n++;
         const tooQuiet = r.kind === "too_quiet";
-        const provider = r.kind === "result" ? r.provider : engine.current!.name;
+        const provider = r.kind === "result" ? r.provider : recognizer.current!.name;
         const locale = r.kind === "result" ? r.locale : game.sttLocales[q.answerLanguage];
         let ev: TurnResult;
         try {
@@ -341,6 +512,11 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
         });
 
         setPhase("feedback");
+        if (engine) {
+          const res = await montessoriVoice(q, ev, t, alternatives, alive);
+          if (res === "continue") continue;
+          return res;
+        }
         if (ev.outcome === "CORRECT") {
           await sayPhrase("correct", "good");
           return supportRef.current;
@@ -374,7 +550,8 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
       }
       return "aborted";
     },
-    [game, present, say, sayPhrase, score, addDiag, raiseSupport, spellOut],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [game, present, say, sayPhrase, score, addDiag, raiseSupport, spellOut, engine, showDecision],
   );
 
   /**
@@ -411,6 +588,47 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
       });
       setPhase("feedback");
       const support = supportRef.current;
+      if (engine) {
+        if (ev.outcome === "INCORRECT") t.incorrect++;
+        const shown = plainText(input === "choice" ? q.displayText || q.expected : q.expected);
+        const seg = input === "typed" && ev.outcome === "INCORRECT" ? diffSegment(text, shown) : null;
+        const d = engine.onAnswer({
+          itemId: q.id,
+          outcome: ev.outcome,
+          reason: ev.reason,
+          input,
+          support,
+          incorrectSoFar: t.incorrect,
+          endsQuestion: ev.endsQuestion,
+          hasHint: !!q.hint,
+          hasImage: !!q.imageUrl,
+          model: shown,
+          letterIndex: seg ? seg.start : undefined,
+        });
+        if (ev.outcome === "CORRECT") {
+          await showDecision(d);
+          return { ev, next: "correct", support };
+        }
+        if (ev.endsQuestion) {
+          await showDecision(d, { model: shown });
+          await say(q.expected, q.modelAudioUrl, q.answerLanguage);
+          return { ev, next: "done", support };
+        }
+        const help = TYPED_HELP[ev.reason]?.[lang];
+        const extra = { ...(seg ? { highlight: { text, ...seg } } : {}), ...(help ? { detail: help } : {}) };
+        if (d.action === "hint" && q.hint) {
+          raiseSupport("HINT");
+          setShowHint(true);
+          await showDecision(d, extra);
+          await say(q.hint, q.hintAudioUrl);
+        } else if (d.action === "model" && input === "typed") {
+          // Hear the word again (the spelling itself is not shown before the last try).
+          raiseSupport("MODEL");
+          await showDecision(d, extra);
+          await say(q.expected, q.modelAudioUrl, q.answerLanguage);
+        } else await showDecision(d, extra);
+        return { ev, next: "retry", support };
+      }
       if (ev.outcome === "CORRECT") {
         await sayPhrase("correct", "good");
         return { ev, next: "correct", support };
@@ -434,8 +652,47 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
       }
       return { ev, next: "retry", support };
     },
-    [score, addDiag, sayPhrase, say, lang, raiseSupport],
+    [score, addDiag, sayPhrase, say, lang, raiseSupport, engine, showDecision],
   );
+
+  const practiceIds = useRef<string[] | null>(null);
+
+  /** Items of this run with their results, and the levels they reach with today's answers. */
+  const completionInput = () => {
+    const pool = practiceIds.current ? game.questions.filter((q) => practiceIds.current!.includes(q.id)) : game.questions;
+    // Look–flip–listen flashcards have no answer to record.
+    const answerable = pool.filter((q) => q.expected.trim().length > 0);
+    const res = resultsRef.current;
+    const items = answerable.map((q) => ({ id: q.id, label: plainText(q.displayText || q.expected), result: res[q.id] }));
+    const levelsAfter: Record<string, ProgressLevel> = {};
+    const day = new Date().toISOString().slice(0, 10);
+    for (const it of items) {
+      const h = setup?.history[it.id];
+      if (h?.teacherLevel) levelsAfter[it.id] = h.teacherLevel;
+      else if (it.result !== undefined && setup) levelsAfter[it.id] = computeLevel(addResult(h?.evidence ?? EMPTY_EVIDENCE, { result: it.result, hinted: it.result !== "NONE", selfCorrected: false, day, context: `game:${game.gameId}` }), setup.config.progress);
+    }
+    return { items, stoppedEarly: items.some((i) => i.result === undefined), levelsAfter, canAlternative: usesMicRef.current && game.board !== "flashcards" };
+  };
+
+  /** Starts a practice round with only these items (same activity, or as flashcards). */
+  const beginPractice = useCallback((ids: string[]) => {
+    practiceIds.current = ids;
+    const left = { ...resultsRef.current };
+    for (const id of ids) delete left[id];
+    resultsRef.current = left;
+    setResults((r) => {
+      const n = { ...r };
+      for (const id of ids) delete n[id];
+      return n;
+    });
+    for (const id of ids) {
+      delete tries.current[`${id}:v`];
+      delete tries.current[`${id}:t`];
+    }
+    setSummary(null);
+    setFeedback(null);
+    presented.current = new Set();
+  }, []);
 
   const finish = useCallback(async () => {
     mic.current?.stop(); // the microphone is only on during the activity
@@ -446,8 +703,17 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
     }
     setPhase("done");
     setFeedback(null);
-    await sayPhrase("done");
-  }, [sayPhrase]);
+    if (!engine) return void (await sayPhrase("done"));
+    const decisions = engine.onComplete(completionInput());
+    setSummary(decisions);
+    const first = decisions.find((d) => d.display !== "silent");
+    if (first && setup) {
+      const { say: lines } = linesFor(first, setup.config, game.language === "en-US" ? "en" : "es");
+      lastSpoken.current = lines;
+      await speakLines(lines);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sayPhrase, engine, setup, speakLines]);
 
   const resume = useCallback(async () => {
     const m = mic.current;
@@ -464,14 +730,14 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
   const repeat = useCallback(() => {
     if (phase !== "listening") return false;
     repeatFlag.current = true;
-    engine.current?.cancel();
+    recognizer.current?.cancel();
     mic.current?.hold();
     return true;
   }, [phase]);
 
   const skip = useCallback(() => {
     skipFlag.current = true;
-    engine.current?.cancel();
+    recognizer.current?.cancel();
     mic.current?.hold();
     speaker.current?.stop();
   }, []);
@@ -481,7 +747,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
     runId.current++;
     skipFlag.current = false;
     repeatFlag.current = false;
-    engine.current?.cancel();
+    recognizer.current?.cancel();
     mic.current?.hold();
     speaker.current?.stop();
     resumeWaiter.current = null;
@@ -495,6 +761,16 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
 
   return {
     game,
+    engine,
+    summary,
+    muted,
+    setMuted,
+    replayFeedback,
+    showDecision,
+    beginPractice,
+    practicing: () => practiceIds.current,
+    /** The student opened the picture clue of the current item (e.g. flipped to a picture). */
+    markPictureUsed: () => (pictureUsed.current = true),
     phase,
     setPhase,
     feedback,
@@ -511,7 +787,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
     supportLevel,
     raiseSupport,
     usesMic,
-    engineName: engine.current?.name ?? "—",
+    engineName: recognizer.current?.name ?? "—",
     start,
     say,
     sayPhrase,

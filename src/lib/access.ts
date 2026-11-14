@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { HttpError } from "@/lib/auth/guards";
+import { HttpError } from "@/lib/http-error";
 
 // Ownership checks. Every teacher-side query goes through one of these so a teacher can only
 // touch their own school's rows, and student-side queries only return what was assigned to them.
