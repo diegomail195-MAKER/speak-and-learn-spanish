@@ -850,7 +850,6 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
 
           {flash && (
             <div className="sticky bottom-0 z-20 -mx-5 mt-6 flex items-center justify-end gap-3 border-t border-line bg-paper/95 px-5 py-3 backdrop-blur">
-              <span className="mr-auto text-xs text-muted">{game.items.length} {t.of} {maxItems}</span>
               <Button onClick={finishEditing} disabled={!!busy} className="min-w-36" data-testid="editor-done">
                 {busy === "done" ? t.saving : t.done}
               </Button>
