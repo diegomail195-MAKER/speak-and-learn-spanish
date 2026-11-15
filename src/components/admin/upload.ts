@@ -13,7 +13,15 @@ export async function uploadLibraryFile(f: File, onProgress?: (pct: number) => v
     req.setRequestHeader("Content-Type", plan.direct ? f.type || "application/octet-stream" : "application/octet-stream");
     if (plan.direct) req.setRequestHeader("x-upsert", "false");
     req.upload.onprogress = (e) => e.lengthComputable && onProgress?.(Math.round((e.loaded / e.total) * 100));
-    req.onload = () => (req.status < 300 ? resolve() : reject(new Error(JSON.parse(req.responseText || "{}").error ?? (req.status === 413 ? "File too large for the storage plan." : "Upload failed"))));
+    req.onload = () => {
+      if (req.status < 300) return resolve();
+      const text = req.responseText || "";
+      // Supabase answers 400 with {"statusCode":"413"} when a file is over the storage size limit.
+      if (req.status === 413 || /"statusCode":"413"|too large|exceeded the maximum/i.test(text)) return reject(new Error("This file is bigger than the storage limit. Export it smaller (for a video: 720p, 2 to 5 minutes) and try again."));
+      let msg = "Upload failed";
+      try { msg = JSON.parse(text).error ?? msg; } catch {}
+      reject(new Error(msg));
+    };
     req.onerror = () => reject(new Error("Upload interrupted. Check the connection and try again."));
     req.send(f);
   });
