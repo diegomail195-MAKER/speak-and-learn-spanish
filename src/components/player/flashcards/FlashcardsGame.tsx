@@ -23,11 +23,10 @@ export interface FlashcardsGameProps {
 
 /**
  * Flashcards on a stage: a start screen (type, title, Start, instructions, sound and full
- * screen in the corner), then one large card at a time. Click, tap or Space turns it. After
- * turning, the student says how it went: "I knew it" or "Practice again". Cards with a spoken
- * answer keep LextroSpeak's voice exercise (the microphone listens, the answer is checked and the
- * card turns by itself). At the end of a round: what they knew, what to practise, and the
- * options to practise the missed cards or start again.
+ * screen in the corner), then the game: time, "n of N" and cards known on top, one large card,
+ * Flip below. Click, tap, Flip or Space turns the card; the student marks it ✓ or ✗ beside it and
+ * the next card comes up. Cards with a spoken answer keep LextroSpeak's voice exercise (the
+ * microphone listens, the answer is checked and the card is marked by itself).
  */
 export function FlashcardsGame({ game, mode, diagnostics, submitTurn, onFinish, exitHref, done, withMic, below }: FlashcardsGameProps) {
   const s = useVoiceSession(game, { mode, submitTurn, onFinish, done });
@@ -165,27 +164,64 @@ function Face({ face, fallbackAlt, big }: { face: PlayFace; fallbackAlt: string;
 
 type Mark = "knew" | "again";
 
+/** Time spent playing, paused while the game is paused or finished. */
+function useClock(running: boolean) {
+  const [ms, setMs] = useState(0);
+  useEffect(() => {
+    if (!running) return;
+    let last = Date.now();
+    const t = setInterval(() => {
+      const n = Date.now();
+      setMs((m) => m + n - last);
+      last = n;
+    }, 250);
+    return () => clearInterval(t);
+  }, [running]);
+  return ms;
+}
+const clockText = (ms: number) => {
+  const sec = Math.floor(ms / 1000);
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+};
+
+/**
+ * The game: a top bar (time, "n of N" with arrows, cards known), one big card with Flip below.
+ * After turning, the student marks the card ✓ (knew it) or ✗ (not yet) beside the card; a mark
+ * shows on the card for a moment and the next card comes up. When the deck has been gone
+ * through, the cards not yet marked ✓ come round again until every card is ✓ (unless the
+ * activity turns off practising missed cards). Then: Game complete with the score (✓ on the
+ * first try), the time, the answers, and Start again.
+ */
 function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; questions: PlayQuestion[]; exitHref: string; onRestart: () => void }) {
   const opts = s.game.options;
   const oneSide = opts.sides === "one";
+  const cycle = opts.practiceMissed !== false;
   const [order, setOrder] = useState<string[]>(() => {
     const ids = questions.filter((q) => !(q.id in s.results)).map((q) => q.id);
     const list = ids.length ? ids : questions.map((q) => q.id);
     return opts.shuffle ? shuffled(list) : list;
   });
+  const deck = useRef(order);
   const [pos, setPos] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [asking, setAsking] = useState(false);
   const [marks, setMarks] = useState<Record<string, Mark>>({});
-  const [roundDone, setRoundDone] = useState(false);
-  const [round, setRound] = useState(1);
+  const marksRef = useRef(marks);
+  const [first, setFirst] = useState<Record<string, Mark>>({});
+  const [overlay, setOverlay] = useState<Mark | null>(null);
+  const [complete, setComplete] = useState(false);
+  const [showAnswers, setShowAnswers] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const ms = useClock(!complete && !paused && s.phase !== "done");
   const token = useRef(0);
   const byId = useCallback((id: string) => questions.find((q) => q.id === id)!, [questions]);
   const speaks = (q: PlayQuestion) => q.expected.trim().length > 0;
 
   const mark = useCallback(
     (id: string, m: Mark, support?: Support | null) => {
-      setMarks((x) => ({ ...x, [id]: m }));
+      marksRef.current = { ...marksRef.current, [id]: m };
+      setMarks(marksRef.current);
+      setFirst((f) => (id in f ? f : { ...f, [id]: m }));
       s.record(id, support !== undefined ? support : m === "knew" ? "NONE" : null);
     },
     [s],
@@ -193,35 +229,50 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
 
   async function play(i: number, ord: string[], askOpts?: Parameters<VoiceSession["ask"]>[1]) {
     const my = ++token.current;
-    i = Math.max(0, i);
+    i = Math.min(Math.max(0, i), ord.length - 1);
     s.stopAll();
     s.setFeedback(null);
-    if (i >= ord.length) {
-      setRoundDone(true);
-      return;
-    }
+    setOverlay(null);
     setPos(i);
     setFlipped(false);
-    setRoundDone(false);
     const q = byId(ord[i]);
     if (!speaks(q)) {
       setAsking(false);
-      return; // look, turn and check yourself
+      return; // look, flip and check yourself
     }
     setAsking(true);
     const r = await s.ask(q, askOpts);
     if (my !== token.current) return;
     setAsking(false);
     if (r === "aborted" || r === "skipped") return;
-    mark(q.id, r === null ? "again" : "knew", r);
+    const m: Mark = r === null ? "again" : "knew";
+    mark(q.id, m, r);
     if (!oneSide) setFlipped(true);
+    setOverlay(m);
     await sleep(1600);
-    if (my === token.current) play(i + 1, ord);
+    if (my === token.current) advance(i, ord);
+  }
+
+  /** The next card not yet known; at the end of the deck, the cards still to learn come round again. */
+  function advance(from: number, ord: string[]) {
+    const known = (id: string) => marksRef.current[id] === "knew";
+    const next = ord.findIndex((id, i) => i > from && !known(id));
+    if (next >= 0) return play(next, ord);
+    const left = ord.filter((id) => !known(id));
+    if (cycle && left.length) {
+      const again = opts.shuffle ? shuffled(left) : left;
+      setOrder(again);
+      return play(0, again);
+    }
+    token.current++;
+    s.stopAll();
+    setOverlay(null);
+    setComplete(true);
   }
 
   useEffect(() => {
     if (order.length) play(0, order);
-    else setRoundDone(true);
+    else setComplete(true);
     return () => {
       token.current++;
       s.stopAll();
@@ -229,47 +280,50 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const missed = order.filter((id) => marks[id] === "again");
-  const knew = order.filter((id) => marks[id] === "knew");
-  const allVoice = order.every((id) => speaks(byId(id)));
+  const total = deck.current.length;
+  const score = deck.current.filter((id) => first[id] === "knew").length;
+  const knownNow = deck.current.filter((id) => marks[id] === "knew").length;
 
-  // A round of spoken answers with nothing to practise ends the activity straight away.
+  // A deck of spoken answers all right on the first try ends the activity straight away.
   useEffect(() => {
-    if (roundDone && allVoice && missed.length === 0 && s.phase !== "done") s.finish();
+    if (complete && deck.current.every((id) => speaks(byId(id))) && score === total && s.phase !== "done") s.finish();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roundDone]);
+  }, [complete]);
 
-  const q = roundDone ? null : byId(order[pos]);
+  const q = complete ? null : byId(order[pos]);
 
   const flip = useCallback(() => {
-    if (!q || oneSide) return;
+    if (!q || oneSide || overlay || paused) return;
     if (!flipped && speaks(q) && asking) s.raiseSupport("MODEL"); // seeing the answer first means it's not independent
     setFlipped((f) => !f);
-  }, [q, oneSide, flipped, asking, s]);
+  }, [q, oneSide, overlay, paused, flipped, asking, s]);
 
-  const answer = (m: Mark) => {
-    if (!q) return;
+  const answer = async (m: Mark) => {
+    if (!q || overlay) return;
+    const my = ++token.current;
     mark(q.id, m);
-    play(pos + 1, order);
+    setOverlay(m);
+    await sleep(700);
+    if (my === token.current) advance(pos, order);
   };
 
-  // Space turns the card; arrows move between cards.
+  // Space flips the card; arrows move between cards.
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      if (roundDone || s.phase === "done") return;
+      if (complete || paused || s.phase === "done") return;
       const el = e.target as HTMLElement;
       if (el.closest("input, textarea, select, [contenteditable]")) return;
       if (e.key === " " || e.code === "Space") {
         if (el.closest("button") && !el.closest("[data-card]")) return; // a focused button handles Space itself
         e.preventDefault();
         flip();
-      } else if (e.key === "ArrowRight") play(pos + 1, order);
+      } else if (e.key === "ArrowRight" && pos < order.length - 1) play(pos + 1, order);
       else if (e.key === "ArrowLeft" && pos > 0) play(pos - 1, order);
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flip, pos, order, roundDone, s.phase]);
+  }, [flip, pos, order, complete, paused, s.phase]);
 
   if (s.phase === "done") {
     return (
@@ -279,48 +333,60 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
     );
   }
 
-  if (roundDone || !q) {
-    const practise = () => {
-      const m = shuffled(missed);
-      setOrder(m);
-      setMarks({});
-      setRound((r) => r + 1);
-      play(0, m);
-    };
-    return (
-      <div className="animate-pop-in my-auto w-full max-w-xl rounded-[1.5rem] bg-paper p-6 text-center text-ink" data-testid="round-results">
-        <p className="font-display text-3xl font-bold sm:text-4xl">{round > 1 ? "¡Repaso terminado!" : "¡Ronda terminada!"}</p>
-        <div className="mt-4 flex justify-center gap-3">
-          <span className="rounded-2xl bg-leaf-soft px-4 py-3 font-bold text-leaf">
-            <span className="block font-display text-3xl">{knew.length}</span> I knew
-          </span>
-          <span className="rounded-2xl bg-sun-soft px-4 py-3 font-bold text-[#7a5200]">
-            <span className="block font-display text-3xl">{missed.length}</span> to practise
-          </span>
-        </div>
-        {missed.length > 0 && (
-          <ul className="mt-4 flex flex-wrap justify-center gap-2" aria-label="Cards to practise">
-            {missed.slice(0, 12).map((id) => {
+  if (complete || !q) {
+    if (showAnswers) {
+      return (
+        <div className="animate-pop-in my-auto flex max-h-[min(560px,78dvh)] w-full max-w-2xl flex-col rounded-[1.5rem] bg-paper p-4 text-ink sm:p-6" data-testid="answers-list">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-display text-2xl font-bold">Answers</p>
+            <button type="button" onClick={() => setShowAnswers(false)} className="h-10 rounded-full bg-card px-4 font-bold ring-1 ring-line hover:ring-ink-2/40">‹ Back</button>
+          </div>
+          <ol className="mt-3 min-h-0 flex-1 divide-y divide-line overflow-y-auto rounded-2xl bg-card ring-1 ring-line">
+            {deck.current.map((id, i) => {
               const c = byId(id);
+              const back = c.back ?? (c.expected ? { text: c.expected, imageUrl: null, imageAlt: "" } : null);
+              const m = first[id];
               return (
-                <li key={id} className="flex h-14 min-w-14 max-w-32 items-center justify-center gap-1 rounded-xl border border-line bg-card px-2 text-sm font-bold">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {c.imageUrl && <img src={c.imageUrl} alt={c.imageAlt || c.displayText} className="h-10 w-10 object-contain" />}
-                  {c.displayText && <span className="truncate">{plainText(c.displayText)}</span>}
+                <li key={id} className="flex items-center gap-3 px-3 py-2">
+                  <span className="w-6 text-right text-sm font-bold text-muted">{i + 1}</span>
+                  <MiniFace face={{ text: c.displayText, imageUrl: c.imageUrl, imageAlt: c.imageAlt }} />
+                  {!oneSide && back && (
+                    <>
+                      <span aria-hidden className="text-muted">→</span>
+                      <MiniFace face={back} />
+                    </>
+                  )}
+                  <span
+                    className={`ml-auto grid h-8 w-8 shrink-0 place-items-center rounded-full font-bold ${m === "knew" ? "bg-leaf-soft text-leaf" : m === "again" ? "bg-coral-soft text-coral-dark" : "bg-paper-2 text-muted"}`}
+                    aria-label={m === "knew" ? "Knew it the first time" : m === "again" ? "Not on the first try" : "Not marked"}
+                  >
+                    {m === "knew" ? "✓" : m === "again" ? "✗" : "–"}
+                  </span>
                 </li>
               );
             })}
-            {missed.length > 12 && <li className="self-center text-sm text-muted">+{missed.length - 12}</li>}
-          </ul>
-        )}
+          </ol>
+        </div>
+      );
+    }
+    return (
+      <div className="animate-pop-in my-auto w-full max-w-md rounded-[1.5rem] bg-paper p-6 text-center text-ink" data-testid="round-results">
+        <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-coral">Game complete</p>
+        <p className="mt-1 font-display text-3xl font-bold sm:text-4xl">¡Muy bien!</p>
+        <dl className="mt-5 grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-leaf-soft px-4 py-3 text-leaf">
+            <dt className="text-xs font-extrabold uppercase tracking-wider">Score</dt>
+            <dd className="font-display text-3xl font-bold" data-testid="final-score">{score}/{total}</dd>
+          </div>
+          <div className="rounded-2xl bg-sky-soft px-4 py-3 text-sky">
+            <dt className="text-xs font-extrabold uppercase tracking-wider">Time</dt>
+            <dd className="font-display text-3xl font-bold">{clockText(ms)}</dd>
+          </div>
+        </dl>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {missed.length > 0 && opts.practiceMissed !== false && (
-            <button type="button" onClick={practise} className="h-12 rounded-full bg-teal px-6 font-bold text-white shadow-[0_2px_0_var(--color-teal-dark)] hover:bg-teal-dark">
-              ↺ Practice the {missed.length} missed {missed.length === 1 ? "card" : "cards"}
-            </button>
-          )}
-          <button type="button" onClick={onRestart} className="h-12 rounded-full bg-card px-6 font-bold ring-1 ring-line hover:ring-ink-2/40">⟲ Start again</button>
-          <button type="button" onClick={() => s.finish()} className="h-12 rounded-full bg-coral px-6 font-bold text-white shadow-[0_2px_0_var(--color-coral-dark)] hover:bg-coral-dark">Finish</button>
+          <button type="button" onClick={() => setShowAnswers(true)} className="h-12 rounded-full bg-card px-5 font-bold ring-1 ring-line hover:ring-ink-2/40">Show answers</button>
+          <button type="button" onClick={onRestart} className="h-12 rounded-full bg-teal px-5 font-bold text-white shadow-[0_2px_0_var(--color-teal-dark)] hover:bg-teal-dark">⟲ Start again</button>
+          <button type="button" onClick={() => s.finish()} className="h-12 rounded-full bg-coral px-5 font-bold text-white shadow-[0_2px_0_var(--color-coral-dark)] hover:bg-coral-dark">Finish</button>
         </div>
       </div>
     );
@@ -335,42 +401,41 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
     return null;
   };
   const canListen = !!visibleAudio || (!flipped && !!(q.prompt || q.displayText));
-  const showMarks = !speaks(q) && (oneSide || flipped);
-  const iconBtn = "grid h-12 w-12 place-items-center rounded-full bg-white/10 text-xl text-white hover:bg-white/20 disabled:opacity-30";
+  const showMarks = !speaks(q) && (oneSide || flipped) && !overlay;
+  const arrow = "grid h-9 w-9 place-items-center rounded-full text-white hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent";
+  const markBtn = "grid h-14 w-14 place-items-center rounded-2xl text-3xl font-bold shadow-[0_4px_0_rgba(0,0,0,.25)] transition-transform hover:-translate-y-0.5 active:translate-y-0.5 sm:h-16 sm:w-16";
 
   return (
     <div className="flex w-full flex-1 flex-col items-center">
-      <div className="flex w-full max-w-xl items-center justify-between text-sm font-bold text-white/75">
-        <span data-testid="card-counter">Card {pos + 1} of {order.length}</span>
-        <button
-          type="button"
-          onClick={() => {
-            const rest = shuffled(order.slice(pos));
-            const o = [...order.slice(0, pos), ...rest];
-            setOrder(o);
-            play(pos, o);
-          }}
-          className="rounded-full px-3 py-1 hover:bg-white/10 hover:text-white"
-        >
-          🔀 Shuffle
-        </button>
+      {/* time · n of N · cards known */}
+      <div className="grid w-full max-w-3xl grid-cols-[1fr_auto_1fr] items-center font-display text-lg font-bold sm:text-xl">
+        <span className="tabular-nums text-white/85" aria-label={`Time ${clockText(ms)}`} data-testid="game-clock">{clockText(ms)}</span>
+        <span className="flex items-center gap-1">
+          <button type="button" onClick={() => play(pos - 1, order)} disabled={pos === 0 || paused} className={arrow} aria-label="Previous card">
+            <IconArrow left />
+          </button>
+          <span data-testid="card-counter" className="min-w-[4.5rem] text-center tabular-nums">{pos + 1} of {order.length}</span>
+          <button type="button" onClick={() => play(pos + 1, order)} disabled={pos >= order.length - 1 || paused} className={arrow} aria-label="Next card">
+            <IconArrow />
+          </button>
+        </span>
+        <span className="justify-self-end tabular-nums text-white/85" aria-label={`${knownNow} cards known`} data-testid="known-count">✓ {knownNow}</span>
       </div>
 
-      <div className="mt-2 flex w-full flex-1 items-center justify-center gap-2 sm:gap-4">
-        <button type="button" onClick={() => play(pos - 1, order)} disabled={pos === 0} className={`${iconBtn} hidden sm:grid`} aria-label="Previous card">‹</button>
-        <div className="h-[clamp(15rem,48dvh,27rem)] w-full max-w-xl [perspective:1400px] sm:h-[clamp(16rem,46dvh,27rem)]">
+      <div className="mt-3 flex w-full flex-1 items-center justify-center gap-3 sm:gap-4">
+        <div aria-hidden className="hidden w-16 shrink-0 sm:block" />
+        <div className="relative h-[clamp(14rem,44dvh,25rem)] w-full max-w-xl [perspective:1400px]">
           <button
             type="button"
             data-card
             onClick={flip}
-            aria-label={oneSide ? "Card" : flipped ? "Card, back. Turn it to see the front" : "Card, front. Turn it over"}
+            aria-label={oneSide ? "Card" : flipped ? "Card, back. Flip it to see the front" : "Card, front. Flip it over"}
             className="relative block h-full w-full cursor-pointer transition-transform duration-500 [transform-style:preserve-3d] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-sun"
             style={{ transform: flipped ? "rotateY(180deg)" : undefined }}
           >
             <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-[1.75rem] bg-card p-5 shadow-[0_10px_0_rgba(0,0,0,.18)] [backface-visibility:hidden] sm:p-8">
               <Face face={front} fallbackAlt="Card picture" big />
               {q.prompt && <span className="text-center font-display text-xl text-ink-2 sm:text-2xl">{plainText(q.prompt)}</span>}
-              {!oneSide && <span className="absolute right-4 top-3 text-[11px] font-extrabold uppercase tracking-wider text-muted">Front</span>}
             </span>
             {!oneSide && (
               <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-[1.75rem] bg-teal-soft p-5 shadow-[0_10px_0_rgba(0,0,0,.18)] [backface-visibility:hidden] [transform:rotateY(180deg)] sm:p-8">
@@ -385,38 +450,43 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
                     {q.data.translation && <span className="text-center text-xl text-ink-2">{plainText(q.data.translation)}</span>}
                   </>
                 )}
-                <span className="absolute right-4 top-3 text-[11px] font-extrabold uppercase tracking-wider text-teal-dark">Back</span>
               </span>
             )}
           </button>
+          {overlay && (
+            <span
+              aria-live="polite"
+              data-testid="mark-overlay"
+              className={`animate-pop-in pointer-events-none absolute inset-0 grid place-items-center rounded-[1.75rem] ${overlay === "knew" ? "bg-leaf/25" : "bg-coral/25"}`}
+            >
+              <span className={`grid h-28 w-28 place-items-center rounded-full text-6xl font-bold text-white shadow-lg ${overlay === "knew" ? "bg-leaf" : "bg-coral"}`}>
+                {overlay === "knew" ? "✓" : "✗"}
+                <span className="sr-only">{overlay === "knew" ? "Marked as known" : "Marked to practise"}</span>
+              </span>
+            </span>
+          )}
+          {paused && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-[1.75rem] bg-ink/95 ring-1 ring-white/15">
+              <p className="font-display text-2xl font-bold">Paused</p>
+              <button type="button" onClick={() => setPaused(false)} className="h-12 rounded-full bg-coral px-6 font-bold text-white shadow-[0_3px_0_var(--color-coral-dark)]">▶ Resume</button>
+            </div>
+          )}
         </div>
-        <button type="button" onClick={() => play(pos + 1, order)} className={`${iconBtn} hidden sm:grid`} aria-label="Next card">›</button>
+        <div className="flex w-14 shrink-0 flex-col gap-3 sm:w-16">
+          {showMarks && !paused && (
+            <>
+              <button type="button" onClick={() => answer("knew")} className={`${markBtn} bg-leaf text-white`} data-testid="mark-knew" aria-label="I knew it" title="I knew it">✓</button>
+              <button type="button" onClick={() => answer("again")} className={`${markBtn} bg-coral text-white`} data-testid="mark-again" aria-label="Not yet, practise again" title="Not yet">✗</button>
+            </>
+          )}
+        </div>
       </div>
 
       {s.showHint && q.hint && <p className="mt-3 rounded-full bg-sun-soft px-4 py-1.5 font-semibold text-[#7a5200]">💡 {plainText(q.hint)}</p>}
 
-      <div className="mt-4 flex w-full max-w-xl flex-wrap items-center justify-center gap-2">
-        <button type="button" onClick={() => play(pos - 1, order)} disabled={pos === 0} className={`${iconBtn} sm:hidden`} aria-label="Previous card">‹</button>
-        <button type="button" onClick={listen} disabled={!canListen} className={iconBtn} aria-label="Listen" title="Listen">🔊</button>
-        {showMarks ? (
-          <>
-            <button type="button" onClick={() => answer("again")} className="h-12 rounded-full bg-sun px-5 font-bold text-ink shadow-[0_3px_0_#c99a1e] hover:brightness-105" data-testid="mark-again">
-              ↺ Practice again
-            </button>
-            <button type="button" onClick={() => answer("knew")} className="h-12 rounded-full bg-leaf px-5 font-bold text-white shadow-[0_3px_0_#1f6b3f] hover:brightness-110" data-testid="mark-knew">
-              ✓ I knew it
-            </button>
-          </>
-        ) : (
-          !oneSide && (
-            <button type="button" onClick={flip} className="h-12 rounded-full bg-white px-6 font-bold text-ink hover:bg-paper" data-testid="turn-card">
-              ↻ Turn card
-            </button>
-          )
-        )}
-        <button type="button" onClick={() => play(pos + 1, order)} className={`${iconBtn} sm:hidden`} aria-label="Next card">›</button>
-      </div>
-      {!speaks(q) && !oneSide && !flipped && <p className="mt-2 text-xs text-white/60">Click or tap the card, or press Space, to turn it.</p>}
+      <button type="button" onClick={listen} disabled={!canListen || paused} className="mt-3 grid h-10 w-12 place-items-center rounded-xl bg-white/15 text-white hover:bg-white/25 disabled:opacity-30" aria-label="Listen" title="Listen">
+        <IconSound />
+      </button>
 
       {speaks(q) && (
         <div className="mt-3 w-full max-w-2xl rounded-[1.25rem] bg-paper px-3 pb-3 text-ink">
@@ -439,9 +509,69 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
           </VoiceDock>
         </div>
       )}
+
+      {!oneSide && (
+        <button
+          type="button"
+          onClick={flip}
+          disabled={paused || !!overlay}
+          className="mt-4 h-12 min-w-40 rounded-xl bg-white px-8 font-display text-lg font-bold text-ink shadow-[0_4px_0_rgba(0,0,0,.25)] hover:bg-paper disabled:opacity-60"
+          data-testid="turn-card"
+        >
+          Flip
+        </button>
+      )}
+      {!speaks(q) && !oneSide && !flipped && <p className="mt-2 text-xs text-white/60">Click or tap the card, or press Space, to flip it.</p>}
+
+      <button
+        type="button"
+        onClick={() => {
+          if (!paused) {
+            token.current++;
+            s.stopAll();
+            setAsking(false);
+            setPaused(true);
+          } else setPaused(false);
+        }}
+        aria-pressed={paused}
+        aria-label={paused ? "Resume" : "Pause"}
+        title={paused ? "Resume" : "Pause"}
+        className="absolute bottom-3 left-3 z-20 grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20 sm:bottom-4 sm:left-4"
+      >
+        {paused ? "▶" : <IconPause />}
+      </button>
     </div>
   );
 }
+
+/** A small face for the answers list. */
+function MiniFace({ face }: { face: Pick<PlayFace, "text" | "imageUrl" | "imageAlt"> }) {
+  const text = plainText(face.text ?? "");
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {face.imageUrl && <img src={face.imageUrl} alt={face.imageAlt || text} className="h-10 w-10 shrink-0 object-contain" />}
+      {text && <span className="truncate font-semibold">{text}</span>}
+    </span>
+  );
+}
+
+function IconArrow({ left }: { left?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" aria-hidden>
+      <path d={left ? "M16 4 7 12l9 8z" : "M8 4l9 8-9 8z"} />
+    </svg>
+  );
+}
+function IconPause() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+      <rect x="6" y="5" width="4" height="14" rx="1" />
+      <rect x="14" y="5" width="4" height="14" rx="1" />
+    </svg>
+  );
+}
+
 
 function IconSound() {
   return (

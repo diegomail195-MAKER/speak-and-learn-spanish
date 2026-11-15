@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backSlot, flashcardSheets, matchPages, quizItems, quizPages, wheelGroups, type PrintCard } from "./layout";
+import { backSlot, flashcardSheets, matchPages, quizItems, quizItemHeight, quizPages, wheelGroups, type PrintCard } from "./layout";
 
 const face = (text: string, imageUrl: string | null = null) => ({ text, imageUrl, imageAlt: "" });
 const deck = (n: number, back = true): PrintCard[] =>
@@ -61,9 +61,11 @@ describe("quiz", () => {
   });
 
   it("never splits a question across pages", () => {
-    const pages = quizPages(quizItems(deck(11), 7));
-    expect(pages.flat()).toHaveLength(11);
-    expect(pages.every((p) => p.length <= 6)).toBe(true);
+    const items = quizItems(deck(11), 7);
+    const pages = quizPages(items, 400);
+    expect(pages.flat(2)).toHaveLength(11);
+    expect(pages.every((p) => p.length <= 2 && p.every((col) => col.reduce((h, it) => h + quizItemHeight(it), 0) <= 400 || col.length === 1))).toBe(true);
+    expect(quizPages(items, 846, 4).every((p) => p.flat().length <= 4)).toBe(true);
   });
 });
 

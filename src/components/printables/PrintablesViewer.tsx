@@ -5,25 +5,39 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/Button";
 import {
   PAPER,
+  SHOW_ALL,
+  contentHeight,
   flashcardSheets,
+  flashcardTable,
+  pageSize,
   isEmptyFace,
   matchPages,
   quizItems,
   quizPages,
   wheelGroups,
   type FlipEdge,
+  type Orientation,
   type PaperSize,
   type PrintCard,
   type PrintTemplate,
+  type ShowParts,
 } from "@/lib/printables/layout";
-import { AnswerKeyPage, CardSheetPage, MatchPageView, QuizPageView, WheelPage } from "./PrintPages";
+import { AnswerKeyPage, CardSheetPage, CardTablePage, MatchPageView, QuizPageView, WheelPage } from "./PrintPages";
 
 const TEMPLATES: Array<{ key: PrintTemplate; label: string; help: string }> = [
-  { key: "flashcards", label: "Flash cards", help: "Cut-out cards, one side or front and back" },
+  { key: "flashcards", label: "Flash cards", help: "Front and back side by side, or cut-out cards" },
   { key: "match", label: "Match up – line drawing", help: "Join each pair with a line" },
-  { key: "quiz", label: "Quiz", help: "Four choices, A to D" },
+  { key: "quiz", label: "Quiz", help: "Four choices to tick, A to D" },
   { key: "wheel", label: "Spin the wheel", help: "A paper wheel to cut out" },
 ];
+
+const PER_PAGE: Record<PrintTemplate, number[]> = {
+  flashcards: [4, 5, 6, 7, 8, 9, 10, 12],
+  match: [4, 5, 6, 7, 8, 9, 10],
+  quiz: [0, 2, 4, 6, 8, 10, 12, 14, 16],
+  wheel: [1],
+};
+const PER_PAGE_DEFAULT: Record<PrintTemplate, number> = { flashcards: 8, match: 8, quiz: 0, wheel: 1 };
 
 /** Little drawings of each template for the picker (LextroSpeak's own, not screenshots). */
 function Thumb({ kind }: { kind: PrintTemplate }) {
@@ -71,7 +85,15 @@ export function PrintablesViewer({ title, cards, onClose }: { title: string; car
   const [size, setSize] = useState<PaperSize>("letter");
   const [sides, setSides] = useState<"one" | "two">(() => (cards.some((c) => !isEmptyFace(c.back)) ? "two" : "one"));
   const [flip, setFlip] = useState<FlipEdge>("long");
-  const [answerKey, setAnswerKey] = useState(true);
+  const [answerKey, setAnswerKey] = useState(false);
+  const [layout, setLayout] = useState<"table" | "cutout">("table");
+  const [orientation, setOrientation] = useState<Orientation>("portrait");
+  const [instruction, setInstruction] = useState<Record<PrintTemplate, string>>({ flashcards: "", match: "", quiz: "", wheel: "" });
+  const [show, setShow] = useState<ShowParts>(SHOW_ALL);
+  const [perPage, setPerPage] = useState<Record<PrintTemplate, number>>(PER_PAGE_DEFAULT);
+  const [quizAnswers, setQuizAnswers] = useState(false);
+  const [quizLetters, setQuizLetters] = useState(true);
+  const [cutOut, setCutOut] = useState(true);
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e6) + 1);
   const [picked, setPicked] = useState<Set<string>>(() => new Set(cards.map((c) => c.id)));
   const [filled, setFilled] = useState<Record<string, string>>({});
@@ -105,26 +127,39 @@ export function PrintablesViewer({ title, cards, onClose }: { title: string; car
   const withBacks = chosen.filter((c) => !isEmptyFace(c.back));
   const quiz = useMemo(() => quizItems(chosen, seed, filled), [chosen, seed, filled]);
   const missing = quiz.filter((q) => q.options.some((o) => o.missing));
-  const { w, h } = PAPER[size];
+  const cutout = tpl === "flashcards" && layout === "cutout";
+  const paper = useMemo(() => pageSize(size, cutout ? "portrait" : orientation), [size, cutout, orientation]);
+  const { w, h } = paper;
 
   const pages: ReactNode[] = useMemo(() => {
     if (!chosen.length) return [];
-    if (tpl === "flashcards") return flashcardSheets(chosen, { sides, flip }).map((s, i) => <CardSheetPage key={`c${i}`} sheet={s} size={size} index={i} />);
-    if (tpl === "match") return matchPages(chosen, seed).map((p, i) => <MatchPageView key={`m${i}`} page={p} size={size} title={title} index={i} />);
+    const ins = instruction[tpl];
+    const common = { paper, title, show, instruction: ins };
+    const fallbackIns = tpl === "match" || tpl === "quiz";
+    const contentH = contentHeight(paper, show, !!ins.trim() || fallbackIns);
+    if (tpl === "flashcards") {
+      if (layout === "cutout") return flashcardSheets(chosen, { sides, flip }).map((s, i) => <CardSheetPage key={`c${i}`} sheet={s} paper={paper} index={i} />);
+      return flashcardTable(chosen, perPage.flashcards).map((g, i) => (
+        <CardTablePage key={`t${i}`} {...common} cards={g} rows={perPage.flashcards} contentH={contentH} index={i} oneSide={sides === "one"} />
+      ));
+    }
+    if (tpl === "match") return matchPages(chosen, seed, perPage.match).map((p, i) => <MatchPageView key={`m${i}`} {...common} page={p} index={i} contentH={contentH} />);
     if (tpl === "quiz") {
-      const qp = quizPages(quiz).map((items, i) => <QuizPageView key={`q${i}`} items={items} size={size} title={title} index={i} first={i === 0} />);
-      return answerKey ? [...qp, <AnswerKeyPage key="key" items={quiz} size={size} title={title} />] : qp;
+      const qp = quizPages(quiz, contentH, perPage.quiz || undefined).map((cols, i) => (
+        <QuizPageView key={`q${i}`} {...common} columns={cols} index={i} first={i === 0} answers={quizAnswers} letters={quizLetters} />
+      ));
+      return answerKey ? [...qp, <AnswerKeyPage key="key" items={quiz} paper={paper} title={title} footer={show.footer} />] : qp;
     }
     const groups = wheelGroups(chosen.map((c) => ({ cardId: c.id, face: c.front })));
-    return groups.map((g, i) => <WheelPage key={`w${i}`} faces={g} size={size} title={title} index={i} total={groups.length} />);
-  }, [chosen, tpl, sides, flip, seed, size, title, quiz, answerKey]);
+    return groups.map((g, i) => <WheelPage key={`w${i}`} {...common} faces={g} index={i} total={groups.length} cutOut={cutOut} contentH={contentH} />);
+  }, [chosen, tpl, layout, sides, flip, seed, paper, title, quiz, answerKey, instruction, show, perPage, quizAnswers, quizLetters, cutOut]);
 
   const emptyNote =
     !chosen.length ? "Choose at least one card in Options." : tpl === "match" && !withBacks.length ? "Match up needs cards with a back." : "";
 
   function print() {
     const style = document.createElement("style");
-    style.textContent = `@page { size: ${size === "a4" ? "A4" : "letter"}; margin: 0 }`;
+    style.textContent = `@page { size: ${size === "a4" ? "A4" : "letter"} ${w > h ? "landscape" : "portrait"}; margin: 0 }`;
     document.head.appendChild(style);
     document.body.classList.add("ls-printing");
     const done = () => {
@@ -146,7 +181,8 @@ export function PrintablesViewer({ title, cards, onClose }: { title: string; car
       await Promise.all(
         Array.from(printRoot.current?.querySelectorAll("img") ?? []).map((img) => (img.complete ? null : new Promise((r) => ((img.onload = r), (img.onerror = r))))),
       );
-      const pdf = new jsPDF({ unit: "px", format: [w, h], orientation: "portrait", hotfixes: ["px_scaling"], compress: true });
+      const orient = w > h ? "landscape" : "portrait";
+      const pdf = new jsPDF({ unit: "px", format: [w, h], orientation: orient, hotfixes: ["px_scaling"], compress: true });
       for (let i = 0; i < nodes.length; i++) {
         let png: string;
         try {
@@ -154,7 +190,7 @@ export function PrintablesViewer({ title, cards, onClose }: { title: string; car
         } catch {
           png = await toPng(nodes[i], { pixelRatio: 2, backgroundColor: "#ffffff", width: w, height: h, skipFonts: true });
         }
-        if (i > 0) pdf.addPage([w, h], "portrait");
+        if (i > 0) pdf.addPage([w, h], orient);
         pdf.addImage(png, "PNG", 0, 0, w, h, undefined, "FAST");
       }
       const name = `${(title || "flashcards").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").toLowerCase()}-${tpl}.pdf`;
@@ -204,6 +240,53 @@ export function PrintablesViewer({ title, cards, onClose }: { title: string; car
         <div className="relative min-h-0 flex-1">
           {showOptions && (
             <section aria-label="Print options" className="absolute right-3 top-3 z-10 max-h-[calc(100%-1.5rem)] w-[min(22rem,calc(100%-1.5rem))] overflow-auto rounded-xl2 border border-line bg-card p-4 text-sm shadow-soft">
+              <h3 className="mb-3 font-display text-base font-extrabold">Options</h3>
+              {!cutout && (
+                <>
+                  <label className="mb-3 block">
+                    <span className="mb-1 block font-bold">Instruction</span>
+                    <input
+                      value={instruction[tpl]}
+                      onChange={(e) => setInstruction((x) => ({ ...x, [tpl]: e.target.value }))}
+                      placeholder="Add your own instruction"
+                      maxLength={140}
+                      className="h-9 w-full rounded-lg border border-line bg-card px-2"
+                    />
+                  </label>
+                  {tpl !== "wheel" && (
+                    <label className="mb-3 flex items-center justify-between gap-2">
+                      <span className="font-bold">Per page</span>
+                      <select value={perPage[tpl]} onChange={(e) => setPerPage((x) => ({ ...x, [tpl]: Number(e.target.value) }))} className="h-9 rounded-lg border border-line bg-card px-2">
+                        {PER_PAGE[tpl].map((n) => <option key={n} value={n}>{n === 0 ? "Auto" : n}</option>)}
+                      </select>
+                    </label>
+                  )}
+                  <label className="mb-3 flex items-center justify-between gap-2">
+                    <span className="font-bold">Orientation</span>
+                    <select value={orientation} onChange={(e) => setOrientation(e.target.value as Orientation)} className="h-9 rounded-lg border border-line bg-card px-2">
+                      <option value="portrait">Portrait</option>
+                      <option value="landscape">Landscape</option>
+                    </select>
+                  </label>
+                  <fieldset className="mb-3">
+                    <legend className="mb-1 font-bold">Show</legend>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {(["title", "name", "date", "footer"] as const).map((k) => (
+                        <label key={k} className="inline-flex items-center gap-1.5">
+                          <input type="checkbox" checked={show[k]} onChange={(e) => setShow((x) => ({ ...x, [k]: e.target.checked }))} /> {k[0].toUpperCase() + k.slice(1)}
+                        </label>
+                      ))}
+                      {tpl === "quiz" && (
+                        <>
+                          <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={quizAnswers} onChange={(e) => setQuizAnswers(e.target.checked)} /> Answers</label>
+                          <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={quizLetters} onChange={(e) => setQuizLetters(e.target.checked)} /> Answer letters</label>
+                        </>
+                      )}
+                      {tpl === "wheel" && <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={cutOut} onChange={(e) => setCutOut(e.target.checked)} /> Cut out</label>}
+                    </div>
+                  </fieldset>
+                </>
+              )}
               <fieldset className="mb-3">
                 <legend className="mb-1 font-bold">Paper size</legend>
                 {(["letter", "a4"] as const).map((p) => (
@@ -213,11 +296,16 @@ export function PrintablesViewer({ title, cards, onClose }: { title: string; car
               {tpl === "flashcards" && (
                 <>
                   <fieldset className="mb-3">
+                    <legend className="mb-1 font-bold">Layout</legend>
+                    <label className="mr-4 inline-flex items-center gap-1.5"><input type="radio" name="playout" checked={layout === "table"} onChange={() => setLayout("table")} /> Front | back table</label>
+                    <label className="inline-flex items-center gap-1.5"><input type="radio" name="playout" checked={layout === "cutout"} onChange={() => setLayout("cutout")} /> Cut-out cards</label>
+                  </fieldset>
+                  <fieldset className="mb-3">
                     <legend className="mb-1 font-bold">Sides</legend>
                     <label className="mr-4 inline-flex items-center gap-1.5"><input type="radio" name="psides" checked={sides === "one"} onChange={() => setSides("one")} /> Front only</label>
-                    <label className="inline-flex items-center gap-1.5"><input type="radio" name="psides" checked={sides === "two"} onChange={() => setSides("two")} /> Front and back (duplex)</label>
+                    <label className="inline-flex items-center gap-1.5"><input type="radio" name="psides" checked={sides === "two"} onChange={() => setSides("two")} /> {cutout ? "Front and back (duplex)" : "Front and back"}</label>
                   </fieldset>
-                  {sides === "two" && (
+                  {cutout && sides === "two" && (
                     <fieldset className="mb-3">
                       <legend className="mb-1 font-bold">Printer flips on the</legend>
                       <label className="mr-4 inline-flex items-center gap-1.5"><input type="radio" name="flip" checked={flip === "long"} onChange={() => setFlip("long")} /> Long edge</label>
@@ -290,7 +378,7 @@ export function PrintablesViewer({ title, cards, onClose }: { title: string; car
               <p className="mt-10 text-center font-bold text-muted">{emptyNote}</p>
             ) : (
               <div className="space-y-5 pb-6">
-                <p className="text-center text-xs font-bold text-muted">{pages.length} {pages.length === 1 ? "page" : "pages"} · {PAPER[size].label}</p>
+                <p className="text-center text-xs font-bold text-muted">{pages.length} {pages.length === 1 ? "page" : "pages"} · {PAPER[size].label}{w > h ? " · landscape" : ""}</p>
                 {pages.map((p, i) => (
                   <Scaled key={i} width={w} height={h} avail={avail}>{p}</Scaled>
                 ))}

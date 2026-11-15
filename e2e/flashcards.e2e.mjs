@@ -145,7 +145,7 @@ try {
   const play = await ctx.newPage();
   await play.goto(`${BASE}/play/preview/${gameId}`);
   await play.getByRole("button", { name: /Start|Empezar|Comenzar/ }).first().click();
-  await play.getByText("Card 1 of 1").waitFor();
+  await play.getByTestId("card-counter").filter({ hasText: /^1 of 1$/ }).waitFor();
   await play.getByRole("button", { name: "Listen", exact: true }).click();
   await play.getByTestId("turn-card").click();
   await play.waitForTimeout(600);

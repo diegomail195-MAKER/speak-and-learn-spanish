@@ -187,14 +187,18 @@ try {
   await strip.getByRole("button", { name: /Printables/ }).waitFor();
   await shot(page, "p03-start");
   await stage.getByRole("button", { name: "Start" }).click();
-  await page.getByTestId("card-counter").filter({ hasText: "Card 1 of 11" }).waitFor();
+  const at = (t) => page.getByTestId("card-counter").filter({ hasText: new RegExp(`^${t}$`) }).waitFor();
+  await at("1 of 11");
+  await page.getByTestId("game-clock").waitFor();
+  await page.getByTestId("known-count").filter({ hasText: "✓ 0" }).waitFor();
   const cardBtn = page.locator("[data-card]");
   const img = cardBtn.locator("img").first();
   const ib = await img.boundingBox();
-  assert(ib && ib.height > 180, `the picture is the main element (${ib && Math.round(ib.height)}px)`);
-  assert(!(await page.getByTestId("mark-knew").isVisible()), "no self-check before turning");
+  assert(ib && ib.height > 160, `the picture is the main element (${ib && Math.round(ib.height)}px)`);
+  assert(!(await page.getByTestId("mark-knew").isVisible()), "no ✓/✗ before flipping");
+  await page.getByTestId("turn-card").filter({ hasText: "Flip" }).waitFor();
   await shot(page, "p04-card-front");
-  await cardBtn.click(); // click turns it
+  await cardBtn.click(); // click flips it
   await page.getByTestId("mark-knew").waitFor();
   await page.waitForTimeout(600);
   await page.getByRole("button", { name: "Listen" }).click();
@@ -203,30 +207,39 @@ try {
   assert(said.includes("rojo"), `back audio played: ${said}`);
   await shot(page, "p05-card-back");
   await page.getByTestId("mark-knew").click();
-  await page.getByText("Card 2 of 11").waitFor();
-  await page.keyboard.press("Space"); // Space turns it too
-  await page.getByTestId("mark-again").waitFor();
+  await page.getByTestId("mark-overlay").waitFor();
+  await at("2 of 11");
+  await page.getByTestId("known-count").filter({ hasText: "✓ 1" }).waitFor();
+  await page.keyboard.press("Space"); // Space flips it too
   await page.getByTestId("mark-again").click();
   for (let i = 3; i <= 11; i++) {
-    await page.getByText(`Card ${i} of 11`).waitFor();
-    await page.keyboard.press("Space");
+    await at(`${i} of 11`);
+    await page.getByTestId("turn-card").click(); // the Flip button
     await page.getByTestId(i % 4 === 0 ? "mark-again" : "mark-knew").click();
   }
-  const results = page.getByTestId("round-results");
-  await results.waitFor();
+  // The cards marked ✗ come round again until every card is ✓
   const missedCount = 1 + [4, 8].length;
-  assert((await results.textContent()).includes(`${missedCount} to practise`), `results: ${await results.textContent()}`);
-  await shot(page, "p06-results");
-  await results.getByRole("button", { name: `↺ Practice the ${missedCount} missed cards` }).click();
-  await page.getByText(`Card 1 of ${missedCount}`).waitFor();
+  await at(`1 of ${missedCount}`);
   for (let i = 1; i <= missedCount; i++) {
+    await at(`${i} of ${missedCount}`);
     await page.locator("[data-card]").click();
     await page.getByTestId("mark-knew").click();
   }
-  await page.getByText("¡Repaso terminado!").waitFor();
+  const results = page.getByTestId("round-results");
+  await results.waitFor();
+  await results.getByText("Game complete").waitFor();
+  const finalScore = await page.getByTestId("final-score").textContent();
+  assert(finalScore === `${11 - missedCount}/11`, `score counts ✓ on the first try: ${finalScore}`);
+  await shot(page, "p06-results");
+  await results.getByRole("button", { name: "Show answers" }).click();
+  const answers = page.getByTestId("answers-list");
+  assert((await answers.locator("li").count()) === 11, "every card in the answers");
+  assert((await answers.getByLabel("Not on the first try").count()) === missedCount, "✗ on the first try marked");
+  await shot(page, "p06b-answers");
+  await answers.getByRole("button", { name: /Back/ }).click();
   await page.getByRole("button", { name: "Finish" }).click();
   await page.getByText("¡Terminaste!").waitFor();
-  log("game: start screen, big card, click/Space turn, self-check, results, practise the", missedCount, "missed cards, finish");
+  log("game: start screen, top bar, Flip/click/Space, ✓/✗ with overlay, the", missedCount, "✗ cards came round again, Game complete", finalScore, ", answers, finish");
 
   // Sound off and on
   await page.reload();
@@ -242,13 +255,27 @@ try {
   await viewer.getByRole("button", { name: "Close" }).waitFor();
   const preview = page.getByTestId("printable-preview");
   const pageCount = async () => Number((await preview.locator("p").filter({ hasText: /pages? ·/ }).textContent()).match(/\d+/)[0]);
-  // Flash cards, front + back: 11 cards → 2 sheets × 2 sides
-  assert((await pageCount()) === 4, `flash cards duplex pages: ${await pageCount()}`);
-  assert((await preview.getByText("rojo vivo").count()) >= 1, "the edited back is on the cards");
+  // Flash cards: front | back table, 8 per page → 2 pages
+  assert((await pageCount()) === 2, `flash cards table pages: ${await pageCount()}`);
+  assert((await preview.getByText("rojo vivo").count()) >= 1, "the edited back is in the table");
+  await preview.getByText("Name:").first().waitFor();
   await shot(page, "p07-print-flashcards");
   let pdf = await download(page, () => viewer.getByRole("button", { name: /Download PDF/ }).click());
-  assert(pdfPages(pdf) === 4, `flash cards PDF pages: ${pdfPages(pdf)}`);
-  log("flash cards: 4 pages (front/back), PDF", pdfPages(pdf), "pages");
+  assert(pdfPages(pdf) === 2, `flash cards PDF pages: ${pdfPages(pdf)}`);
+  // Cut-out cards, front + back: 11 cards → 2 sheets × 2 sides
+  await viewer.getByRole("button", { name: /Options/ }).click();
+  const optsPanel = viewer.getByRole("region", { name: "Print options" });
+  await optsPanel.getByLabel("Cut-out cards").check();
+  assert((await pageCount()) === 4, `cut-out duplex pages: ${await pageCount()}`);
+  await shot(page, "p07b-print-cutout");
+  pdf = await download(page, () => viewer.getByRole("button", { name: /Download PDF/ }).click());
+  assert(pdfPages(pdf) === 4, `cut-out PDF pages: ${pdfPages(pdf)}`);
+  await optsPanel.getByLabel("Front | back table").check();
+  await optsPanel.getByLabel("Per page").selectOption("4");
+  assert((await pageCount()) === 3, `table with 4 per page: ${await pageCount()}`);
+  await optsPanel.getByLabel("Per page").selectOption("8");
+  await viewer.getByRole("button", { name: /Options/ }).click();
+  log("flash cards: table 2 pages (4 per page → 3), cut-out duplex 4 pages; PDFs agree");
 
   await viewer.getByRole("button", { name: /Match up/ }).click();
   assert((await pageCount()) === 2, `match pages: ${await pageCount()}`);
@@ -259,10 +286,16 @@ try {
   assert(pdfPages(pdf) === 2, `match PDF pages: ${pdfPages(pdf)}`);
 
   await viewer.getByRole("button", { name: /^Quiz/ }).click();
-  const quizPagesN = await pageCount();
-  assert(quizPagesN >= 3, `quiz pages: ${quizPagesN}`);
-  await preview.getByText("Answer key").first().waitFor();
+  let quizPagesN = await pageCount();
+  assert(quizPagesN >= 1, `quiz pages: ${quizPagesN}`);
   assert((await preview.getByText("rojo vivo").count()) >= 1, "edited back is a quiz choice");
+  await viewer.getByRole("button", { name: /Options/ }).click();
+  await optsPanel.getByLabel("Answers", { exact: true }).check();
+  await optsPanel.getByLabel("Add an answer key page").check();
+  assert((await pageCount()) === quizPagesN + 1, "answer key page added");
+  quizPagesN += 1;
+  await preview.getByText("Answer key").first().waitFor();
+  await viewer.getByRole("button", { name: /Options/ }).click();
   await shot(page, "p09-print-quiz");
   pdf = await download(page, () => viewer.getByRole("button", { name: /Download PDF/ }).click());
   assert(pdfPages(pdf) === quizPagesN, `quiz PDF pages ${pdfPages(pdf)} vs ${quizPagesN}`);
@@ -272,6 +305,19 @@ try {
   await shot(page, "p10-print-wheel");
   pdf = await download(page, () => viewer.getByRole("button", { name: /Download PDF/ }).click());
   assert(pdfPages(pdf) === 1, `wheel PDF pages: ${pdfPages(pdf)}`);
+  // Options shared by the worksheets: instruction, orientation, show
+  await viewer.getByRole("button", { name: /Options/ }).click();
+  await optsPanel.getByLabel("Instruction").fill("Gira la rueda y di el color.");
+  await preview.getByText("Gira la rueda y di el color.").first().waitFor();
+  await optsPanel.getByLabel("Orientation").selectOption("landscape");
+  const land = await page.locator("#ls-print-root [data-print-page]").first().evaluate((el) => [el.offsetWidth, el.offsetHeight]);
+  assert(land[0] === 1056 && land[1] === 816, `landscape page ${land}`);
+  await optsPanel.getByLabel("Name", { exact: true }).uncheck();
+  assert((await preview.getByText("Name:").count()) === 0, "Name line hidden");
+  await shot(page, "p10b-print-wheel-landscape");
+  await optsPanel.getByLabel("Name", { exact: true }).check();
+  await optsPanel.getByLabel("Orientation").selectOption("portrait");
+  await viewer.getByRole("button", { name: /Options/ }).click();
   log("match (2 pages), quiz (", quizPagesN, "pages with key), wheel (1): previews and PDFs agree");
 
   // Options: A4, only three cards → quiz needs fill-ins
@@ -309,11 +355,11 @@ try {
   assert(r.ok(), "single sided saved");
   await page.reload();
   await stage.getByRole("button", { name: "Start" }).click();
-  await page.getByText("Card 1 of 11").waitFor();
+  await page.getByTestId("card-counter").filter({ hasText: /^1 of 11$/ }).waitFor();
   await page.getByTestId("mark-knew").waitFor(); // no turning in single sided
-  assert((await page.getByTestId("turn-card").count()) === 0, "no Turn button in single sided");
+  assert((await page.getByTestId("turn-card").count()) === 0, "no Flip button in single sided");
   await page.getByTestId("mark-knew").click();
-  await page.getByText("Card 2 of 11").waitFor();
+  await page.getByTestId("card-counter").filter({ hasText: /^2 of 11$/ }).waitFor();
   await strip.getByRole("button", { name: /Printables/ }).click();
   assert((await pageCount()) === 2, `single sided flash cards: fronts only (${await pageCount()})`);
   await viewer.getByRole("button", { name: "Close" }).click();
@@ -338,9 +384,13 @@ try {
   assert(done100 && done100.y + done100.height <= 900, "Done still visible with 100 cards");
   await page.goto(`${BASE}/play/preview/${gameId}`);
   await stage.getByRole("button", { name: "Start" }).click();
-  await page.getByText("Card 1 of 100").waitFor();
+  await page.getByTestId("card-counter").filter({ hasText: /^1 of 100$/ }).waitFor();
   await strip.getByRole("button", { name: /Printables/ }).click();
+  assert((await pageCount()) === 13, `100 cards → 13 table pages (${await pageCount()})`);
+  await viewer.getByRole("button", { name: /Options/ }).click();
+  await viewer.getByRole("region", { name: "Print options" }).getByLabel("Cut-out cards").check();
   assert((await pageCount()) === 26, `100 cards → 13 sheets × 2 (${await pageCount()})`);
+  await viewer.getByRole("button", { name: /Options/ }).click();
   await viewer.getByRole("button", { name: /Spin the wheel/ }).click();
   assert((await pageCount()) === 9, `100 cards → 9 wheels (${await pageCount()})`);
   pdf = await download(page, () => viewer.getByRole("button", { name: /Download PDF/ }).click());
@@ -348,7 +398,7 @@ try {
   await shot(page, "p12-print-wheel-100");
   await viewer.getByRole("button", { name: "Close" }).click();
   r = await page.request.put(`${BASE}/api/games/${gameId}`, { data: g2 });
-  log("100 cards: editor limit, game, 26 card pages, 9 wheels (PDF 9 pages)");
+  log("100 cards: editor limit, game, 13 table pages / 26 cut-out pages, 9 wheels (PDF 9 pages)");
 
   // ── 8. Phone ──
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: "en-US", storageState: await ctx.storageState() });
@@ -365,7 +415,7 @@ try {
   await shot(m, "p13-phone-editor");
   await m.goto(`${BASE}/play/preview/${gameId}`);
   await m.getByTestId("flashcards-stage").getByRole("button", { name: "Start" }).tap();
-  await m.getByText("Card 1 of 11").waitFor();
+  await m.getByTestId("card-counter").filter({ hasText: /^1 of 11$/ }).waitFor();
   await m.locator("[data-card]").tap();
   await m.getByTestId("mark-knew").waitFor();
   overflow = await m.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

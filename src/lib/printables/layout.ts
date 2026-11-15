@@ -24,6 +24,29 @@ export const PAPER: Record<PaperSize, { w: number; h: number; label: string }> =
 };
 export const MARGIN = 48;
 
+export type Orientation = "portrait" | "landscape";
+
+/** The page in CSS pixels for a paper size and orientation. */
+export function pageSize(size: PaperSize, orientation: Orientation = "portrait") {
+  const { w, h } = PAPER[size];
+  return orientation === "landscape" ? { w: h, h: w } : { w, h };
+}
+
+/** What a worksheet shows around its content (the Show options). */
+export interface ShowParts {
+  title: boolean;
+  name: boolean;
+  date: boolean;
+  footer: boolean;
+}
+export const SHOW_ALL: ShowParts = { title: true, name: true, date: true, footer: true };
+
+/** Height left for the content of a worksheet page once the header, instruction and footer are drawn. */
+export function contentHeight(page: { h: number }, show: ShowParts, instruction: boolean) {
+  const header = show.title || show.name || show.date ? 64 : 0;
+  return page.h - 2 * MARGIN - header - (instruction ? 30 : 0) - (show.footer ? 26 : 0);
+}
+
 export const isEmptyFace = (f: PrintFace | null | undefined) => !f || (!f.text.trim() && !f.imageUrl);
 
 /** Small seeded random generator, so the preview, the print and the PDF shuffle the same way. */
@@ -95,6 +118,12 @@ export function flashcardSheets(cards: PrintCard[], opts: { sides: "one" | "two"
   return sheets;
 }
 
+/** Flash cards as a table, one card per row with the front and the back side by side. */
+export const TABLE_ROW_MIN = 72;
+export function flashcardTable(cards: PrintCard[], perPage: number): PrintCard[][] {
+  return chunk(cards, Math.max(1, perPage));
+}
+
 // ---------------------------------------------------------------- Match up
 
 export const MATCH_PER_PAGE = 8;
@@ -106,9 +135,9 @@ export interface MatchPage {
 }
 
 /** Pairs stay on the same page; the right column is shuffled within each page (never left in order when it can be avoided). */
-export function matchPages(cards: PrintCard[], seed: number): MatchPage[] {
+export function matchPages(cards: PrintCard[], seed: number, perPage = MATCH_PER_PAGE): MatchPage[] {
   const usable = cards.filter((c) => !isEmptyFace(c.back));
-  return chunk(usable, MATCH_PER_PAGE).map((group, p) => {
+  return chunk(usable, Math.max(1, perPage)).map((group, p) => {
     const left = group.map((c) => ({ cardId: c.id, face: c.front }));
     let right = group.map((c) => ({ cardId: c.id, face: c.back! }));
     if (right.length > 1) {
@@ -179,24 +208,41 @@ export function quizItems(cards: PrintCard[], seed: number, filled: Record<strin
   });
 }
 
-/** Questions per page: fewer when any question or option has a picture. */
-export function quizPages(items: QuizItem[]): QuizItem[][] {
-  const pages: QuizItem[][] = [];
-  let cur: QuizItem[] = [];
+export const quizHasPictures = (it: QuizItem) => !!it.question.imageUrl || it.options.some((o) => o.face?.imageUrl);
+
+/** Height a question takes in a quiz column (question line, 2×2 choices, gap). */
+export const quizItemHeight = (it: QuizItem) => (it.question.imageUrl ? 80 : 30) + 8 + 2 * (quizHasPictures(it) ? 56 : 28) + 6 + 20;
+
+export const QUIZ_COLS = 2;
+
+/**
+ * Pages of two columns of questions. A question never splits; a column takes questions while
+ * they fit in `columnHeight` (and, with `perPage`, until the page has that many).
+ */
+export function quizPages(items: QuizItem[], columnHeight = 846, perPage?: number): QuizItem[][][] {
+  const pages: QuizItem[][][] = [];
+  let page: QuizItem[][] = [[]];
   let used = 0;
-  const BUDGET = 12;
+  const count = () => page.reduce((n, c) => n + c.length, 0);
   for (const it of items) {
-    const pics = !!it.question.imageUrl || it.options.some((o) => o.face?.imageUrl);
-    const cost = pics ? 4 : 2;
-    if (cur.length && used + cost > BUDGET) {
-      pages.push(cur);
-      cur = [];
+    const h = quizItemHeight(it);
+    const col = page[page.length - 1];
+    if (perPage && count() >= perPage) {
+      pages.push(page);
+      page = [[]];
+      used = 0;
+    } else if (col.length && used + h > columnHeight) {
+      if (page.length < QUIZ_COLS) page.push([]);
+      else {
+        pages.push(page);
+        page = [[]];
+      }
       used = 0;
     }
-    cur.push(it);
-    used += cost;
+    page[page.length - 1].push(it);
+    used += h;
   }
-  if (cur.length) pages.push(cur);
+  if (page[0].length) pages.push(page);
   return pages;
 }
 
