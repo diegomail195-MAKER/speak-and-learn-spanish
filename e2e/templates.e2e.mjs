@@ -143,7 +143,7 @@ try {
   // ── Tests 2, 6, 7, 8, 9, 12: Flashcards with a multilingual prompt, assigned and played ─
   const fcId = await newActivity("FLASHCARDS", "El amor y las frutas");
   const c1 = page.locator("li[aria-label='Card 1']");
-  await c1.locator("summary").click(); // the spoken answer is optional and folded away
+  await c1.getByRole("button", { name: "Spoken answer (optional) (1)" }).click(); // the spoken answer is optional and folded away
   const prompt1 = c1.locator("input[placeholder='¿Qué fruta es?']");
   await prompt1.fill("¿Cómo se dice en español, LOVE?");
   // The app only proposes; the teacher confirms.
@@ -164,9 +164,9 @@ try {
   await c1.locator("input[placeholder='La manzana.']").fill("amor");
   await c1.locator("select[aria-label='Answer language']").selectOption("es-419");
   await c1.getByRole("textbox", { name: "Back: Text" }).fill("love");
-  await page.click("text=+ Add card");
+  await page.click("text=+ Add an item");
   const c2 = page.locator("li[aria-label='Card 2']");
-  await c2.locator("summary").click();
+  await c2.getByRole("button", { name: "Spoken answer (optional) (2)" }).click();
   await c2.locator("input[placeholder='¿Qué fruta es?']").fill("¿Qué fruta es?");
   await c2.locator("input[placeholder='La manzana.']").fill("La manzana.");
   await addImage(c2, "dog.png");

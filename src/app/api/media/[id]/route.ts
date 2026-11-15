@@ -11,6 +11,13 @@ export const GET = handle(async (req: Request, ctx: { params: Promise<{ id: stri
   const asset = await db.mediaAsset.findFirst({ where: { id, schoolId: user.schoolId } });
   if (!asset) throw new HttpError(404, "Not found");
   const store = storage();
+  // ?direct=1 on a picture: send the bytes from this site instead of redirecting, so printables
+  // can draw it into a PDF (a cross-site redirect would block reading the image).
+  const direct = new URL(req.url).searchParams.get("direct") === "1" && asset.mimeType.startsWith("image/");
+  if (store.signedUrl && direct) {
+    const bytes = await store.get(asset.storageKey);
+    return new Response(new Uint8Array(bytes), { headers: { "Content-Type": asset.mimeType, "Cache-Control": "private, max-age=3000", "X-Content-Type-Options": "nosniff" } });
+  }
   if (store.signedUrl) {
     // Remote storage: send the browser to a short-lived signed URL (it handles ranges itself).
     const url = await store.signedUrl(asset.storageKey, 3600);

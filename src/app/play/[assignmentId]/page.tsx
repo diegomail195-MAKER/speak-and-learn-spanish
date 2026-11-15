@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StudentPlay } from "@/components/player/StudentPlay";
+import { ActivityStrip } from "@/components/player/flashcards/ActivityStrip";
 import { finishedQuestions } from "@/lib/attempts/service";
 import { requireStudentPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
@@ -40,7 +41,7 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
           <Link href={`/play/${a.id}/materials`} data-testid="materials-link" className="inline-flex items-center gap-2 rounded-full bg-card px-4 py-2 font-bold shadow-pop">📚 Materials ({materials})</Link>
         </div>
       )}
-      <StudentPlay game={game} assignmentId={a.id} videoId={videoId ?? null} done={done} exitHref={exitHref} />
+      <StudentPlay game={game} assignmentId={a.id} videoId={videoId ?? null} done={done} exitHref={exitHref} below={game.board === "flashcards" ? <ActivityStrip key="strip" game={game} role="STUDENT" typeName="Flashcards" /> : undefined} />
     </>
   );
 }

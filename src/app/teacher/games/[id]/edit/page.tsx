@@ -15,10 +15,22 @@ export default async function EditGame({ params }: { params: Promise<{ id: strin
   if (!game) notFound();
   const template = templateByKey(game.templateKey)!;
   const categories = await db.category.findMany({ where: { schoolId: user.schoolId }, orderBy: [{ sortOrder: "asc" }, { nameEn: "asc" }], select: { id: true, nameEn: true, nameEs: true } });
+  const admin = user.role === "ADMIN";
+  // Flashcards: Add from Library sits in the editor's toolbar and the linked resources under the cards.
+  if (template.board === "flashcards") {
+    return (
+      <GameEditor
+        initial={game}
+        template={template}
+        categories={categories}
+        library={admin ? { picker: <GameLibraryPanel gameId={game.id} part="picker" />, list: <GameLibraryPanel gameId={game.id} part="list" /> } : undefined}
+      />
+    );
+  }
   return (
     <>
       <GameEditor initial={game} template={template} categories={categories} />
-      {user.role === "ADMIN" && <GameLibraryPanel gameId={game.id} />}
+      {admin && <GameLibraryPanel gameId={game.id} />}
     </>
   );
 }

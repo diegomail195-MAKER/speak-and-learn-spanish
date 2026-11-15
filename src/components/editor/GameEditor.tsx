@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Panel";
@@ -82,7 +82,9 @@ function alphabetItems(t: TemplateDef): EditorItem[] {
 }
 const ALPHABET_TEMPLATES = ["FLASHCARDS", "LISTEN_AND_SPEAK", "SPELL_THE_WORD"];
 
-export function GameEditor(props: { initial: EditorGame; template: TemplateDef; categories: Category[] }) {
+type LibrarySlots = { picker: ReactNode; list: ReactNode };
+
+export function GameEditor(props: { initial: EditorGame; template: TemplateDef; categories: Category[]; library?: LibrarySlots }) {
   return (
     <UiLangProvider>
       <GameEditorInner {...props} />
@@ -90,7 +92,7 @@ export function GameEditor(props: { initial: EditorGame; template: TemplateDef; 
   );
 }
 
-function GameEditorInner({ initial, template, categories }: { initial: EditorGame; template: TemplateDef; categories: Category[] }) {
+function GameEditorInner({ initial, template, categories, library }: { initial: EditorGame; template: TemplateDef; categories: Category[]; library?: LibrarySlots }) {
   const router = useRouter();
   const { t, lang: uiLang, setLang: setUiLang } = useUi();
   const [game, setGame] = useState<EditorGame>(() =>
@@ -106,7 +108,9 @@ function GameEditorInner({ initial, template, categories }: { initial: EditorGam
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [tts, setTts] = useState<TtsConfig | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
-  const [busy, setBusy] = useState<"" | "publish" | "assign" | "preview" | "duplicate">("");
+  const [busy, setBusy] = useState<"" | "publish" | "assign" | "preview" | "duplicate" | "done">("");
+  const [showSettings, setShowSettings] = useState(false);
+  const [spokenOpen, setSpokenOpen] = useState<Set<string>>(() => new Set());
   const [restore, setRestore] = useState<EditorGame | null>(null);
   const [activePoint, setActivePoint] = useState(0);
   const first = useRef(true);
@@ -250,6 +254,13 @@ function GameEditorInner({ initial, template, categories }: { initial: EditorGam
   async function preview() {
     setBusy("preview");
     if (await persist(game)) router.push(`/teacher/games/${game.id}/preview`);
+    else setBusy("");
+  }
+
+  /** Done: save, then open the activity (play it, Edit Content, Printables). */
+  async function finishEditing() {
+    setBusy("done");
+    if (await persist(game)) router.push(`/play/preview/${game.id}`);
     else setBusy("");
   }
 
@@ -412,300 +423,8 @@ function GameEditorInner({ initial, template, categories }: { initial: EditorGam
                 </div>
   );
 
-  return (
-    <SpanishKeyboardProvider>
-      <form ref={dupForm} action={duplicateGame} className="hidden">
-        <input type="hidden" name="gameId" value={game.id} />
-      </form>
-
-      {restore && (
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl2 bg-sun-soft px-4 py-3 text-sm">
-          <span className="flex-1">This device has unsaved changes to this activity from an earlier session.</span>
-          <Button size="sm" variant="secondary" onClick={() => (setGame(restore), setRestore(null))}>Restore them</Button>
-          <Button size="sm" variant="ghost" onClick={() => { try { localStorage.removeItem(backupKey); } catch {} setRestore(null); }}>Discard</Button>
-        </div>
-      )}
-
-      <div className="sticky top-0 z-20 -mx-5 mb-4 flex flex-wrap items-center gap-3 border-b border-line bg-paper/95 px-5 py-3 backdrop-blur">
-        <Link href="/teacher/games" className="text-sm font-bold text-muted hover:text-ink">← Activities</Link>
-        <Badge tone="sky">{template.name}</Badge>
-        <Badge tone={game.status === "PUBLISHED" ? "leaf" : "neutral"}>{game.status === "PUBLISHED" ? "Published" : game.status === "ARCHIVED" ? "Archived" : "Draft"}</Badge>
-        <span
-          data-testid="save-status"
-          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${save === "error" ? "bg-coral-soft text-coral-dark" : save === "saved" ? "bg-leaf-soft text-leaf" : "bg-paper-2 text-ink-2"}`}
-          aria-live="polite"
-          title={save === "error" ? saveError : savedAt ? savedAt.toLocaleTimeString() : undefined}
-        >
-          {save === "saved" ? `✓ ${t.saved}` : save === "saving" ? t.saving : save === "dirty" ? t.unsaved : `⚠ ${t.saveError}`}
-          {save === "error" && (
-            <button type="button" onClick={saveDraft} className="underline">{t.retry}</button>
-          )}
-        </span>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <div className="flex rounded-full bg-paper-2 p-0.5 text-xs font-bold" role="group" aria-label="Language / Idioma">
-            {(["es", "en"] as const).map((l) => (
-              <button key={l} type="button" onClick={() => setUiLang(l)} aria-pressed={uiLang === l} className={`rounded-full px-2 py-1 ${uiLang === l ? "bg-card text-ink shadow-sm" : "text-muted"}`}>{l.toUpperCase()}</button>
-            ))}
-          </div>
-          <Button size="sm" variant="ghost" onClick={duplicate} disabled={!!busy}>{busy === "duplicate" ? "Duplicating…" : "Duplicate"}</Button>
-          {flash && <Button size="sm" variant="secondary" onClick={() => setShowPreview(true)}>👁 {t.preview}</Button>}
-          <Button size="sm" variant="secondary" onClick={preview} disabled={!!busy}>{flash ? "Play" : "Preview"}</Button>
-          <Button size="sm" onClick={doPublish} disabled={!!busy}>
-            {busy === "publish" ? "Publishing…" : game.status === "PUBLISHED" ? "Update published" : "Publish"}
-          </Button>
-          <Button size="sm" variant="voice" onClick={assign} disabled={!!busy}>{busy === "assign" ? "Publishing…" : "Assign"}</Button>
-        </div>
-        <div className="w-full">
-          <SpanishCharBar french={game.language === "fr-FR"} />
-        </div>
-      </div>
-
-      <section className="mb-4 space-y-2">
-        <label htmlFor="game-title" className="block text-sm font-bold text-ink-2">{t.title}</label>
-        <input
-          id="game-title"
-          value={game.title}
-          onChange={(e) => set("title", e.target.value)}
-          maxLength={120}
-          placeholder={t.untitled}
-          className="w-full rounded-xl border border-line bg-card px-4 py-3 font-display text-xl font-semibold focus:border-sky focus:outline-none focus:ring-3 focus:ring-sky/20"
-        />
-        {showInstructions ? (
-          <div>
-            <SpanishField label={t.instructions} hint="spoken at the start" multiline value={game.instructions} language={game.language} onChange={(v) => set("instructions", v)} placeholder="Mira la imagen y responde." maxLength={1000} tags />
-            <button type="button" onClick={() => (set("instructions", ""), setShowInstructions(false))} className="mt-1 text-xs font-bold text-muted hover:text-coral-dark">{t.hideInstructions}</button>
-          </div>
-        ) : (
-          <button type="button" onClick={() => setShowInstructions(true)} className="text-sm font-bold text-ink-2 hover:text-coral">+ {t.addInstructions}</button>
-        )}
-      </section>
-
-      {showPreview && <FlashcardPreview items={game.items} twoSided={twoSided} rate={game.settings.rate} language={game.language} onClose={() => setShowPreview(false)} />}
-
-      {problems.length > 0 && (
-        <div role="alert" className="mb-6 rounded-xl2 bg-coral-soft p-4 text-sm text-coral-dark">
-          <p className="font-bold">Before publishing:</p>
-          <ul className="mt-1 list-disc pl-5">{problems.map((p) => <li key={p}>{p}</li>)}</ul>
-        </div>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-4">
-          {template.activityImage && (
-            <section className="rounded-xl2 border border-line bg-card p-5" aria-label="Picture to label">
-              <h2 className="font-display text-lg font-semibold">Picture to label</h2>
-              <p className="mb-3 text-sm text-muted">Upload one picture, then choose a {noun} below and click the picture to place it. Drag a number to move it.</p>
-              {game.diagramImageUrl ? (
-                <>
-                  <DiagramPoints
-                    imageUrl={game.diagramImageUrl}
-                    points={game.items.map((it) => ({ x: it.data.x, y: it.data.y, label: it.text }))}
-                    active={activePoint}
-                    onSelect={setActivePoint}
-                    onPlace={(i, x, y) => {
-                      setData(i, { x, y });
-                      const next = game.items.findIndex((it, k) => k > i && it.data.x == null);
-                      if (next !== -1) setActivePoint(next);
-                    }}
-                  />
-                  <button type="button" onClick={() => setGame((g) => ({ ...g, diagramImageUrl: null, settings: { ...g.settings, diagramImageId: null } }))} className="mt-2 text-xs font-bold text-muted hover:text-coral-dark">
-                    Change picture
-                  </button>
-                </>
-              ) : (
-                <div className="max-w-sm">
-                  <ImageField assetId={null} onChange={(a) => setGame((g) => ({ ...g, diagramImageUrl: a?.url ?? null, settings: { ...g.settings, diagramImageId: a?.id ?? null } }))} />
-                </div>
-              )}
-            </section>
-          )}
-
-          {ALPHABET_TEMPLATES.includes(template.key) && (
-            <div className="flex flex-wrap items-center gap-3 rounded-xl2 bg-teal-soft px-4 py-3 text-sm">
-              <span className="flex-1 text-teal-dark">
-                {template.key === "SPELL_THE_WORD"
-                  ? "Start from the alphabet: one word for each of the 27 letters (árbol, barco, casa…)."
-                  : "Start from the Spanish alphabet: 27 letters with their names. Any common name counts (“be larga”, “i griega”…)."}
-              </span>
-              <Button size="sm" variant="secondary" onClick={addAlphabet}>Add the Spanish alphabet</Button>
-            </div>
-          )}
-
-          {flash && (
-            <div className="flex flex-wrap items-center gap-3 rounded-xl2 border border-line bg-card px-4 py-3">
-              <div role="radiogroup" aria-label={template.name} className="flex gap-4 text-sm font-bold">
-                {(["two", "one"] as const).map((v) => (
-                  <label key={v} className="flex cursor-pointer items-center gap-1.5">
-                    <input type="radio" name="sides" checked={(options.sides ?? "two") === v} onChange={() => setOption("sides", v)} />
-                    {v === "two" ? t.twoSides : t.oneSide}
-                  </label>
-                ))}
-              </div>
-              {twoSided && (
-                <Button size="sm" variant="secondary" onClick={swapAll} className="ml-auto">⇄ {t.swap}</Button>
-              )}
-              {!twoSided && <p className="w-full text-xs text-muted">{t.backHiddenOne}</p>}
-            </div>
-          )}
-
-          {flash && twoSided && (
-            <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_13rem] gap-2 px-2 text-sm font-bold text-ink-2 md:grid">
-              <span />
-              <span>{t.front}</span>
-              <span>{t.back}</span>
-              <span />
-            </div>
-          )}
-
-          <ol className={flash ? "space-y-1" : "space-y-3"} aria-label={`${template.name}: ${game.items.length}`}>
-            {game.items.map((it, i) => {
-              const controls = (
-                <RowControls
-                  index={i}
-                  count={game.items.length}
-                  canDuplicate={!atMax}
-                  onMove={(d) => move(i, d)}
-                  onDuplicate={() => duplicateItem(i)}
-                  onDelete={() => remove(i)}
-                  onDragStart={() => setDragFrom(i)}
-                />
-              );
-              const rowKey = it.key ?? it.id ?? `new-${i}`;
-              const rowProps = {
-                onDragOver: (e: React.DragEvent) => dragFrom !== null && (e.preventDefault(), setDragOver(i)),
-                onDrop: (e: React.DragEvent) => {
-                  e.preventDefault();
-                  if (dragFrom !== null) reorder(dragFrom, i);
-                  setDragFrom(null);
-                  setDragOver(null);
-                },
-                onDragEnd: () => (setDragFrom(null), setDragOver(null)),
-              };
-              const dropMark = dragOver === i && dragFrom !== null && dragFrom !== i ? "ring-2 ring-sky" : "";
-
-              if (flash) {
-                const back = it.data.back ?? {};
-                return (
-                  <li key={rowKey} {...rowProps} className={`rounded-xl px-2 py-1.5 hover:bg-card ${dropMark} ${dragFrom === i ? "opacity-50" : ""}`} aria-label={`${t.card[0].toUpperCase()}${t.card.slice(1)} ${i + 1}`}>
-                    <div className={`grid items-center gap-2 ${twoSided ? "md:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_13rem]" : "md:grid-cols-[2.5rem_minmax(0,1fr)_13rem]"} grid-cols-[2.5rem_minmax(0,1fr)]`}>
-                      <span className="self-start pt-2.5 text-right font-display text-base font-semibold text-ink-2">{i + 1}.</span>
-                      <FaceEditor
-                        label={t.front}
-                        showLabel={twoSided}
-                        face={{ text: it.text, imageAssetId: it.imageAssetId, imageAlt: it.data.imageAlt, audio: it.data.audio }}
-                        language={game.language}
-                        tts={tts}
-                        rate={game.settings.rate}
-                        onChange={(f) => setItem(i, (x) => ({ ...x, text: f.text ?? "", imageAssetId: f.imageAssetId ?? null, imageUrl: mediaSrc(f.imageAssetId), data: { ...x.data, imageAlt: f.imageAlt, audio: f.audio ?? null } }))}
-                      />
-                      {twoSided && (
-                        <FaceEditor
-                          className="col-start-2 md:col-start-auto"
-                          label={t.back}
-                          showLabel
-                          face={back}
-                          language={it.data.translationLanguage ?? (game.language === "es-419" ? "en-US" : "es-419")}
-                          tts={tts}
-                          rate={game.settings.rate}
-                          onChange={(f) => setData(i, { back: f, translation: undefined })}
-                        />
-                      )}
-                      <div className="col-start-2 flex items-center gap-1 self-start md:col-start-auto md:justify-end md:pt-1.5">
-                        {twoSided && (
-                          <button type="button" onClick={() => setItem(i, swapItem)} className="rounded-full px-2 py-1 text-xs font-bold text-muted hover:bg-paper-2 hover:text-ink" aria-label={`${t.swapOne} ${i + 1}`} title={t.swapOne}>⇄</button>
-                        )}
-                        {controls}
-                      </div>
-                    </div>
-                    <details className="ml-12 mt-1 text-sm">
-                      <summary className="cursor-pointer text-xs font-bold text-muted hover:text-ink">
-                        {t.spokenAnswer}
-                        {it.question.expectedAnswer.trim() ? `: ${it.question.expectedAnswer}` : ""}
-                      </summary>
-                      <div className="mt-3">{questionFields(it, i)}</div>
-                    </details>
-                  </li>
-                );
-              }
-
-              return (
-                <li
-                  key={rowKey}
-                  {...rowProps}
-                  className={`rounded-xl2 border bg-card p-5 ${template.activityImage && i === activePoint ? "border-teal ring-2 ring-teal/20" : "border-line"} ${dropMark} ${dragFrom === i ? "opacity-50" : ""}`}
-                  aria-label={`${noun[0].toUpperCase()}${noun.slice(1)} ${i + 1}`}
-                  onFocusCapture={() => template.activityImage && setActivePoint(i)}
-                >
-                  <div className="mb-4 flex flex-wrap items-center gap-2">
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-ink font-display text-sm font-semibold text-white">{i + 1}</span>
-                    <span className="text-sm font-bold capitalize text-muted">{noun}</span>
-                    {fields.point && (
-                      <button type="button" onClick={() => setActivePoint(i)} className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${it.data.x == null ? "bg-coral-soft text-coral-dark" : "bg-leaf-soft text-leaf"}`}>
-                        {it.data.x == null ? (i === activePoint ? "Click the picture to place it" : "Not placed — choose") : i === activePoint ? "Placing… click the picture to move" : "Placed ✓"}
-                      </button>
-                    )}
-                    <div className="ml-auto">{controls}</div>
-                  </div>
-                  <div className={`grid gap-5 ${fields.image !== "none" ? "md:grid-cols-[220px_minmax(0,1fr)]" : ""}`}>
-                    <div className="space-y-3">
-                      {fields.image !== "none" && (
-                        <div>
-                          <Label>{t.addImage} {fields.image === "optional" && <span className="font-normal text-muted">(optional)</span>}</Label>
-                          <ImageField
-                            assetId={it.imageAssetId}
-                            alt={it.data.imageAlt}
-                            suggest={it.text || it.question.expectedAnswer}
-                            onChange={(a) => setItem(i, (x) => ({ ...x, imageAssetId: a?.id ?? null, imageUrl: a?.url ?? null }))}
-                            onAlt={(alt) => setData(i, { imageAlt: alt })}
-                          />
-                        </div>
-                      )}
-                      {template.board !== "diagram" && template.key !== "SPELL_YOUR_NAME" && (
-                      <div>
-                        <Label hint={template.key === "SPELL_THE_WORD" ? "plays as “Hear the word”" : undefined}>{t.itemAudio}</Label>
-                        <AudioField
-                          audio={it.data.audio}
-                          onChange={(a) => setData(i, { audio: a })}
-                          defaultText={template.key === "SPELL_THE_WORD" || template.key === "LISTEN_AND_SPEAK" ? it.question.expectedAnswer : it.text || it.question.expectedAnswer}
-                          defaultLanguage={it.question.answerLanguage ?? game.language}
-                          tts={tts}
-                          rate={game.settings.rate}
-                          label={`${noun} ${i + 1}`}
-                        />
-                      </div>
-                      )}
-                    </div>
-                    {questionFields(it, i)}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-
-          {lastDeleted && (
-            <div role="status" className="sticky bottom-3 z-10 mx-auto flex w-fit items-center gap-3 rounded-full bg-ink px-4 py-2 text-sm text-white shadow-soft">
-              {t.deleted}
-              <button type="button" onClick={undoDelete} className="font-bold text-sun underline">{t.undo}</button>
-            </div>
-          )}
-
-          <div className={`flex flex-wrap items-center gap-3 ${flash ? "pl-12" : ""}`}>
-            <button
-              type="button"
-              disabled={atMax}
-              onClick={() => setGame((g) => (g.items.length >= maxItems ? g : { ...g, items: [...g.items, blankItem(template)] }))}
-              className={`${flash ? "rounded-full px-4 py-2 hover:bg-coral-soft" : "flex-1 rounded-xl2 border-2 border-dashed border-line py-4 hover:border-coral"} font-bold text-ink-2 hover:text-coral disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:bg-transparent disabled:hover:text-ink-2`}
-            >
-              + {t.add} {flash ? t.card : noun}
-            </button>
-            <span className={`text-sm font-bold ${atMax ? "text-coral-dark" : "text-muted"}`} aria-live="polite">
-              {game.items.length} {t.of} {maxItems}
-              {atMax && <span className="block text-xs font-semibold">{t.limitReached}</span>}
-            </span>
-          </div>
-        </div>
-
-        <aside className="space-y-4">
+  const settingsSections = (
+    <>
           <section className="space-y-4 rounded-xl2 border border-line bg-card p-5">
             <h2 className="font-display text-lg font-semibold">Activity</h2>
             <SpanishField label="Description" multiline value={game.description} onChange={(v) => set("description", v)} maxLength={1000} />
@@ -810,7 +529,336 @@ function GameEditorInner({ initial, template, categories }: { initial: EditorGam
               </Select>
             </div>
           </section>
-        </aside>
+    </>
+  );
+
+  return (
+    <SpanishKeyboardProvider>
+      <form ref={dupForm} action={duplicateGame} className="hidden">
+        <input type="hidden" name="gameId" value={game.id} />
+      </form>
+
+      {restore && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl2 bg-sun-soft px-4 py-3 text-sm">
+          <span className="flex-1">This device has unsaved changes to this activity from an earlier session.</span>
+          <Button size="sm" variant="secondary" onClick={() => (setGame(restore), setRestore(null))}>Restore them</Button>
+          <Button size="sm" variant="ghost" onClick={() => { try { localStorage.removeItem(backupKey); } catch {} setRestore(null); }}>Discard</Button>
+        </div>
+      )}
+
+      <div className="sticky top-0 z-20 -mx-5 mb-4 flex flex-wrap items-center gap-3 border-b border-line bg-paper/95 px-5 py-3 backdrop-blur">
+        <Link href="/teacher/games" className="text-sm font-bold text-muted hover:text-ink">← Activities</Link>
+        <Badge tone="sky">{template.name}</Badge>
+        <Badge tone={game.status === "PUBLISHED" ? "leaf" : "neutral"}>{game.status === "PUBLISHED" ? "Published" : game.status === "ARCHIVED" ? "Archived" : "Draft"}</Badge>
+        <span
+          data-testid="save-status"
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${save === "error" ? "bg-coral-soft text-coral-dark" : save === "saved" ? "bg-leaf-soft text-leaf" : "bg-paper-2 text-ink-2"}`}
+          aria-live="polite"
+          title={save === "error" ? saveError : savedAt ? savedAt.toLocaleTimeString() : undefined}
+        >
+          {save === "saved" ? `✓ ${t.saved}` : save === "saving" ? t.saving : save === "dirty" ? t.unsaved : `⚠ ${t.saveError}`}
+          {save === "error" && (
+            <button type="button" onClick={saveDraft} className="underline">{t.retry}</button>
+          )}
+        </span>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div className="flex rounded-full bg-paper-2 p-0.5 text-xs font-bold" role="group" aria-label="Language / Idioma">
+            {(["es", "en"] as const).map((l) => (
+              <button key={l} type="button" onClick={() => setUiLang(l)} aria-pressed={uiLang === l} className={`rounded-full px-2 py-1 ${uiLang === l ? "bg-card text-ink shadow-sm" : "text-muted"}`}>{l.toUpperCase()}</button>
+            ))}
+          </div>
+          {flash && (
+            <Button size="sm" variant="secondary" onClick={() => setShowSettings((v) => !v)} aria-expanded={showSettings} aria-controls="editor-settings">
+              ⚙ {t.settings}
+            </Button>
+          )}
+          {flash && library?.picker}
+          <Button size="sm" variant="ghost" onClick={duplicate} disabled={!!busy}>{busy === "duplicate" ? "Duplicating…" : "Duplicate"}</Button>
+          {flash && <Button size="sm" variant="secondary" onClick={() => setShowPreview(true)}>👁 {t.preview}</Button>}
+          <Button size="sm" variant="secondary" onClick={preview} disabled={!!busy}>{flash ? "Play" : "Preview"}</Button>
+          <Button size="sm" onClick={doPublish} disabled={!!busy}>
+            {busy === "publish" ? "Publishing…" : game.status === "PUBLISHED" ? "Update published" : "Publish"}
+          </Button>
+          <Button size="sm" variant="voice" onClick={assign} disabled={!!busy}>{busy === "assign" ? "Publishing…" : "Assign"}</Button>
+        </div>
+        <div className="w-full">
+          <SpanishCharBar french={game.language === "fr-FR"} />
+        </div>
+      </div>
+
+      <section className="mb-4 space-y-2">
+        <label htmlFor="game-title" className="block text-sm font-bold text-ink-2">{t.title}</label>
+        <input
+          id="game-title"
+          value={game.title}
+          onChange={(e) => set("title", e.target.value)}
+          maxLength={120}
+          placeholder={t.untitled}
+          className="w-full rounded-xl border border-line bg-card px-4 py-3 font-display text-xl font-semibold focus:border-sky focus:outline-none focus:ring-3 focus:ring-sky/20"
+        />
+        {showInstructions ? (
+          <div>
+            <SpanishField label={t.instructions} hint="spoken at the start" multiline value={game.instructions} language={game.language} onChange={(v) => set("instructions", v)} placeholder="Mira la imagen y responde." maxLength={1000} tags />
+            <button type="button" onClick={() => (set("instructions", ""), setShowInstructions(false))} className="mt-1 text-xs font-bold text-muted hover:text-coral-dark">{t.hideInstructions}</button>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setShowInstructions(true)} className="text-sm font-bold text-ink-2 hover:text-coral">+ {t.addInstructions}</button>
+        )}
+      </section>
+
+      {showPreview && <FlashcardPreview items={game.items} twoSided={twoSided} rate={game.settings.rate} language={game.language} onClose={() => setShowPreview(false)} />}
+
+      {problems.length > 0 && (
+        <div role="alert" className="mb-6 rounded-xl2 bg-coral-soft p-4 text-sm text-coral-dark">
+          <p className="font-bold">Before publishing:</p>
+          <ul className="mt-1 list-disc pl-5">{problems.map((p) => <li key={p}>{p}</li>)}</ul>
+        </div>
+      )}
+
+      {flash && showSettings && (
+        <div id="editor-settings" role="region" aria-label={t.settings} className="mb-5 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {settingsSections}
+        </div>
+      )}
+
+      <div className={flash ? "" : "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]"}>
+        <div className="space-y-4">
+          {template.activityImage && (
+            <section className="rounded-xl2 border border-line bg-card p-5" aria-label="Picture to label">
+              <h2 className="font-display text-lg font-semibold">Picture to label</h2>
+              <p className="mb-3 text-sm text-muted">Upload one picture, then choose a {noun} below and click the picture to place it. Drag a number to move it.</p>
+              {game.diagramImageUrl ? (
+                <>
+                  <DiagramPoints
+                    imageUrl={game.diagramImageUrl}
+                    points={game.items.map((it) => ({ x: it.data.x, y: it.data.y, label: it.text }))}
+                    active={activePoint}
+                    onSelect={setActivePoint}
+                    onPlace={(i, x, y) => {
+                      setData(i, { x, y });
+                      const next = game.items.findIndex((it, k) => k > i && it.data.x == null);
+                      if (next !== -1) setActivePoint(next);
+                    }}
+                  />
+                  <button type="button" onClick={() => setGame((g) => ({ ...g, diagramImageUrl: null, settings: { ...g.settings, diagramImageId: null } }))} className="mt-2 text-xs font-bold text-muted hover:text-coral-dark">
+                    Change picture
+                  </button>
+                </>
+              ) : (
+                <div className="max-w-sm">
+                  <ImageField assetId={null} onChange={(a) => setGame((g) => ({ ...g, diagramImageUrl: a?.url ?? null, settings: { ...g.settings, diagramImageId: a?.id ?? null } }))} />
+                </div>
+              )}
+            </section>
+          )}
+
+          {ALPHABET_TEMPLATES.includes(template.key) && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl2 bg-teal-soft px-4 py-3 text-sm">
+              <span className="flex-1 text-teal-dark">
+                {template.key === "SPELL_THE_WORD"
+                  ? "Start from the alphabet: one word for each of the 27 letters (árbol, barco, casa…)."
+                  : "Start from the Spanish alphabet: 27 letters with their names. Any common name counts (“be larga”, “i griega”…)."}
+              </span>
+              <Button size="sm" variant="secondary" onClick={addAlphabet}>Add the Spanish alphabet</Button>
+            </div>
+          )}
+
+          {flash && (
+            <div className="flex flex-wrap items-center gap-3 px-2">
+              <div role="radiogroup" aria-label={template.name} className="flex gap-4 text-sm font-bold">
+                {(["two", "one"] as const).map((v) => (
+                  <label key={v} className="flex cursor-pointer items-center gap-1.5">
+                    <input type="radio" name="sides" checked={(options.sides ?? "two") === v} onChange={() => setOption("sides", v)} />
+                    {v === "two" ? t.twoSides : t.oneSide}
+                  </label>
+                ))}
+              </div>
+              {twoSided && (
+                <Button size="sm" variant="secondary" onClick={swapAll} className="ml-auto">⇄ {t.swap}</Button>
+              )}
+              {!twoSided && <p className="w-full text-xs text-muted">{t.backHiddenOne}</p>}
+            </div>
+          )}
+
+          {flash && twoSided && (
+            <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_13rem] gap-2 px-2 text-sm font-bold text-ink-2 md:grid">
+              <span />
+              <span>{t.front}</span>
+              <span>{t.back}</span>
+              <span />
+            </div>
+          )}
+
+          <ol className={flash ? "space-y-1" : "space-y-3"} aria-label={`${template.name}: ${game.items.length}`}>
+            {game.items.map((it, i) => {
+              const controls = (
+                <RowControls
+                  index={i}
+                  count={game.items.length}
+                  canDuplicate={!atMax}
+                  onMove={(d) => move(i, d)}
+                  onDuplicate={() => duplicateItem(i)}
+                  onDelete={() => remove(i)}
+                  onDragStart={() => setDragFrom(i)}
+                />
+              );
+              const rowKey = it.key ?? it.id ?? `new-${i}`;
+              const rowProps = {
+                onDragOver: (e: React.DragEvent) => dragFrom !== null && (e.preventDefault(), setDragOver(i)),
+                onDrop: (e: React.DragEvent) => {
+                  e.preventDefault();
+                  if (dragFrom !== null) reorder(dragFrom, i);
+                  setDragFrom(null);
+                  setDragOver(null);
+                },
+                onDragEnd: () => (setDragFrom(null), setDragOver(null)),
+              };
+              const dropMark = dragOver === i && dragFrom !== null && dragFrom !== i ? "ring-2 ring-sky" : "";
+
+              if (flash) {
+                const back = it.data.back ?? {};
+                return (
+                  <li key={rowKey} {...rowProps} className={`rounded-xl px-2 py-1 hover:bg-card ${dropMark} ${dragFrom === i ? "opacity-50" : ""}`} aria-label={`${t.card[0].toUpperCase()}${t.card.slice(1)} ${i + 1}`}>
+                    <div className={`grid items-center gap-2 ${twoSided ? "md:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_13rem]" : "md:grid-cols-[2.5rem_minmax(0,1fr)_13rem]"} grid-cols-[2.5rem_minmax(0,1fr)]`}>
+                      <span className="self-start pt-2.5 text-right font-display text-base font-semibold text-ink-2">{i + 1}.</span>
+                      <FaceEditor
+                        label={t.front}
+                        showLabel={twoSided}
+                        face={{ text: it.text, imageAssetId: it.imageAssetId, imageAlt: it.data.imageAlt, audio: it.data.audio }}
+                        language={game.language}
+                        tts={tts}
+                        rate={game.settings.rate}
+                        onChange={(f) => setItem(i, (x) => ({ ...x, text: f.text ?? "", imageAssetId: f.imageAssetId ?? null, imageUrl: mediaSrc(f.imageAssetId), data: { ...x.data, imageAlt: f.imageAlt, audio: f.audio ?? null } }))}
+                      />
+                      {twoSided && (
+                        <FaceEditor
+                          className="col-start-2 md:col-start-auto"
+                          label={t.back}
+                          showLabel
+                          face={back}
+                          language={it.data.translationLanguage ?? (game.language === "es-419" ? "en-US" : "es-419")}
+                          tts={tts}
+                          rate={game.settings.rate}
+                          onChange={(f) => setData(i, { back: f, translation: undefined })}
+                        />
+                      )}
+                      <div className="col-start-2 flex items-center gap-1 self-start md:col-start-auto md:justify-end md:pt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSpokenOpen((o) => { const n = new Set(o); if (n.has(rowKey)) n.delete(rowKey); else n.add(rowKey); return n; })}
+                          aria-expanded={spokenOpen.has(rowKey)}
+                          aria-label={`${t.spokenAnswer} (${i + 1})`}
+                          title={it.question.expectedAnswer.trim() ? `${t.spokenAnswer}: ${it.question.expectedAnswer}` : t.spokenAnswer}
+                          className={`grid h-8 w-8 place-items-center rounded-full text-sm hover:bg-paper-2 ${it.question.expectedAnswer.trim() ? "bg-teal-soft text-teal-dark" : "text-muted"}`}
+                        >
+                          🎤
+                        </button>
+                        {twoSided && (
+                          <button type="button" onClick={() => setItem(i, swapItem)} className="rounded-full px-2 py-1 text-xs font-bold text-muted hover:bg-paper-2 hover:text-ink" aria-label={`${t.swapOne} ${i + 1}`} title={t.swapOne}>⇄</button>
+                        )}
+                        {controls}
+                      </div>
+                    </div>
+                    {spokenOpen.has(rowKey) && (
+                      <div className="mb-2 ml-12 mt-2 rounded-xl border border-line bg-card p-4 text-sm" role="region" aria-label={`${t.spokenAnswer} (${i + 1})`}>
+                        <p className="mb-3 text-xs text-muted">{t.spokenHelp}</p>
+                        {questionFields(it, i)}
+                      </div>
+                    )}
+                  </li>
+                );
+              }
+
+              return (
+                <li
+                  key={rowKey}
+                  {...rowProps}
+                  className={`rounded-xl2 border bg-card p-5 ${template.activityImage && i === activePoint ? "border-teal ring-2 ring-teal/20" : "border-line"} ${dropMark} ${dragFrom === i ? "opacity-50" : ""}`}
+                  aria-label={`${noun[0].toUpperCase()}${noun.slice(1)} ${i + 1}`}
+                  onFocusCapture={() => template.activityImage && setActivePoint(i)}
+                >
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-ink font-display text-sm font-semibold text-white">{i + 1}</span>
+                    <span className="text-sm font-bold capitalize text-muted">{noun}</span>
+                    {fields.point && (
+                      <button type="button" onClick={() => setActivePoint(i)} className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${it.data.x == null ? "bg-coral-soft text-coral-dark" : "bg-leaf-soft text-leaf"}`}>
+                        {it.data.x == null ? (i === activePoint ? "Click the picture to place it" : "Not placed — choose") : i === activePoint ? "Placing… click the picture to move" : "Placed ✓"}
+                      </button>
+                    )}
+                    <div className="ml-auto">{controls}</div>
+                  </div>
+                  <div className={`grid gap-5 ${fields.image !== "none" ? "md:grid-cols-[220px_minmax(0,1fr)]" : ""}`}>
+                    <div className="space-y-3">
+                      {fields.image !== "none" && (
+                        <div>
+                          <Label>{t.addImage} {fields.image === "optional" && <span className="font-normal text-muted">(optional)</span>}</Label>
+                          <ImageField
+                            assetId={it.imageAssetId}
+                            alt={it.data.imageAlt}
+                            suggest={it.text || it.question.expectedAnswer}
+                            onChange={(a) => setItem(i, (x) => ({ ...x, imageAssetId: a?.id ?? null, imageUrl: a?.url ?? null }))}
+                            onAlt={(alt) => setData(i, { imageAlt: alt })}
+                          />
+                        </div>
+                      )}
+                      {template.board !== "diagram" && template.key !== "SPELL_YOUR_NAME" && (
+                      <div>
+                        <Label hint={template.key === "SPELL_THE_WORD" ? "plays as “Hear the word”" : undefined}>{t.itemAudio}</Label>
+                        <AudioField
+                          audio={it.data.audio}
+                          onChange={(a) => setData(i, { audio: a })}
+                          defaultText={template.key === "SPELL_THE_WORD" || template.key === "LISTEN_AND_SPEAK" ? it.question.expectedAnswer : it.text || it.question.expectedAnswer}
+                          defaultLanguage={it.question.answerLanguage ?? game.language}
+                          tts={tts}
+                          rate={game.settings.rate}
+                          label={`${noun} ${i + 1}`}
+                        />
+                      </div>
+                      )}
+                    </div>
+                    {questionFields(it, i)}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+
+          {lastDeleted && (
+            <div role="status" className="sticky bottom-3 z-10 mx-auto flex w-fit items-center gap-3 rounded-full bg-ink px-4 py-2 text-sm text-white shadow-soft">
+              {t.deleted}
+              <button type="button" onClick={undoDelete} className="font-bold text-sun underline">{t.undo}</button>
+            </div>
+          )}
+
+          <div className={`flex flex-wrap items-center gap-3 ${flash ? "pl-12" : ""}`}>
+            <button
+              type="button"
+              disabled={atMax}
+              onClick={() => setGame((g) => (g.items.length >= maxItems ? g : { ...g, items: [...g.items, blankItem(template)] }))}
+              className={`${flash ? "rounded-full px-4 py-2 hover:bg-coral-soft" : "flex-1 rounded-xl2 border-2 border-dashed border-line py-4 hover:border-coral"} font-bold text-ink-2 hover:text-coral disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:bg-transparent disabled:hover:text-ink-2`}
+            >
+              + {flash ? t.addItem : `${t.add} ${noun}`}
+            </button>
+            <span className={`text-sm font-bold ${atMax ? "text-coral-dark" : "text-muted"}`} aria-live="polite">
+              {game.items.length} {t.of} {maxItems}
+              {flash && !atMax && <span className="block text-[11px] font-semibold">{t.minMax} {maxItems}</span>}
+              {atMax && <span className="block text-xs font-semibold">{t.limitReached}</span>}
+            </span>
+          </div>
+
+          {flash && library?.list}
+
+          {flash && (
+            <div className="sticky bottom-0 z-20 -mx-5 mt-6 flex items-center justify-end gap-3 border-t border-line bg-paper/95 px-5 py-3 backdrop-blur">
+              <span className="mr-auto text-xs text-muted">{game.items.length} {t.of} {maxItems}</span>
+              <Button onClick={finishEditing} disabled={!!busy} className="min-w-36" data-testid="editor-done">
+                {busy === "done" ? t.saving : t.done}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {!flash && <aside className="space-y-4">{settingsSections}</aside>}
       </div>
     </SpanishKeyboardProvider>
   );

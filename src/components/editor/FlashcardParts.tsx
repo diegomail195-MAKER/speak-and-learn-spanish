@@ -46,6 +46,10 @@ export function FaceEditor({
   className?: string;
 }) {
   const { t } = useUi();
+  const [altOpen, setAltOpen] = useState(false);
+  const altRef = useRef<HTMLInputElement>(null);
+  // Alt text stays open while it is empty (that's when it's needed), then folds into a chip.
+  const showAlt = !!face.imageAssetId && (!face.imageAlt?.trim() || altOpen);
   return (
     <div className={`min-w-0 ${className}`}>
       {showLabel && <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted md:hidden">{label}</span>}
@@ -74,11 +78,24 @@ export function FaceEditor({
         {!face.imageAssetId && (
           <ImageField compact inline label={label} assetId={null} suggest={face.text} onChange={(a) => onChange({ ...face, imageAssetId: a?.id ?? null })} />
         )}
+        {face.imageAssetId && !showAlt && (
+          <button
+            type="button"
+            onClick={() => (setAltOpen(true), setTimeout(() => altRef.current?.focus(), 0))}
+            className="shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-leaf hover:bg-leaf-soft"
+            title={`${t.altText}: ${face.imageAlt}`}
+            aria-label={`${t.edit} ${t.altText.toLowerCase()} (${label})`}
+          >
+            Alt ✓
+          </button>
+        )}
       </div>
-      {face.imageAssetId && (
+      {showAlt && (
         <input
           value={face.imageAlt ?? ""}
+          ref={altRef}
           onChange={(e) => onChange({ ...face, imageAlt: e.target.value })}
+          onBlur={() => setAltOpen(false)}
           maxLength={200}
           placeholder={`${t.altText} — ${t.altHint}`}
           title={t.altHint}

@@ -7,20 +7,26 @@ import { pickableLibrary } from "@/lib/library/service";
 import type { Kind } from "@/lib/library/types";
 import { LibraryPicker } from "./LibraryPicker";
 
-/** Administrator panel under the activity editor: library resources used by this activity. */
-export async function GameLibraryPanel({ gameId }: { gameId: string }) {
+/**
+ * Administrator panel under the activity editor: library resources used by this activity.
+ * `part`: "picker" is only the Add from Library button (the compact flashcards editor puts it in
+ * its toolbar); "list" is the list without the button; "all" is both.
+ */
+export async function GameLibraryPanel({ gameId, part = "all" }: { gameId: string; part?: "all" | "picker" | "list" }) {
   const [rows, library] = await Promise.all([
     db.gameResource.findMany({ where: { gameId }, orderBy: { position: "asc" }, include: { resource: { select: { id: true, title: true, kind: true, status: true } } } }),
-    pickableLibrary(),
+    part === "list" ? Promise.resolve([]) : pickableLibrary(),
   ]);
+  const picker = <LibraryPicker items={library} excludeIds={rows.map((r) => r.resourceId)} onAdd={addResourcesToGame.bind(null, gameId)} />;
+  if (part === "picker") return picker;
   return (
-    <Panel className="mx-auto mt-8 max-w-5xl">
+    <Panel className={part === "list" ? "mt-6" : "mx-auto mt-8 max-w-5xl"}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-xl font-extrabold">Library resources</h2>
           <p className="text-sm text-muted">Students see these with the activity. Removing one here keeps it in the Library and in its topics.</p>
         </div>
-        <LibraryPicker items={library} excludeIds={rows.map((r) => r.resourceId)} onAdd={addResourcesToGame.bind(null, gameId)} />
+        {part === "all" && picker}
       </div>
       <ul className="divide-y divide-line" data-testid="activity-resources">
         {rows.map(({ resource: r }) => (

@@ -116,12 +116,14 @@ try {
   assert(await row1.getByRole("button", { name: "Escuchar (Frente)" }).textContent().then((t) => /red.*EN/.test(t)), "front audio after reload");
   assert(await row1.getByRole("button", { name: "Escuchar (Reverso)" }).textContent().then((t) => /rojo.*ES/.test(t)), "back audio after reload");
   assert((await row1.locator("img").count()) === 2, "both pictures after reload");
+  await row1.getByRole("button", { name: "Editar texto alternativo (Frente)" }).click(); // filled alt text folds into a chip
   assert((await row1.getByRole("textbox", { name: "Texto alternativo (Frente)" }).inputValue()) === "Círculo rojo", "alt text after reload");
   log("reopened: pictures, alt text and audio kept");
 
   // Swap front and back: audio moves with its face
-  await page.getByRole("button", { name: /Intercambiar frente y reverso/ }).click();
+  await page.getByRole("button", { name: /Intercambiar columnas/ }).click();
   assert(/rojo.*ES/.test(await row1.getByRole("button", { name: "Escuchar (Frente)" }).textContent()), "front is rojo after swap");
+  await row1.getByRole("button", { name: "Editar texto alternativo (Frente)" }).click();
   assert((await row1.getByRole("textbox", { name: "Texto alternativo (Frente)" }).inputValue()) === "Círculo rojo (reverso)", "alt text moved with the swap");
   await waitSaved();
   log("swapped: front now says rojo");
@@ -144,10 +146,10 @@ try {
   await play.goto(`${BASE}/play/preview/${gameId}`);
   await play.getByRole("button", { name: /Start|Empezar|Comenzar/ }).first().click();
   await play.getByText("Card 1 of 1").waitFor();
-  await play.getByRole("button", { name: "🔊 Listen" }).click();
-  await play.getByRole("button", { name: "↻ Flip" }).click();
+  await play.getByRole("button", { name: "Listen", exact: true }).click();
+  await play.getByTestId("turn-card").click();
   await play.waitForTimeout(600);
-  await play.getByRole("button", { name: "🔊 Listen" }).click();
+  await play.getByRole("button", { name: "Listen", exact: true }).click();
   await play.waitForTimeout(300);
   const playHeard = await play.evaluate(() => window.__spoken.map((s) => `${s.text}/${s.lang.slice(0, 2)}`));
   assert(playHeard.includes("rojo/es") && playHeard.includes("red/en") && playHeard.indexOf("rojo/es") < playHeard.indexOf("red/en"), `player spoke ${playHeard}`);

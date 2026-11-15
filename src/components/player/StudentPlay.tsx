@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, type ReactNode } from "react";
 import type { PlayGame, PlayQuestion } from "@/lib/games/types";
 import { GamePlayer } from "./GamePlayer";
 import type { TurnResult } from "./useVoiceSession";
@@ -18,7 +18,7 @@ async function postJson(url: string, body: unknown, retries = 2): Promise<Respon
   }
 }
 
-export function StudentPlay({ game, assignmentId, videoId, done, exitHref }: { game: PlayGame; assignmentId: string; videoId: string | null; done: Record<string, "NONE" | "HINT" | "MODEL" | null>; exitHref: string }) {
+export function StudentPlay({ game, assignmentId, videoId, done, exitHref, below }: { game: PlayGame; assignmentId: string; videoId: string | null; done: Record<string, "NONE" | "HINT" | "MODEL" | null>; exitHref: string; below?: ReactNode }) {
   const attemptId = useRef<string | null>(null);
 
   const ensureAttempt = useCallback(async () => {
@@ -48,5 +48,5 @@ export function StudentPlay({ game, assignmentId, videoId, done, exitHref }: { g
     [ensureAttempt],
   );
 
-  return <GamePlayer game={game} mode="student" done={done} submitTurn={submitTurn} onFinish={onFinish} exitHref={exitHref} />;
+  return <GamePlayer game={game} mode="student" done={done} submitTurn={submitTurn} onFinish={onFinish} exitHref={exitHref} below={below} />;
 }

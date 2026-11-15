@@ -76,6 +76,8 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
   const [showHint, setShowHint] = useState(false);
   const [supportLevel, setSupportLevel] = useState<Support>("NONE");
   const [usesMic, setUsesMic] = useState(false);
+  const [muted, setMutedState] = useState(false);
+  const mutedRef = useRef(false);
 
   const mic = useRef<MicSession | null>(null);
   const speaker = useRef<Speaker | null>(null);
@@ -116,6 +118,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
   const say = useCallback(
     async (text: string, url?: string | null, language: AppLanguage = lang) => {
       mic.current?.hold(); // never listen while the app is talking
+      if (mutedRef.current) return; // sound off: nothing is played (answers still work)
       await speaker.current?.say(text, language, url, game.settings.rate);
       await new Promise((r) => setTimeout(r, 180)); // let room echo die down
     },
@@ -487,6 +490,13 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
     resumeWaiter.current = null;
   }, []);
 
+  /** Sound on/off for the whole activity (the speaker button in the corner). */
+  const setMuted = useCallback((m: boolean) => {
+    mutedRef.current = m;
+    setMutedState(m);
+    if (m) speaker.current?.stop();
+  }, []);
+
   const stopMic = useCallback(() => {
     stopAll();
     mic.current?.stop();
@@ -511,6 +521,8 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
     supportLevel,
     raiseSupport,
     usesMic,
+    muted,
+    setMuted,
     engineName: engine.current?.name ?? "—",
     start,
     say,

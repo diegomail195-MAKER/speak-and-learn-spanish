@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { PlayGame } from "@/lib/games/types";
 import { BoxesBoard } from "./boards/BoxesBoard";
 import { DiagramBoard } from "./boards/DiagramBoard";
-import { FlashcardsBoard } from "./boards/FlashcardsBoard";
+import { FlashcardsGame } from "./flashcards/FlashcardsGame";
 import { MatchBoard } from "./boards/MatchBoard";
 import { SequenceBoard } from "./boards/SequenceBoard";
 import { SpellBoard } from "./boards/SpellBoard";
@@ -24,6 +24,8 @@ export interface PlayerProps {
   exitHref: string;
   /** Questions already finished in an unfinished attempt. */
   done?: Record<string, "NONE" | "HINT" | "MODEL" | null>;
+  /** Flashcards: the strip under the game (title and actions). */
+  below?: ReactNode;
 }
 
 /** Activities answered only by typing or dragging don't open the microphone. */
@@ -35,14 +37,21 @@ export function needsMic(game: PlayGame) {
   return true;
 }
 
-export function GamePlayer({ game, mode, diagnostics = false, submitTurn, onFinish, exitHref, done }: PlayerProps) {
+export function GamePlayer(props: PlayerProps) {
+  // Flashcards have their own stage (start screen, one large card, results).
+  if (props.game.board === "flashcards") return <FlashcardsGame {...props} withMic={needsMic(props.game)} />;
+  return <VoiceGamePlayer {...props} />;
+}
+
+function VoiceGamePlayer({ game, mode, diagnostics = false, submitTurn, onFinish, exitHref, done }: PlayerProps) {
   const s = useVoiceSession(game, { mode, submitTurn, onFinish, done });
   const [run, setRun] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const withMic = needsMic(game);
   const started = run > 0 && s.phase !== "start";
 
-  const Board = { sequence: SequenceBoard, flashcards: FlashcardsBoard, spell: SpellBoard, wheel: WheelBoard, diagram: DiagramBoard, boxes: BoxesBoard, match: MatchBoard }[game.board] ?? SequenceBoard;
+  const boards: Partial<Record<PlayGame["board"], typeof SequenceBoard>> = { sequence: SequenceBoard, spell: SpellBoard, wheel: WheelBoard, diagram: DiagramBoard, boxes: BoxesBoard, match: MatchBoard };
+  const Board = boards[game.board] ?? SequenceBoard;
 
   return (
     <PlayerFrame s={s} exitHref={exitHref} rootRef={rootRef} diagnostics={diagnostics}>
