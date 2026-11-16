@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/teacher", label: "Dashboard", exact: true },
   { href: "/teacher/classes", label: "My Classes" },
   { href: "/teacher/library", label: "Library" },
+  { href: "/teacher/my-activities", label: "My Activities" },
   { href: "/teacher/tasks/assign", label: "Assign Task" },
   { href: "/teacher/games", label: "Voice Activities" },
   { href: "/teacher/videos", label: "Videos" },

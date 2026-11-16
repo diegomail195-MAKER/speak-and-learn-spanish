@@ -13,6 +13,6 @@ export const GET = handle(async (_req: Request, ctx: Ctx) => {
 export const PUT = handle(async (req: Request, ctx: Ctx) => {
   const { user } = await requireTeacher();
   const { id } = await ctx.params;
-  await saveEditorGame(user.schoolId, id, saveSchema.parse(await req.json()));
-  return NextResponse.json({ ok: true });
+  const { updatedAt } = await saveEditorGame(user.schoolId, id, saveSchema.parse(await req.json()));
+  return NextResponse.json({ ok: true, updatedAt });
 });

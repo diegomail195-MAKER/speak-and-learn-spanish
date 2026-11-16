@@ -91,6 +91,9 @@ const faceAudio = z.object({
   name: z.string().max(200).optional(),
 });
 export const saveSchema = z.object({
+  // The version (Game.updatedAt) the editor started from. A save based on an older version is
+  // refused, so a stale tab or a cached page can never overwrite newer work.
+  baseUpdatedAt: z.string().datetime().optional(),
   title: z.string().trim().max(120),
   description: z.string().max(1000),
   categoryId: z.string().nullable(),
@@ -153,7 +156,10 @@ export const saveSchema = z.object({
     .max(100),
 });
 
-export async function saveEditorGame(schoolId: string, id: string, input: z.infer<typeof saveSchema>) {
+/** Error text the editor recognises: the activity changed after the editor loaded it. */
+export const STALE_SAVE = "stale_version";
+
+export async function saveEditorGame(schoolId: string, id: string, input: z.infer<typeof saveSchema>): Promise<{ updatedAt: string }> {
   const game = await db.game.findFirst({ where: { id, schoolId }, include: { items: { include: { questions: { include: { _count: { select: { responses: true } } } } } } } });
   if (!game) throw new HttpError(404, "Game not found");
 
@@ -183,7 +189,12 @@ export async function saveEditorGame(schoolId: string, id: string, input: z.infe
   }
 
   const prevSettings = readSettings(game.settings);
-  await db.$transaction(async (tx) => {
+  return db.$transaction(async (tx) => {
+    if (input.baseUpdatedAt) {
+      // Claim the row only if nobody saved since the editor's version (atomic compare-and-set).
+      const claimed = await tx.game.updateMany({ where: { id, updatedAt: new Date(input.baseUpdatedAt) }, data: { updatedAt: new Date() } });
+      if (claimed.count === 0) throw new HttpError(409, STALE_SAVE);
+    }
     await tx.gameItem.deleteMany({ where: { id: { in: removed.map((r) => r.id) } } });
     for (const [position, it] of input.items.entries()) {
       const q = it.question;
@@ -223,8 +234,9 @@ export async function saveEditorGame(schoolId: string, id: string, input: z.infe
         });
       }
     }
-    await tx.game.update({
+    const saved = await tx.game.update({
       where: { id },
+      select: { updatedAt: true },
       data: {
         title: input.title,
         description: input.description,
@@ -239,6 +251,7 @@ export async function saveEditorGame(schoolId: string, id: string, input: z.infe
         settings: { ...prevSettings, ...input.settings } as unknown as Prisma.InputJsonValue,
       },
     });
+    return { updatedAt: saved.updatedAt.toISOString() };
   });
 }
 

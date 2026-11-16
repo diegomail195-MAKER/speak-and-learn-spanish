@@ -35,6 +35,36 @@ function prepareItems(items: EditorItem[], t: TemplateDef): EditorItem[] {
   });
 }
 
+/** The editor's starting state for a game loaded from the server. */
+function editorState(g: EditorGame, t: TemplateDef): EditorGame {
+  return g.items.length ? { ...g, items: prepareItems(g.items, t) } : { ...g, items: Array.from({ length: t.minItems ?? 1 }, () => blankItem(t)) };
+}
+
+const stable = (v: unknown): unknown =>
+  Array.isArray(v) ? v.map(stable) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined && x !== null).sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, stable(x)])) : v;
+
+/** The content a save writes (no ids, keys, URLs or status), to tell real edits from a publish. */
+function contentSnapshot(g: EditorGame): string {
+  return JSON.stringify(
+    stable({
+      title: g.title.trim(),
+      description: g.description,
+      topic: g.topic,
+      instructions: g.instructions,
+      items: g.items.map((it) => ({
+        text: it.text,
+        imageAssetId: it.imageAssetId,
+        data: it.data,
+        prompt: it.question.prompt,
+        expectedAnswer: it.question.expectedAnswer,
+        accepted: it.question.accepted.filter((a) => a.trim()),
+        hint: it.question.hint,
+        supportText: it.question.supportText,
+      })),
+    }),
+  );
+}
+
 function blankItem(t: TemplateDef): EditorItem {
   const name = t.key === "SPELL_YOUR_NAME";
   return {
@@ -95,9 +125,7 @@ export function GameEditor(props: { initial: EditorGame; template: TemplateDef; 
 function GameEditorInner({ initial, template, categories, library }: { initial: EditorGame; template: TemplateDef; categories: Category[]; library?: LibrarySlots }) {
   const router = useRouter();
   const { t, lang: uiLang, setLang: setUiLang } = useUi();
-  const [game, setGame] = useState<EditorGame>(() =>
-    initial.items.length ? { ...initial, items: prepareItems(initial.items, template) } : { ...initial, items: Array.from({ length: template.minItems ?? 1 }, () => blankItem(template)) },
-  );
+  const [game, setGame] = useState<EditorGame>(() => editorState(initial, template));
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [lastDeleted, setLastDeleted] = useState<{ item: EditorItem; index: number } | null>(null);
@@ -116,6 +144,45 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
   const first = useRef(true);
   const dupForm = useRef<HTMLFormElement>(null);
   const backupKey = `sls-editor-${initial.id}`;
+  // Version on the server this screen is based on, and the content it last saved or loaded.
+  // Saves send the version; the server refuses them if someone saved in between.
+  const baseRef = useRef(initial.updatedAt);
+  const savedSnap = useRef(contentSnapshot(initial));
+  const chain = useRef<Promise<unknown>>(Promise.resolve());
+  const edited = useRef(false);
+  const [conflict, setConflict] = useState<EditorGame | null>(null);
+  const live = useRef({ game, save, conflict });
+  useEffect(() => {
+    live.current = { game, save, conflict };
+  });
+
+  /** Replaces the screen with a version loaded from the server (not an edit, so no autosave). */
+  const adopt = useCallback(
+    (server: EditorGame) => {
+      first.current = true;
+      baseRef.current = server.updatedAt;
+      savedSnap.current = contentSnapshot(server);
+      edited.current = false;
+      setGame(editorState(server, template));
+      setSave("saved");
+    },
+    [template],
+  );
+
+  // The page may come from the browser's cache (Back button, an old tab): if the server already
+  // has a newer version and nothing was typed yet, show that one instead.
+  useEffect(() => {
+    let gone = false;
+    fetch(`/api/games/${initial.id}`, { cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<EditorGame>) : null))
+      .then((server) => {
+        if (!gone && server && server.updatedAt !== baseRef.current && !edited.current) adopt(server);
+      })
+      .catch(() => {});
+    return () => {
+      gone = true;
+    };
+  }, [initial.id, adopt]);
 
   useEffect(() => {
     fetch("/api/tts").then((r) => r.json()).then(setTts).catch(() => setTts({ provider: null, voices: [] }));
@@ -131,32 +198,53 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const saveBody = (g: EditorGame) =>
+    JSON.stringify({
+      ...g,
+      baseUpdatedAt: baseRef.current,
+      items: g.items.map((it) => ({ ...it, question: { ...it.question, accepted: it.question.accepted.filter((a) => a.trim()) } })),
+    });
+
   const persist = useCallback(
-    async (g: EditorGame) => {
-      setSave("saving");
-      try {
-        const res = await fetch(`/api/games/${g.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...g,
-            items: g.items.map((it) => ({ ...it, question: { ...it.question, accepted: it.question.accepted.filter((a) => a.trim()) } })),
-          }),
-        });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json.error ?? `Save failed (${res.status})`);
-        setSave("saved");
-        setSaveError("");
-        setSavedAt(new Date());
+    (g: EditorGame): Promise<boolean> => {
+      // One save at a time: each one needs the version the previous one produced.
+      const run = chain.current.then(async () => {
+        setSave("saving");
         try {
-          localStorage.removeItem(backupKey);
-        } catch {}
-        return true;
-      } catch (e) {
-        setSave("error");
-        setSaveError((e as Error).message);
-        return false;
-      }
+          for (let attempt = 0; ; attempt++) {
+            const res = await fetch(`/api/games/${g.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: saveBody(g) });
+            const json = await res.json().catch(() => ({}));
+            if (res.status === 409 && json.error === "stale_version") {
+              const server = (await fetch(`/api/games/${g.id}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null))) as EditorGame | null;
+              // Only the status changed (e.g. Publish): same content, so continue from that version.
+              if (server && attempt === 0 && contentSnapshot(server) === savedSnap.current) {
+                baseRef.current = server.updatedAt;
+                continue;
+              }
+              setConflict(server);
+              setSave("error");
+              setSaveError("");
+              return false;
+            }
+            if (!res.ok) throw new Error(json.error ?? `Save failed (${res.status})`);
+            if (json.updatedAt) baseRef.current = json.updatedAt;
+            savedSnap.current = contentSnapshot(g);
+            setSave("saved");
+            setSaveError("");
+            setSavedAt(new Date());
+            try {
+              localStorage.removeItem(backupKey);
+            } catch {}
+            return true;
+          }
+        } catch (e) {
+          setSave("error");
+          setSaveError((e as Error).message);
+          return false;
+        }
+      });
+      chain.current = run.catch(() => {});
+      return run;
     },
     [backupKey],
   );
@@ -168,13 +256,55 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
       first.current = false;
       return;
     }
+    edited.current = true;
     setSave("dirty");
     try {
       localStorage.setItem(backupKey, JSON.stringify(game));
     } catch {}
+    // While there is a newer version elsewhere, wait for the teacher's choice.
+    if (live.current.conflict) return;
     const t = setTimeout(() => persist(game), 2500);
     return () => clearTimeout(t);
   }, [game, persist, backupKey]);
+
+  // Leaving with unsaved changes. Links: save first, then go (or ask if the save fails).
+  // Back button and other in-app navigation: send the last changes as the editor closes.
+  useEffect(() => {
+    const unsaved = () => live.current.save !== "saved";
+    const onClick = (e: MouseEvent) => {
+      if (!unsaved() || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
+      const url = new URL(a.href, location.href);
+      if (url.origin !== location.origin || (url.pathname === location.pathname && url.hash)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const go = () => router.push(url.pathname + url.search + url.hash);
+      if (live.current.conflict) {
+        if (window.confirm(t.leaveUnsaved)) go();
+        return;
+      }
+      setBusy("done");
+      persist(live.current.game).then((ok) => {
+        if (ok || window.confirm(t.leaveUnsaved)) go();
+        else setBusy("");
+      });
+    };
+    const flush = () => {
+      const { game: g, save: s, conflict: c } = live.current;
+      if (s === "saved" || c) return;
+      try {
+        fetch(`/api/games/${g.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: saveBody(g), keepalive: true }).catch(() => {});
+      } catch {}
+    };
+    document.addEventListener("click", onClick, true);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, [persist, router, t.leaveUnsaved]);
 
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
@@ -546,6 +676,17 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
         </div>
       )}
 
+      {conflict && (
+        <div role="alert" className="mb-4 rounded-xl2 border-2 border-coral bg-coral-soft px-4 py-3 text-sm">
+          <p className="font-bold">{t.conflictTitle}</p>
+          <p className="mt-1">{t.conflictBody}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => { const c = conflict; setConflict(null); try { localStorage.removeItem(backupKey); } catch {} adopt(c); }}>{t.conflictLoad}</Button>
+            <Button size="sm" variant="ghost" onClick={() => { baseRef.current = conflict.updatedAt; savedSnap.current = contentSnapshot(conflict); setConflict(null); persist(game); }}>{t.conflictKeep}</Button>
+          </div>
+        </div>
+      )}
+
       <div className="sticky top-0 z-20 -mx-5 mb-4 flex flex-wrap items-center gap-3 border-b border-line bg-paper/95 px-5 py-3 backdrop-blur">
         <Link href="/teacher/games" className="text-sm font-bold text-muted hover:text-ink">← Activities</Link>
         <Badge tone="sky">{template.name}</Badge>
@@ -556,8 +697,8 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
           aria-live="polite"
           title={save === "error" ? saveError : savedAt ? savedAt.toLocaleTimeString() : undefined}
         >
-          {save === "saved" ? `✓ ${t.saved}` : save === "saving" ? t.saving : save === "dirty" ? t.unsaved : `⚠ ${t.saveError}`}
-          {save === "error" && (
+          {busy === "done" && save !== "saved" ? t.leaving : save === "saved" ? `✓ ${t.saved}` : save === "saving" ? t.saving : save === "dirty" ? t.unsaved : conflict ? `⚠ ${t.conflictStatus}` : `⚠ ${t.saveError}`}
+          {save === "error" && !conflict && (
             <button type="button" onClick={saveDraft} className="underline">{t.retry}</button>
           )}
         </span>

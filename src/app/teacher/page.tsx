@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UnsavedDrafts } from "@/components/teacher/UnsavedDrafts";
 import { ButtonLink } from "@/components/ui/Button";
 import { PageHeader, Panel } from "@/components/ui/Panel";
 import { requireTeacherPage } from "@/lib/auth/guards";
@@ -35,7 +36,9 @@ export default async function Dashboard() {
 
   return (
     <>
-      <PageHeader eyebrow="Teacher Dashboard" title={`Hola, ${user.displayName.split(" ")[0]}`} actions={<><ButtonLink href="/teacher/games/new" variant="secondary">+ Create Activity</ButtonLink><ButtonLink href="/teacher/tasks/assign">Assign Task</ButtonLink></>} />
+      <PageHeader eyebrow="Teacher Dashboard" title={`Hola, ${user.displayName.split(" ")[0]}`} actions={<><ButtonLink href="/teacher/my-activities" variant="secondary">My Activities</ButtonLink><ButtonLink href="/teacher/games/new" variant="secondary">+ Create Activity</ButtonLink><ButtonLink href="/teacher/tasks/assign">Assign Task</ButtonLink></>} />
+
+      <UnsavedDrafts />
 
       {steps.some((s) => !s.done) && (
         <Panel className="mb-6">
