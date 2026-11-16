@@ -174,6 +174,25 @@ try {
   await page.goto(`${BASE}/teacher/my-activities`);
   await page.locator("[data-testid=activity]", { hasText: "Los colores" }).waitFor();
   log("search across folders and Move to… work");
+  // The ⋮ menu is fully visible, not clipped by the card, also on a short screen (it opens upwards)
+  for (const height of [900, 560]) {
+    await page.setViewportSize({ width: 1366, height });
+    await page.getByRole("button", { name: "Options for Los colores" }).click();
+    const hidden = await page.getByRole("menu").evaluate((menu) =>
+      [...menu.querySelectorAll("[role=menuitem]")]
+        .filter((el) => {
+          const r = el.getBoundingClientRect();
+          const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return r.top < 0 || r.bottom > innerHeight || !(hit && el.contains(hit));
+        })
+        .map((el) => el.textContent),
+    );
+    assert(hidden.length === 0, `menu items hidden at height ${height}: ${hidden.join(", ")}`);
+    await shot(page, `5-menu-${height}`);
+    await page.keyboard.press("Escape");
+  }
+  await page.setViewportSize({ width: 1366, height: 900 });
+  log("⋮ menu: every option visible (tall and short screens)");
   // Recycle Bin: move in, restore
   await page.getByRole("button", { name: "Options for Los colores" }).click();
   await page.getByRole("menuitem", { name: "Move to Recycle Bin" }).click();
