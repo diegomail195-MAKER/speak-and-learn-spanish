@@ -31,7 +31,19 @@ export interface SheetProps {
   show: ShowParts;
   /** The teacher's instruction; empty uses the template's own (null = none). */
   instruction: string;
+  /** The question all the cards share, said once at the top (see teacherCards). */
+  lead?: string | null;
+  /** Language of the activity, for the worksheet's own instructions. */
+  lang?: PrintLang;
 }
+
+export type PrintLang = "es" | "en" | "fr";
+/** The worksheet's own instructions, in the language of the activity. */
+const SAY: Record<PrintLang, { matchPics: string; match: string; quiz: string }> = {
+  es: { matchPics: "Une con una línea cada imagen con su palabra.", match: "Une con una línea cada pareja.", quiz: "Marca la respuesta correcta." },
+  en: { matchPics: "Draw a line from each picture to its word.", match: "Draw a line to join each pair.", quiz: "Tick the right answer." },
+  fr: { matchPics: "Relie chaque image à son mot.", match: "Relie chaque paire.", quiz: "Coche la bonne réponse." },
+};
 
 export function Page({ paper, children, label, footer }: { paper: PaperBox; children: ReactNode; label: string; footer?: boolean }) {
   const { w, h } = paper;
@@ -64,25 +76,37 @@ export function WorksheetHeader({ title, show }: { title: string; show: Pick<Sho
   );
 }
 
-function Instruction({ text, fallback }: { text: string; fallback: string | null }) {
+function Instruction({ text, fallback, lead }: { text: string; fallback: string | null; lead?: string | null }) {
   const t = text.trim() || fallback;
-  if (!t) return null;
-  return <p style={{ fontSize: 13, margin: "0 0 12px", color: SOFT, height: 18, overflow: "hidden" }}>{t}</p>;
+  if (!t && !lead) return null;
+  return (
+    <p style={{ fontSize: 13, margin: "0 0 12px", color: SOFT, height: 20, lineHeight: "20px", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+      {lead && <strong style={{ fontSize: 16, color: INK, marginRight: 8 }}>{lead}</strong>}
+      {t}
+    </p>
+  );
 }
 
 /** A face: picture and/or text, fitted into its box. */
 export function FaceView({ face, textSize = 20, imageMax = "70%", row = false, start = false }: { face: PrintFace | null; textSize?: number; imageMax?: string; row?: boolean; start?: boolean }) {
   if (!face) return null;
   const src = printSrc(face.imageUrl);
+  const text = face.text.trim();
+  // Picture and word side by side: the picture sits in a square slot of the same size on every
+  // line, so the pictures and the words each line up in a column.
+  const side = row && src && text;
+  const img = src && (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt={face.imageAlt || face.text} crossOrigin="anonymous" style={side ? { maxWidth: "100%", maxHeight: "100%", objectFit: "contain" } : { maxHeight: row && !imageMax.endsWith("px") ? "100%" : imageMax, maxWidth: "90%", objectFit: "contain", flexShrink: 1, minHeight: 0 }} />
+  );
   return (
-    <div style={{ display: "flex", flexDirection: row ? "row" : "column", alignItems: "center", justifyContent: start ? "flex-start" : "center", gap: row ? 8 : 6, width: "100%", height: "100%", minWidth: 0 }}>
-      {src && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={face.imageAlt || face.text} crossOrigin="anonymous" style={{ maxHeight: row && !imageMax.endsWith("px") ? "100%" : imageMax, maxWidth: row ? "45%" : "90%", objectFit: "contain", flexShrink: 1, minHeight: 0 }} />
+    <div style={{ display: "flex", flexDirection: row ? "row" : "column", alignItems: "center", justifyContent: start || side ? "flex-start" : "center", gap: row ? 12 : 6, width: "100%", height: "100%", minWidth: 0 }}>
+      {side ? (
+        <div style={{ height: imageMax.endsWith("px") ? imageMax : "100%", aspectRatio: "1", maxWidth: "45%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>{img}</div>
+      ) : (
+        img
       )}
-      {face.text.trim() && (
-        <span style={{ fontSize: textSize, fontWeight: 700, textAlign: start ? "left" : "center", lineHeight: 1.15, overflowWrap: "anywhere", minWidth: 0 }}>{face.text}</span>
-      )}
+      {text && <span style={{ fontSize: textSize, fontWeight: 700, textAlign: start || side ? "left" : "center", lineHeight: 1.15, overflowWrap: "anywhere", minWidth: 0 }}>{face.text}</span>}
     </div>
   );
 }
@@ -93,7 +117,7 @@ export function CardTablePage({ cards, rows, contentH, index, oneSide, ...p }: S
   return (
     <Page paper={p.paper} label={`Flash cards, page ${index + 1}`} footer={p.show.footer}>
       <WorksheetHeader title={p.title} show={p.show} />
-      <Instruction text={p.instruction} fallback={null} />
+      <Instruction text={p.instruction} fallback={null} lead={p.lead} />
       <div style={{ border: `1.5px solid ${INK}`, borderRadius: 6, overflow: "hidden" }}>
         {cards.map((c, i) => {
           const hh = rowH - (i === cards.length - 1 ? 3 : 0);
@@ -155,7 +179,7 @@ export function MatchPageView({ page, index, contentH, ...p }: SheetProps & { pa
   return (
     <Page paper={p.paper} label={`Match up, page ${index + 1}`} footer={p.show.footer}>
       <WorksheetHeader title={p.title} show={p.show} />
-      <Instruction text={p.instruction} fallback="Draw a line to join each pair." />
+      <Instruction text={p.instruction} fallback={SAY[p.lang ?? "en"][page.left.some((l) => l.face.imageUrl && !l.face.text.trim()) && page.right.every((r) => !r.face.imageUrl) ? "matchPics" : "match"]} lead={p.lead} />
       <div style={{ display: "grid", gridTemplateColumns: `${boxW}px 1fr ${boxW}px`, rowGap: 18, alignItems: "center", padding: "0 30px" }}>
         {page.left.map((l, i) => (
           <div key={l.cardId} style={{ display: "contents" }}>
@@ -174,7 +198,7 @@ export function QuizPageView({ columns, index, first, answers, letters, ...p }: 
   return (
     <Page paper={p.paper} label={`Quiz, page ${index + 1}`} footer={p.show.footer}>
       <WorksheetHeader title={p.title} show={p.show} />
-      {first ? <Instruction text={p.instruction} fallback="Tick the right answer." /> : p.instruction.trim() ? <Instruction text={p.instruction} fallback={null} /> : null}
+      {first ? <Instruction text={p.instruction} fallback={SAY[p.lang ?? "en"].quiz} lead={p.lead} /> : p.instruction.trim() ? <Instruction text={p.instruction} fallback={null} /> : null}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 24 }}>
         {[0, 1].map((ci) => (
           <div key={ci} style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0, paddingLeft: ci ? 24 : 0, borderLeft: ci ? `1.5px dashed ${LINE}` : undefined }}>
@@ -190,13 +214,13 @@ export function QuizPageView({ columns, index, first, answers, letters, ...p }: 
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 8, rowGap: 6, marginTop: 8, paddingLeft: 26 }}>
                     {it.options.map((o, i) => (
-                      <div key={o.key} style={{ display: "flex", alignItems: "center", gap: 6, height: pics ? 56 : 28, minWidth: 0 }}>
+                      <div key={o.key} style={{ display: "flex", alignItems: "center", gap: 6, height: pics ? 56 : 30, minWidth: 0 }}>
                         {letters && <span style={{ fontSize: 13, fontWeight: 800, width: 14, flexShrink: 0 }}>{QUIZ_LETTERS[i]}</span>}
                         <span style={{ position: "relative", width: 16, height: 16, flexShrink: 0, border: `1.5px solid ${INK}`, borderRadius: 3, boxSizing: "border-box" }}>
                           {answers && o.correct && <span style={{ position: "absolute", left: 1, top: -6, fontSize: 18, fontWeight: 900, color: BRAND, lineHeight: 1 }}>✓</span>}
                         </span>
                         <div style={{ flex: 1, height: "100%", minWidth: 0, display: "flex", alignItems: "center" }}>
-                          {o.face ? <FaceView face={o.face} textSize={13} imageMax="100%" row start /> : <span style={{ flex: 1, borderBottom: `1px solid ${LINE}`, height: "60%" }} />}
+                          {o.face ? <FaceView face={o.face} textSize={pics ? 13 : 15} imageMax="100%" row start /> : <span style={{ flex: 1, borderBottom: `1px solid ${LINE}`, height: "60%" }} />}
                         </div>
                       </div>
                     ))}
@@ -235,7 +259,7 @@ export function WheelPage({ faces, index, total, cutOut, contentH, ...p }: Sheet
   return (
     <Page paper={p.paper} label={`Spin the wheel ${index + 1}`} footer={p.show.footer}>
       <WorksheetHeader title={total > 1 ? `${p.title} (${index + 1}/${total})` : p.title} show={p.show} />
-      <Instruction text={p.instruction} fallback={null} />
+      <Instruction text={p.instruction} fallback={null} lead={p.lead} />
       <div style={{ position: "relative", width: D, height: D, margin: "10px auto 0" }}>
         <svg width={D} height={D} viewBox={`0 0 ${D} ${D}`} style={{ position: "absolute", inset: 0 }} aria-hidden>
           {cutOut && <circle cx={c} cy={c} r={D / 2 - 4} fill="none" stroke={LINE} strokeWidth={2} strokeDasharray="2 7" strokeLinecap="round" />}
