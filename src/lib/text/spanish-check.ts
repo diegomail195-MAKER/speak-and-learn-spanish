@@ -13,7 +13,7 @@ export interface Suggestion {
 }
 
 // Words that are always written with an accent / ñ / ü (no unaccented homograph in common use).
-const ALWAYS: Record<string, string> = {
+export const ALWAYS: Record<string, string> = {
   nino: "niño", nina: "niña", ninos: "niños", ninas: "niñas", senor: "señor", senora: "señora", senorita: "señorita",
   manana: "mañana", espanol: "español", espanola: "española", pequeno: "pequeño", pequena: "pequeña", sueno: "sueño", otono: "otoño",
   montana: "montaña", arana: "araña", pina: "piña", muneca: "muñeca", banera: "bañera", companero: "compañero", companera: "compañera",
@@ -32,7 +32,7 @@ const ALWAYS: Record<string, string> = {
 // Note: "mamá/papá/bebé" are listed because in a kids' Spanish class they almost always mean the family words.
 
 // Question words take an accent in direct questions.
-const QUESTION_WORDS: Record<string, string> = {
+export const QUESTION_WORDS: Record<string, string> = {
   como: "cómo", que: "qué", donde: "dónde", cuando: "cuándo", cual: "cuál", cuales: "cuáles", quien: "quién", quienes: "quiénes",
   cuanto: "cuánto", cuanta: "cuánta", cuantos: "cuántos", cuantas: "cuántas", adonde: "adónde",
 };

@@ -1,70 +1,11 @@
 "use client";
 
-import { createContext, useContext, useId, useRef, useState, type ReactNode } from "react";
+import { useId, useRef, useState } from "react";
 import { inputClass } from "@/components/ui/Field";
 import { LANG_NAME, hasTags, maskTagged, parseSegments, proposeTags, tagRange, clearTags, type TagProposal } from "@/lib/text/segments";
 import { applySuggestion, type Suggestion } from "@/lib/text/spanish-check";
 import type { AppLanguage } from "@/lib/tts/voices";
-
-export const CHARS = ["á", "é", "í", "ó", "ú", "ü", "ñ", "Á", "É", "Í", "Ó", "Ú", "Ü", "Ñ", "¿", "¡"];
-export const FR_CHARS = ["à", "â", "æ", "ç", "è", "é", "ê", "ë", "î", "ï", "ô", "œ", "ù", "û", "ÿ", "À", "Ç", "É", "È", "Œ", "«", "»"];
-// Alt+key shortcuts (Alt+Shift for capitals): a e i o u → vowels with accent, y → ü, n → ñ, / → ¿, 1 → ¡
-const SHORTCUTS: Record<string, [string, string]> = {
-  a: ["á", "Á"], e: ["é", "É"], i: ["í", "Í"], o: ["ó", "Ó"], u: ["ú", "Ú"], y: ["ü", "Ü"], n: ["ñ", "Ñ"], "/": ["¿", "¿"], "1": ["¡", "¡"],
-};
-
-// One character bar for a whole form: it inserts into whichever Spanish field was focused last.
-type Inserter = (ch: string) => void;
-const BarContext = createContext<{ setActive: (f: Inserter | null) => void; active: React.RefObject<Inserter | null> } | null>(null);
-
-export function SpanishKeyboardProvider({ children }: { children: ReactNode }) {
-  const active = useRef<Inserter | null>(null);
-  return <BarContext.Provider value={{ active, setActive: (f) => (active.current = f) }}>{children}</BarContext.Provider>;
-}
-
-function CharButtons({ onInsert, chars = CHARS }: { onInsert: (c: string) => void; chars?: string[] }) {
-  return (
-    <>
-      {chars.map((c) => (
-        <button
-          key={c}
-          type="button"
-          tabIndex={-1}
-          onMouseDown={(e) => {
-            e.preventDefault(); // keep the cursor in the field
-            onInsert(c);
-          }}
-          className="h-8 min-w-8 rounded-lg border border-line bg-paper px-1.5 font-semibold text-ink hover:border-sky hover:bg-sky-soft"
-          aria-label={`Insert ${c}`}
-        >
-          {c}
-        </button>
-      ))}
-    </>
-  );
-}
-
-/** Docked bar (e.g. in a sticky toolbar) that types into the last focused SpanishField. */
-export function SpanishCharBar({ french = false }: { french?: boolean }) {
-  const ctx = useContext(BarContext);
-  const [showFr, setShowFr] = useState(french);
-  return (
-    <div className="space-y-1">
-      <div className="flex flex-wrap items-center gap-1" role="toolbar" aria-label="Spanish characters">
-        <CharButtons onInsert={(c) => ctx?.active.current?.(c)} />
-        <button type="button" onClick={() => setShowFr((x) => !x)} className="ml-1 rounded-lg px-2 py-1 text-xs font-bold text-sky hover:bg-sky-soft" aria-expanded={showFr}>
-          {showFr ? "Hide French" : "+ French"}
-        </button>
-        <span className="pl-1 text-[11px] text-muted">or Alt + a e i o u n · Alt+/ ¿ · Alt+1 ¡</span>
-      </div>
-      {showFr && (
-        <div className="flex flex-wrap items-center gap-1" role="toolbar" aria-label="French characters">
-          <CharButtons onInsert={(c) => ctx?.active.current?.(c)} chars={FR_CHARS} />
-        </div>
-      )}
-    </div>
-  );
-}
+import { CorrectionNote, useAutocorrect } from "./useAutocorrect";
 
 type Props = {
   label: string;
@@ -82,11 +23,9 @@ type Props = {
 };
 
 export function SpanishField({ label, value, onChange, language = "es-419", multiline, placeholder, hint, maxLength = 400, checkable = true, id, tags = false }: Props) {
-  const bar = useContext(BarContext);
   const autoId = useId();
   const fieldId = id ?? autoId;
   const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
-  const [focused, setFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [checking, setChecking] = useState(false);
   const [checkNote, setCheckNote] = useState("");
@@ -94,27 +33,10 @@ export function SpanishField({ label, value, onChange, language = "es-419", mult
   const valueRef = useRef(value);
   valueRef.current = value;
 
-  function insert(ch: string) {
-    const el = ref.current;
-    if (!el) return;
-    const start = el.selectionStart ?? el.value.length;
-    const end = el.selectionEnd ?? start;
-    el.setRangeText(ch, start, end, "end");
-    onChange(el.value);
+  const auto = useAutocorrect((v) => {
+    onChange(v);
     setSuggestions(null);
-    requestAnimationFrame(() => el.focus());
-  }
-
-  function onKeyDown(e: React.KeyboardEvent) {
-    if (!e.altKey || e.ctrlKey || e.metaKey) return;
-    const key = e.key.length === 1 ? e.key.toLowerCase() : "";
-    const code = e.code === "Slash" ? "/" : e.code === "Digit1" ? "1" : e.code.startsWith("Key") ? e.code.slice(3).toLowerCase() : key;
-    const m = SHORTCUTS[code];
-    if (m) {
-      e.preventDefault();
-      insert(e.shiftKey ? m[1] : m[0]);
-    }
-  }
+  }, language);
 
   async function check() {
     setChecking(true);
@@ -153,17 +75,7 @@ export function SpanishField({ label, value, onChange, language = "es-419", mult
     maxLength,
     placeholder,
     lang: language === "es-419" ? "es" : language,
-    spellCheck: true,
-    onChange: (e: React.ChangeEvent<HTMLInputElement & HTMLTextAreaElement>) => {
-      onChange(e.target.value);
-      if (suggestions) setSuggestions(null);
-    },
-    onFocus: () => {
-      setFocused(true);
-      bar?.setActive(insert);
-    },
-    onBlur: () => setFocused(false),
-    onKeyDown,
+    ...auto.props,
     className: inputClass,
   };
 
@@ -180,14 +92,11 @@ export function SpanishField({ label, value, onChange, language = "es-419", mult
           </button>
         )}
       </div>
-      {multiline ? <textarea rows={2} {...common} /> : <input {...common} />}
+      <div className="relative">
+        {multiline ? <textarea rows={2} {...common} /> : <input {...common} />}
+        <CorrectionNote notice={auto.notice} className="absolute -bottom-3 right-3 z-10" />
+      </div>
       {tags && <LanguageTools value={value} onChange={onChange} base={language} field={ref} />}
-      {!bar && focused && (
-        <div className="mt-1.5 flex flex-wrap items-center gap-1" role="toolbar" aria-label="Spanish characters">
-          <CharButtons onInsert={insert} />
-          <span className="pl-1 text-[11px] text-muted">Alt + a e i o u n · Alt+/ ¿ · Alt+1 ¡</span>
-        </div>
-      )}
       {checkNote && <p className="mt-1.5 text-xs text-muted">{checkNote}</p>}
       {suggestions && suggestions.length > 0 && (
         <ul className="mt-2 space-y-1.5 rounded-xl border border-sun/50 bg-sun-soft/60 p-2.5 text-sm">

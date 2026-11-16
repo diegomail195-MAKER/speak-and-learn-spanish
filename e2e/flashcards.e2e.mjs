@@ -168,6 +168,31 @@ try {
   assert((await page.locator("ol > li").nth(1).getByRole("textbox", { name: "Frente: Texto" }).inputValue()) === "azul", "move down button");
   log("reorder with keyboard and buttons");
 
+  // Autocorrect while typing on an English keyboard: accents, ñ, ¿, undo with Backspace, English back.
+  const f2 = page.locator("ol > li").nth(1).getByRole("textbox", { name: "Frente: Texto" });
+  const b2 = page.locator("ol > li").nth(1).getByRole("textbox", { name: "Reverso: Texto" });
+  await f2.fill("");
+  await f2.pressSequentially("el nino ");
+  assert((await f2.inputValue()) === "el niño ", `autocorrect ñ: ${await f2.inputValue()}`);
+  await f2.press("Backspace");
+  assert((await f2.inputValue()) === "el nino ", `backspace undoes: ${await f2.inputValue()}`);
+  await f2.fill("");
+  await f2.pressSequentially("Que color es este?");
+  assert((await f2.inputValue()) === "¿Qué color es este?", `autocorrect ¿Qué: ${await f2.inputValue()}`);
+  await b2.pressSequentially("what color is this");
+  await b2.press("Tab");
+  await f2.focus();
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await shot(page, "f05-autocorrect-ipad");
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await shot(page, "f05-autocorrect-desktop");
+  await b2.fill("");
+  await b2.pressSequentially("i dont know ");
+  assert((await b2.inputValue()) === "I don't know ", `english contractions: ${await b2.inputValue()}`);
+  await b2.fill("");
+  await f2.fill("azul");
+  log("autocorrect: niño, undo, ¿Qué color es este?, I don't know");
+
   // Delete + undo
   await page.getByRole("button", { name: "Eliminar (2)" }).click();
   assert((await page.locator("ol > li").count()) === 1, "deleted");

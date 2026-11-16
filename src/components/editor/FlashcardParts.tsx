@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { EditorItem, FaceAudio, FaceData, Lang } from "@/lib/games/types";
 import type { TtsConfig } from "./AudioControl";
 import { AudioField, playFaceAudio, stopFaceAudio } from "./AudioField";
 import { useUi } from "./i18n";
 import { ImageField, mediaSrc } from "./ImageField";
+import { CorrectionNote, useAutocorrect } from "./useAutocorrect";
 
 /** Swaps a card's front and back: text, picture, alt text and audio move together. */
 export function swapItem(it: EditorItem): EditorItem {
@@ -48,22 +49,34 @@ export function FaceEditor({
   const { t } = useUi();
   const [altOpen, setAltOpen] = useState(false);
   const altRef = useRef<HTMLInputElement>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  const auto = useAutocorrect((text) => onChange({ ...face, text }), language, { singleLine: true });
+  // The text box grows with the text, so a long word or phrase is never hidden.
+  useLayoutEffect(() => {
+    const el = textRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [face.text]);
   // Alt text stays open while it is empty (that's when it's needed), then folds into a chip.
   const showAlt = !!face.imageAssetId && (!face.imageAlt?.trim() || altOpen);
   return (
     <div className={`min-w-0 ${className}`}>
       {showLabel && <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted md:hidden">{label}</span>}
-      <div className="flex min-h-11 items-center gap-1 rounded-lg border border-line bg-card px-1.5 py-1 focus-within:border-sky focus-within:ring-2 focus-within:ring-sky/20">
+      <div className="relative flex min-h-12 items-start gap-1.5 rounded-xl border border-line bg-card p-1.5 focus-within:border-sky focus-within:ring-2 focus-within:ring-sky/20">
         {face.imageAssetId && (
           <ImageField compact inline label={label} assetId={face.imageAssetId} alt={face.imageAlt} suggest={face.text} onChange={(a) => onChange({ ...face, imageAssetId: a?.id ?? null })} />
         )}
-        <input
+        <textarea
+          ref={textRef}
+          rows={1}
           value={face.text ?? ""}
-          onChange={(e) => onChange({ ...face, text: e.target.value })}
+          {...auto.props}
           maxLength={200}
           placeholder={t.text}
           aria-label={`${label}: ${t.text}`}
-          className="h-8 min-w-0 flex-1 bg-transparent px-1.5 text-sm focus:outline-none"
+          lang={language === "es-419" ? "es" : language}
+          className="block min-h-8 min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-2 py-1 text-base leading-6 focus:outline-none"
         />
         <AudioField
           inline
@@ -89,6 +102,7 @@ export function FaceEditor({
             Alt ✓
           </button>
         )}
+        <CorrectionNote notice={auto.notice} className="absolute -bottom-3 left-3 z-10" />
       </div>
       {showAlt && (
         <input

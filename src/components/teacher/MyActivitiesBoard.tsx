@@ -247,8 +247,8 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
         {!(empty && !folder) && (
           <ul className={`grid gap-4 ${grid}`}>
             {shownActivities.map((a) => (
-              <li key={a.id} {...dragProps({ kind: "game", id: a.id })} data-testid="activity" className="flex flex-col overflow-hidden rounded-xl border border-line bg-card shadow-soft transition-shadow hover:shadow-md">
-                <Link href={bin ? "#" : `/teacher/games/${a.id}/edit`} className={`relative block ${view === "small" ? "aspect-[4/3]" : "aspect-[16/11]"} overflow-hidden`} style={{ background: PREVIEW_BG[a.templateKey] ?? "#fff1de" }} tabIndex={bin ? -1 : undefined} aria-hidden={bin || undefined} draggable={false}>
+              <li key={a.id} {...dragProps({ kind: "game", id: a.id })} data-testid="activity" className="flex flex-col rounded-xl border border-line bg-card shadow-soft transition-shadow hover:shadow-md">
+                <Link href={bin ? "#" : `/teacher/games/${a.id}/edit`} className={`relative block ${view === "small" ? "aspect-[4/3]" : "aspect-[16/11]"} overflow-hidden rounded-t-xl`} style={{ background: PREVIEW_BG[a.templateKey] ?? "#fff1de" }} tabIndex={bin ? -1 : undefined} aria-hidden={bin || undefined} draggable={false}>
                   {a.thumb ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={a.thumb} alt="" className="h-full w-full object-contain p-2" draggable={false} loading="lazy" />
@@ -355,6 +355,8 @@ function TrashIcon({ className = "" }: { className?: string }) {
 
 function Menu({ label, className = "", children }: { label: string; className?: string; children: (close: () => void) => ReactNode }) {
   const [open, setOpen] = useState(false);
+  // Opens upwards when there isn't room below (cards at the bottom of the screen).
+  const [up, setUp] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -369,11 +371,16 @@ function Menu({ label, className = "", children }: { label: string; className?: 
   }, [open]);
   return (
     <div ref={ref} className={`relative ${className}`}>
-      <button type="button" aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={(e) => (e.preventDefault(), setOpen((o) => !o))} className="grid h-9 w-9 place-items-center rounded-lg border border-ink/15 bg-card/80 text-lg font-bold leading-none hover:bg-card">
+      <button type="button" aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={(e) => {
+          e.preventDefault();
+          const r = ref.current?.getBoundingClientRect();
+          setUp(!!r && window.innerHeight - r.bottom < 340 && r.top > window.innerHeight - r.bottom);
+          setOpen((o) => !o);
+        }} className="grid h-9 w-9 place-items-center rounded-lg border border-ink/15 bg-card/80 text-lg font-bold leading-none hover:bg-card">
         ⋮
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 z-30 mt-1 w-56 rounded-xl border border-line bg-card p-1 text-sm shadow-soft">
+        <div role="menu" className={`absolute right-0 z-40 w-60 rounded-xl border border-line bg-card p-1.5 text-sm shadow-soft ${up ? "bottom-full mb-1" : "top-full mt-1"}`}>
           {children(() => setOpen(false))}
         </div>
       )}

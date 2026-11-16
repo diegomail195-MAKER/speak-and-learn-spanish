@@ -49,10 +49,14 @@ body {
   font-family: var(--font-sans);
 }
 
-:focus-visible {
-  outline: 3px solid var(--color-sky);
-  outline-offset: 2px;
-  border-radius: 6px;
+/* In the base layer so a utility such as focus:outline-none can turn it off (e.g. a text box
+   inside a bordered box that shows its own focus ring, where this outline covered the text). */
+@layer base {
+  :focus-visible {
+    outline: 3px solid var(--color-sky);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
