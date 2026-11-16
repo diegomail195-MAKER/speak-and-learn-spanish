@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
+    "@vercel/oidc": "4.0.5",
     "bcryptjs": "^3.0.2",
     "html-to-image": "1.11.13",
     "jspdf": "4.2.1",
