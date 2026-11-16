@@ -37,7 +37,7 @@ before use with students.**
 | Microsoft Azure Speech | if `STT_PROVIDER=azure` | student voice audio per answer (not retained by us) |
 | Google Cloud Speech-to-Text | if `STT_PROVIDER=google` | student voice audio per answer |
 | Google (Chrome Web Speech API) | if no server STT is configured | student voice audio, sent by Chrome |
-| Azure / Google TTS | when teachers generate audio | teacher-written text only |
+| Vercel AI Gateway (Google Gemini TTS) / Azure / Google TTS | when teachers generate audio | teacher-written text only |
 | LanguageTool | if `LANGUAGETOOL_API_URL` set | teacher-written text only |
 | Resend | if `RESEND_API_KEY` set | teacher email address + reset link (password reset only) |
 

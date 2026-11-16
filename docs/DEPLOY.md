@@ -39,9 +39,11 @@ La plataforma usa **Supabase** para la base de datos y los archivos (imágenes, 
    juegos. Al terminar, Vercel muestra la dirección (`https://….vercel.app`).
 5. Abre esa dirección → **Sign up** para crear la cuenta de docente.
 
-Voces naturales y reconocimiento en el servidor son opcionales: agrega después las variables
-`TTS_PROVIDER`, `STT_PROVIDER` y la clave de Azure o Google (ver `.env.example`). Sin ellas, la
-plataforma usa la voz y el reconocimiento de Chrome.
+Voces naturales y reconocimiento en el servidor son opcionales. Para las voces naturales basta
+`TTS_PROVIDER=gateway` en Vercel (usa Vercel AI Gateway con las voces de Google Gemini; el equipo
+de Vercel necesita créditos pagados de AI Gateway). También se puede usar Azure o Google con su
+clave, y `STT_PROVIDER` para el reconocimiento (ver `.env.example`). Sin ellas, la plataforma usa
+la voz y el reconocimiento de Chrome.
 
 ## Correo para "¿Olvidaste tu contraseña?"
 
