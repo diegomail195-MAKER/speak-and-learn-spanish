@@ -39,10 +39,11 @@ const INIT = () => {
   let gesture = 0;
   for (const ev of ["pointerdown", "keydown"]) addEventListener(ev, (e) => e.isTrusted && (gesture = Date.now()), true);
   HTMLMediaElement.prototype.play = function () {
-    const src = this.src || "";
+    const src = this.dataset?.src || this.src || "";
     if (src.startsWith("data:")) return Promise.resolve(); // the unlock clip
     if (window.__block && Date.now() - gesture > 1000) return Promise.reject(new DOMException("blocked", "NotAllowedError"));
     window.__played.push(src.replace(location.origin, ""));
+    if ((this.src || "").startsWith("blob:")) window.__fromMemory = (window.__fromMemory ?? 0) + 1;
     clearTimeout(this.__t);
     this.__t = setTimeout(() => this.onended && this.onended(), 120);
     return Promise.resolve();
@@ -217,6 +218,8 @@ try {
   await page.waitForFunction(() => window.__played.length === 1);
   await shot(page, "v02-game");
   log("next card: previous clip stopped, new one plays; Listen plays again");
+  assert((await page.evaluate(() => window.__fromMemory ?? 0)) > 0, "clips were preloaded and played from memory");
+  log("preloaded: clips play from memory, no wait for the network");
   // Saved audio survives closing and reopening
   await page.reload();
   await clearPlayed();

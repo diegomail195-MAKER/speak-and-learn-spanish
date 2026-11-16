@@ -27,6 +27,52 @@ export function loadBrowserVoices(): Promise<void> {
 
 export type SayResult = "audio" | "browser" | "none" | "blocked";
 
+// Clips downloaded ahead of time (original URL → in-memory blob URL), so a card's audio starts
+// the moment it is shown instead of waiting for the network.
+const ready = new Map<string, string>();
+const queued = new Set<string>();
+let pending: string[] = [];
+let active = 0;
+
+function pump() {
+  while (active < 4 && pending.length) {
+    const url = pending.shift()!;
+    active++;
+    fetch(url, { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.blob() : null))
+      .then((b) => {
+        if (b && b.size) ready.set(url, URL.createObjectURL(b));
+      })
+      .catch(() => queued.delete(url)) // try again next time it is asked for
+      .finally(() => {
+        active--;
+        pump();
+      });
+  }
+}
+
+/** Downloads clips in the background, in the order given (first card first). */
+export function preloadAudio(urls: Array<string | null | undefined>) {
+  if (typeof fetch === "undefined" || typeof URL.createObjectURL !== "function") return;
+  const fresh = urls.filter((u): u is string => !!u && !u.startsWith("data:") && !u.startsWith("blob:") && !queued.has(u));
+  fresh.forEach((u) => queued.add(u));
+  pending = [...fresh, ...pending];
+  pump();
+}
+
+/** Every audio URL in a game or item, in document order: keys ending in AudioUrl and audio.url. */
+export function audioUrlsIn(value: unknown, out: string[] = []): string[] {
+  if (Array.isArray(value)) value.forEach((v) => audioUrlsIn(v, out));
+  else if (value && typeof value === "object") {
+    for (const [k, v] of Object.entries(value)) {
+      if (typeof v === "string" && /AudioUrl$/.test(k)) out.push(v);
+      else if (k === "audio" && v && typeof v === "object" && typeof (v as { url?: unknown }).url === "string") out.push((v as { url: string }).url);
+      if (v && typeof v === "object") audioUrlsIn(v, out);
+    }
+  }
+  return out;
+}
+
 /**
  * One reusable <audio> element per speaker. Browsers (iOS Safari above all) only allow audio
  * that starts from a tap; once this element has played inside a tap (unlock), later clips can
@@ -76,7 +122,8 @@ export class Speaker {
           this.cancelFn = () => resolve("cancelled");
           a.onended = () => resolve("ok");
           a.onerror = () => resolve("error");
-          a.src = url;
+          a.dataset.src = url;
+          a.src = ready.get(url) ?? url;
           a.currentTime = 0;
           a.play().catch((e: unknown) => resolve((e as { name?: string })?.name === "NotAllowedError" ? "blocked" : "error"));
         });

@@ -12,6 +12,8 @@ import type { AudioLanguage } from "@/lib/tts/voices";
 // production.
 export const maxDuration = 300;
 
+const TITLE = "Muestra de voces · Español · English · Français";
+
 const CARDS: Array<[string, AudioLanguage, string, AudioLanguage]> = [
   ["pingüino", "es-419", "penguin", "en-US"],
   ["dieciséis", "es-419", "sixteen", "en-US"],
@@ -36,9 +38,14 @@ export async function GET(req: Request) {
     if (!r) throw new Error(`no audio for ${text}`);
     return { mediaId: r.asset.mediaAssetId, text, language, voice: r.asset.voice, rate, source: "tts" };
   };
-  const game = await db.game.create({
-    data: { schoolId: user.schoolId, teacherId: user.teacher.id, templateKey: t.key, title: "", settings: { ...DEFAULT_SETTINGS, options: templateOptions(t, undefined) } },
-  });
+  // ?game=<id> refreshes an earlier sample in place instead of adding another one.
+  const again = u.searchParams.get("game");
+  const earlier = again ? await db.game.findFirst({ where: { id: again, schoolId: user.schoolId, title: TITLE } }) : null;
+  const game =
+    earlier ??
+    (await db.game.create({
+      data: { schoolId: user.schoolId, teacherId: user.teacher.id, templateKey: t.key, title: "", settings: { ...DEFAULT_SETTINGS, options: templateOptions(t, undefined) } },
+    }));
   const items = await Promise.all(
     CARDS.map(async ([front, fl, back, bl]) => {
       const [fa, ba] = await Promise.all([audio(front, fl), audio(back, bl)]);
@@ -55,7 +62,7 @@ export async function GET(req: Request) {
     user.schoolId,
     game.id,
     saveSchema.parse({
-      title: "Muestra de voces · Español · English · Français",
+      title: TITLE,
       description: "Una palabra, una pregunta y una frase en cada idioma, leídas con voces naturales.",
       categoryId: null,
       topic: "Voces",
