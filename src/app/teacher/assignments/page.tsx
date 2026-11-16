@@ -3,8 +3,15 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Badge, EmptyState, PageHeader } from "@/components/ui/Panel";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
+import { templateByKey } from "@/lib/games/templates";
+import { KIND_LABEL } from "@/lib/library/types";
+import { mediaUrl } from "@/lib/media/save";
 
-export const metadata = { title: "Assignments & Results" };
+export const metadata = { title: "My Assignments" };
+
+type Kind = keyof typeof KIND_LABEL;
+const KINDS = Object.keys(KIND_LABEL) as Kind[];
+const ICON: Record<Kind, string> = { VIDEO: "🎬", SONG: "🎵", GAME: "🎮", FLASHCARDS: "🃏", PRINTABLE: "🖨️", WORKSHEET: "📝" };
 
 function recipientLabel(r: { type: string; classroom: { name: string } | null; level: { name: string } | null; group: { name: string; level: { name: string } } | null; student: { firstName: string; lastInitial: string } | null }) {
   if (r.type === "CLASSROOM") return r.classroom?.name ?? "Class";
@@ -13,44 +20,119 @@ function recipientLabel(r: { type: string; classroom: { name: string } | null; l
   return `${r.student?.firstName} ${r.student?.lastInitial}`.trim();
 }
 
-export default async function AssignmentsPage() {
+export default async function AssignmentsPage({ searchParams }: { searchParams: Promise<{ kind?: string }> }) {
+  const sp = await searchParams;
   const { teacher } = await requireTeacherPage();
   const list = await db.assignment.findMany({
     where: { teacherId: teacher.id },
     include: {
-      game: { select: { title: true } },
-      video: { select: { title: true } },
+      game: { select: { title: true, templateKey: true, _count: { select: { items: true } }, items: { where: { imageAssetId: { not: null } }, orderBy: { position: "asc" }, take: 1, select: { imageAssetId: true } } } },
+      video: { select: { title: true, youtubeId: true } },
       collection: { select: { title: true } },
+      topic: { select: { titleEn: true } },
+      activities: { orderBy: { position: "asc" }, select: { resource: { select: { kind: true, title: true } } } },
       recipients: { include: { classroom: true, level: true, group: { include: { level: true } }, student: true } },
       _count: { select: { attempts: { where: { completedAt: { not: null } } } } },
     },
     orderBy: { createdAt: "desc" },
   });
+
+  const rows = list.map((a) => {
+    // The categories of what was assigned: a game is Flashcards or Games, a video or collection
+    // is Videos, a Library task has the kinds of its activities.
+    const kinds: Kind[] = a.game
+      ? [a.game.templateKey === "FLASHCARDS" ? "FLASHCARDS" : "GAME"]
+      : a.video || a.collectionId
+        ? ["VIDEO"]
+        : [...new Set(a.activities.map((x) => x.resource.kind as Kind))].filter((k) => k in KIND_LABEL);
+    const thumb = a.game?.items[0]?.imageAssetId ? mediaUrl(a.game.items[0].imageAssetId) : a.video?.youtubeId ? `https://i.ytimg.com/vi/${a.video.youtubeId}/mqdefault.jpg` : null;
+    const detail = a.game
+      ? `${templateByKey(a.game.templateKey)?.name ?? "Game"} · ${a.game._count.items} ${a.game.templateKey === "FLASHCARDS" ? "cards" : "items"}`
+      : a.topicId
+        ? a.activities.map((x) => x.resource.title).slice(0, 3).join(" · ") + (a.activities.length > 3 ? ` +${a.activities.length - 3}` : "")
+        : "";
+    return {
+      id: a.id,
+      href: a.topicId ? `/teacher/tasks/${a.id}` : `/teacher/assignments/${a.id}`,
+      title: a.game?.title || a.video?.title || a.collection?.title || a.title || a.topic?.titleEn || "Activity",
+      kinds,
+      thumb,
+      detail,
+      who: a.recipients.map(recipientLabel).join(", "),
+      due: a.dueAt ? `due ${a.dueAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "no due date",
+      completed: a.gameId ? a._count.attempts : null,
+      active: a.active,
+    };
+  });
+
+  const filter = KINDS.includes(sp.kind as Kind) ? (sp.kind as Kind) : null;
+  const count = (k: Kind) => rows.filter((r) => r.kinds.includes(k)).length;
+  const shown = filter ? rows.filter((r) => r.kinds.includes(filter)) : rows;
+  const chip = (on: boolean) => `inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-bold ring-1 ${on ? "bg-ink text-white ring-ink" : "bg-card text-ink-2 ring-line hover:ring-ink-2/40"}`;
+
   return (
     <>
-      <PageHeader eyebrow="Assignments" title="Assignments & Results" actions={<ButtonLink href="/teacher/assignments/new" variant="voice">New assignment</ButtonLink>} />
-      {list.length === 0 ? (
-        <EmptyState title="Nothing assigned yet" body="Publish a game or video, then assign it to a class, level, group or student." />
+      <PageHeader
+        eyebrow="Assignments"
+        title="My Assignments"
+        actions={<ButtonLink href="/teacher/tasks/assign" variant="voice">Assign a task</ButtonLink>}
+      />
+      {rows.length === 0 ? (
+        <EmptyState title="Nothing assigned yet" body="Assign a Library topic or one of your activities to a class, level, group or student." />
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-xl2 border border-line bg-card">
-          {list.map((a) => (
-            <li key={a.id}>
-              <Link href={a.topicId ? `/teacher/tasks/${a.id}` : `/teacher/assignments/${a.id}`} className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-paper">
-                <span className="min-w-60 flex-1">
-                  <span className="block font-display text-lg font-semibold">
-                    {a.game?.title ?? a.video?.title ?? a.collection?.title ?? (a.title || "Activity")}
-                    <span className="ml-2 align-middle text-xs font-bold uppercase tracking-wider text-muted">{a.game ? "game" : a.video ? "video" : a.topicId ? "topic task" : "collection"}</span>
-                  </span>
-                  <span className="text-sm text-muted">
-                    {a.recipients.map(recipientLabel).join(", ")} · {a.dueAt ? `due ${a.dueAt.toLocaleDateString("en-US")}` : "no due date"}
-                  </span>
-                </span>
-                {a.gameId && <span className="text-sm text-ink-2">{a._count.attempts} completed</span>}
-                <Badge tone={a.active ? "leaf" : "neutral"}>{a.active ? "open" : "closed"}</Badge>
+        <>
+          <nav aria-label="Categories" className="mb-5 flex flex-wrap gap-2" data-testid="assignment-filters">
+            <Link href="/teacher/assignments" className={chip(!filter)} aria-current={!filter ? "page" : undefined}>
+              All <span className="opacity-70">{rows.length}</span>
+            </Link>
+            {KINDS.map((k) => (
+              <Link key={k} href={`/teacher/assignments?kind=${k}`} className={chip(filter === k)} aria-current={filter === k ? "page" : undefined}>
+                <span aria-hidden>{ICON[k]}</span> {KIND_LABEL[k].plural} <span className="opacity-70">{count(k)}</span>
               </Link>
-            </li>
-          ))}
-        </ul>
+            ))}
+          </nav>
+          {shown.length === 0 ? (
+            <EmptyState title={`No ${filter ? KIND_LABEL[filter].plural.toLowerCase() : "assignments"} assigned yet`} body="Choose another category to see your other assignments." />
+          ) : (
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="assignment-list">
+              {shown.map((r) => {
+                const main = r.kinds[0] ?? "GAME";
+                return (
+                  <li key={r.id} data-testid="assignment-card">
+                    <Link href={r.href} className="group flex h-full flex-col overflow-hidden rounded-xl2 border border-line bg-card transition hover:-translate-y-0.5 hover:shadow-soft">
+                      <span className="relative grid aspect-[16/9] place-items-center" style={{ background: `${KIND_LABEL[main].color}22` }}>
+                        {r.thumb ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={r.thumb} alt="" className="h-full w-full object-contain p-3" loading="lazy" />
+                        ) : (
+                          <span className="text-5xl" aria-hidden>{ICON[main]}</span>
+                        )}
+                        <span className="absolute left-3 top-3 flex flex-wrap gap-1">
+                          {r.kinds.map((k) => (
+                            <span key={k} className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-ink shadow-sm" style={{ background: KIND_LABEL[k].color }} data-testid="assignment-kind">
+                              {ICON[k]} {KIND_LABEL[k].label}
+                            </span>
+                          ))}
+                        </span>
+                        <span className="absolute right-3 top-3">
+                          <Badge tone={r.active ? "leaf" : "neutral"}>{r.active ? "open" : "closed"}</Badge>
+                        </span>
+                      </span>
+                      <span className="flex flex-1 flex-col gap-1 p-4">
+                        <span className="font-display text-lg font-semibold leading-snug group-hover:text-coral">{r.title}</span>
+                        {r.detail && <span className="line-clamp-2 text-sm text-ink-2">{r.detail}</span>}
+                        <span className="mt-auto pt-2 text-sm text-muted">
+                          👥 {r.who || "—"} · {r.due}
+                        </span>
+                        {r.completed !== null && <span className="text-sm font-bold text-teal-dark">{r.completed} completed · See results →</span>}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
       )}
     </>
   );

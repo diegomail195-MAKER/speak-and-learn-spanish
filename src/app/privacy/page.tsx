@@ -17,7 +17,7 @@ export default function Privacy() {
         <h2 className="font-display text-xl font-semibold text-ink">Voice</h2>
         <ul className="list-disc pl-5">
           <li>Audio recordings are <strong>not stored</strong>. The microphone is on only while an oral activity is running, with a visible indicator and a stop button.</li>
-          <li>To recognize speech, audio is sent to the speech provider configured by the school (Microsoft Azure Speech or Google Cloud Speech-to-Text). If none is configured, Chrome&apos;s built-in recognizer is used, which sends audio to Google.</li>
+          <li>To recognize speech, audio is sent to the speech provider configured by the school (Microsoft Azure Speech, Google Cloud Speech-to-Text, or OpenAI transcription through Vercel AI Gateway). If none is configured, Chrome&apos;s built-in recognizer is used, which sends audio to Google.</li>
         </ul>
         <h2 className="font-display text-xl font-semibold text-ink">No advertising</h2>
         <p>There is no advertising and no tracking for marketing. Data is never sold. Each school&apos;s data is separated from other schools.</p>

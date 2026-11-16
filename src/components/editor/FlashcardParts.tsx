@@ -5,7 +5,7 @@ import type { EditorItem, FaceAudio, FaceData, Lang } from "@/lib/games/types";
 import type { TtsConfig } from "./AudioControl";
 import { AudioField, playFaceAudio, stopFaceAudio } from "./AudioField";
 import { useUi } from "./i18n";
-import { ImageField, mediaSrc } from "./ImageField";
+import { ImageField, mediaSrc, uploadBlob } from "./ImageField";
 import { CorrectionNote, useAutocorrect } from "./useAutocorrect";
 
 /** Swaps a card's front and back: text, picture, alt text and audio move together. */
@@ -51,6 +51,24 @@ export function FaceEditor({
   const altRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const auto = useAutocorrect((text) => onChange({ ...face, text }), language, { singleLine: true });
+  // Ctrl+V with a picture on the clipboard (a screenshot, an image copied from a page) puts it on this face.
+  const [pasting, setPasting] = useState<"" | "busy" | "error">("");
+  const latest = useRef(face);
+  latest.current = face;
+  async function onPaste(e: React.ClipboardEvent) {
+    const file = [...e.clipboardData.items].find((i) => i.kind === "file" && i.type.startsWith("image/"))?.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    setPasting("busy");
+    try {
+      const a = await uploadBlob(file, file.name && file.name !== "image.png" ? file.name : `pasted-${Date.now()}.${file.type.split("/")[1] || "png"}`);
+      onChange({ ...latest.current, imageAssetId: a.id });
+      setPasting("");
+    } catch {
+      setPasting("error");
+      setTimeout(() => setPasting(""), 3000);
+    }
+  }
   // The text box grows with the text, so a long word or phrase is never hidden.
   useLayoutEffect(() => {
     const el = textRef.current;
@@ -63,7 +81,7 @@ export function FaceEditor({
   return (
     <div className={`min-w-0 ${className}`}>
       {showLabel && <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted md:hidden">{label}</span>}
-      <div className="relative flex min-h-12 items-start gap-1.5 rounded-xl border border-line bg-card p-1.5 focus-within:border-sky focus-within:ring-2 focus-within:ring-sky/20">
+      <div onPaste={onPaste} className="relative flex min-h-12 items-start gap-1.5 rounded-xl border border-line bg-card p-1.5 focus-within:border-sky focus-within:ring-2 focus-within:ring-sky/20">
         {face.imageAssetId && (
           <ImageField compact inline label={label} assetId={face.imageAssetId} alt={face.imageAlt} suggest={face.text} onChange={(a) => onChange({ ...face, imageAssetId: a?.id ?? null })} />
         )}
@@ -103,6 +121,11 @@ export function FaceEditor({
           </button>
         )}
         <CorrectionNote notice={auto.notice} className="absolute -bottom-3 left-3 z-10" />
+        {pasting && (
+          <span role="status" className={`absolute -bottom-3 right-3 z-10 rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white shadow-soft ${pasting === "error" ? "bg-coral" : "bg-ink"}`}>
+            {pasting === "busy" ? t.pasting : t.pasteFailed}
+          </span>
+        )}
       </div>
       {showAlt && (
         <input

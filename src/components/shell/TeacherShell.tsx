@@ -12,7 +12,7 @@ const LINKS = [
   { href: "/teacher/my-activities", label: "My Activities" },
   { href: "/teacher/tasks/assign", label: "Assign Task" },
   { href: "/teacher/videos", label: "Videos" },
-  { href: "/teacher/assignments", label: "Results" },
+  { href: "/teacher/assignments", label: "My Assignments" },
 ];
 
 export function TeacherShell({ name, school, isAdmin, unverifiedEmail, children }: { name: string; school: string; isAdmin: boolean; unverifiedEmail: string | null; children: ReactNode }) {

@@ -116,7 +116,6 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
   const [problems, setProblems] = useState<string[]>([]);
   const [busy, setBusy] = useState<"" | "publish" | "assign" | "preview" | "duplicate" | "done">("");
   const [showSettings, setShowSettings] = useState(false);
-  const [spokenOpen, setSpokenOpen] = useState<Set<string>>(() => new Set());
   const [restore, setRestore] = useState<EditorGame | null>(null);
   const [activePoint, setActivePoint] = useState(0);
   const first = useRef(true);
@@ -582,7 +581,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
           {template.options.length > 0 && (
             <section className="space-y-4 rounded-xl2 border border-line bg-card p-5" aria-label={`${template.name} options`}>
               <h2 className="font-display text-lg font-semibold">{template.name} options</h2>
-              {template.options.filter((o) => o.key !== "sides").map((o) => (
+              {template.options.filter((o) => o.key !== "sides" && o.key !== "letsPractice").map((o) => (
                 <OptionInput key={o.key} o={o} value={options[o.key]} onChange={(v) => setOption(o.key, v)} disabled={o.key === "seconds" && !options.timed} />
               ))}
             </section>
@@ -726,6 +725,12 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
           <span aria-hidden>✨</span>
           <span><strong className="text-ink-2">{t.autoTitle}.</strong> {t.autoHelp}</span>
         </p>
+        {flash && (
+          <p className="flex items-start gap-1.5 text-xs text-muted" data-testid="paste-help">
+            <span aria-hidden>📋</span>
+            <span>{t.pasteHint}</span>
+          </p>
+        )}
         {showInstructions ? (
           <div>
             <SpanishField label={t.instructions} hint="spoken at the start" multiline value={game.instructions} language={game.language} onChange={(v) => set("instructions", v)} placeholder="Mira la imagen y responde." maxLength={1000} tags />
@@ -861,28 +866,12 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                         />
                       )}
                       <div className={`col-start-2 flex flex-wrap items-center justify-end gap-1 self-start xl:col-span-1 xl:col-start-auto xl:pt-2 ${twoSided ? "md:col-span-2" : ""}`}>
-                        <button
-                          type="button"
-                          onClick={() => setSpokenOpen((o) => { const n = new Set(o); if (n.has(rowKey)) n.delete(rowKey); else n.add(rowKey); return n; })}
-                          aria-expanded={spokenOpen.has(rowKey)}
-                          aria-label={`${t.spokenAnswer} (${i + 1})`}
-                          title={it.question.expectedAnswer.trim() ? `${t.spokenAnswer}: ${it.question.expectedAnswer}` : t.spokenAnswer}
-                          className={`grid h-8 w-8 place-items-center rounded-full text-sm hover:bg-paper-2 ${it.question.expectedAnswer.trim() ? "bg-teal-soft text-teal-dark" : "text-muted"}`}
-                        >
-                          🎤
-                        </button>
                         {twoSided && (
                           <button type="button" onClick={() => setItem(i, swapItem)} className="rounded-full px-2 py-1 text-xs font-bold text-muted hover:bg-paper-2 hover:text-ink" aria-label={`${t.swapOne} ${i + 1}`} title={t.swapOne}>⇄</button>
                         )}
                         {controls}
                       </div>
                     </div>
-                    {spokenOpen.has(rowKey) && (
-                      <div className="mb-2 ml-12 mt-2 rounded-xl border border-line bg-card p-4 text-sm" role="region" aria-label={`${t.spokenAnswer} (${i + 1})`}>
-                        <p className="mb-3 text-xs text-muted">{t.spokenHelp}</p>
-                        {questionFields(it, i)}
-                      </div>
-                    )}
                   </li>
                 );
               }
@@ -962,6 +951,28 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
               {flash && !atMax && <span className="block text-[11px] font-semibold">{t.minMax} {maxItems}</span>}
               {atMax && <span className="block text-xs font-semibold">{t.limitReached}</span>}
             </span>
+            {flash && (
+              options.letsPractice ? (
+                <span className="ml-auto inline-flex flex-wrap items-center gap-2 rounded-full bg-teal-soft px-4 py-2 text-sm font-bold text-teal-dark" data-testid="practice-created">
+                  🎤 {t.practiceOn}
+                  <button type="button" onClick={() => setOption("letsPractice", false)} className="rounded-full px-2 text-xs font-bold text-muted hover:bg-white hover:text-coral-dark">{t.practiceRemove}</button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setOption("letsPractice", true)}
+                  data-testid="create-practice"
+                  title={t.practiceHelp}
+                  className="ml-auto inline-flex items-center gap-2 rounded-full bg-coral px-4 py-2 font-bold text-white shadow-[0_2px_0_var(--color-coral-dark)] hover:bg-coral-dark"
+                >
+                  <span aria-hidden>🎤</span>
+                  <span className="leading-tight text-left">
+                    <span className="block">Let&apos;s practice</span>
+                    <span className="block text-[11px] font-semibold text-white/85">{t.practiceCreate}</span>
+                  </span>
+                </button>
+              )
+            )}
           </div>
 
           {flash && library?.list}

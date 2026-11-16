@@ -122,6 +122,13 @@ const ES = {
   autoTitle: "Corrector automático",
   autoHelp: "Escribe sin cambiar de teclado: al terminar cada palabra se añaden los acentos, la ñ y los signos ¿ ¡ (y lo propio del inglés y el francés). Pulsa ⌫ justo después para deshacer una corrección.",
   autoUndo: "⌫ deshacer",
+  pasteHint: "Para poner una imagen, cópiala y pégala con Ctrl+V en la caja de la tarjeta.",
+  pasting: "Pegando imagen…",
+  pasteFailed: "No se pudo pegar la imagen",
+  practiceCreate: "Crear práctica",
+  practiceOn: "Práctica creada: al terminar, los estudiantes responden hablando",
+  practiceRemove: "Quitar",
+  practiceHelp: "Después de las tarjetas, ¡Vamos a practicar! muestra las mismas tarjetas como preguntas y el estudiante responde con el micrófono.",
 };
 type Dict = typeof ES;
 const EN: Dict = {
@@ -240,6 +247,13 @@ const EN: Dict = {
   autoTitle: "Autocorrect",
   autoHelp: "Type without switching keyboards: when you finish a word, accents, ñ and ¿ ¡ are added (and the same for English and French). Press ⌫ right after to undo a correction.",
   autoUndo: "⌫ undo",
+  pasteHint: "To add a picture, copy it and paste it with Ctrl+V into the card's box.",
+  pasting: "Pasting picture…",
+  pasteFailed: "The picture couldn't be pasted",
+  practiceCreate: "Create practice",
+  practiceOn: "Practice created: after the cards, students answer out loud",
+  practiceRemove: "Remove",
+  practiceHelp: "After the cards, Let's practice! shows the same cards as questions and the student answers with the microphone.",
 };
 
 const Ctx = createContext<{ lang: UiLang; t: Dict; setLang: (l: UiLang) => void }>({ lang: "en", t: EN, setLang: () => undefined });
