@@ -257,6 +257,11 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
                   )}
                   {a.status === "PUBLISHED" && <span className="absolute left-2 top-2 rounded-full bg-leaf px-2 py-0.5 text-[11px] font-bold text-white">Published</span>}
                   {a.status === "DRAFT" && <span className="absolute left-2 top-2 rounded-full bg-card/90 px-2 py-0.5 text-[11px] font-bold text-ink-2">Draft</span>}
+                  {a.assignments > 0 && (
+                    <span data-testid="assigned-badge" className="absolute right-2 top-2 rounded-full bg-teal px-2 py-0.5 text-[11px] font-bold text-white" title={`Assigned ${a.assignments} time${a.assignments === 1 ? "" : "s"}`}>
+                      ✓ Assigned{a.assignments > 1 ? ` ×${a.assignments}` : ""}
+                    </span>
+                  )}
                 </Link>
                 <div className="flex flex-1 items-start gap-2 border-t border-line px-3 py-2.5">
                   <div className="min-w-0 flex-1">

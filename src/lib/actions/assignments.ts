@@ -17,6 +17,8 @@ const schema = z.object({
   startsAt: z.string().optional(),
   dueAt: z.string().optional(),
   maxAttempts: z.string().optional(),
+  // Flashcards: "repeat" = cards not known come round again until all are correct; "once" = each card once.
+  mode: z.enum(["repeat", "once"]).optional(),
 });
 
 export async function createAssignment(_: AssignState, form: FormData): Promise<AssignState> {
@@ -26,10 +28,12 @@ export async function createAssignment(_: AssignState, form: FormData): Promise<
   const d = parsed.data;
   const [kind, activityId] = d.activity.split(":") as ["game" | "video" | "collection", string];
   const target: { gameId?: string; videoId?: string; collectionId?: string } = {};
+  let settings: { practiceMissed?: boolean } = {};
   if (kind === "game") {
     const game = await schoolGame(user.schoolId, activityId);
     if (game.status !== "PUBLISHED") return { error: "Publish the game before assigning it." };
     target.gameId = game.id;
+    if (game.templateKey === "FLASHCARDS" && d.mode) settings = { practiceMissed: d.mode === "repeat" };
   } else if (kind === "video") {
     const video = await db.video.findFirst({ where: { id: activityId, schoolId: user.schoolId } });
     if (!video) return { error: "Video not found." };
@@ -67,11 +71,14 @@ export async function createAssignment(_: AssignState, form: FormData): Promise<
       startsAt,
       dueAt,
       maxAttempts: maxAttempts && maxAttempts > 0 ? maxAttempts : null,
+      settings,
       recipients: { create: recipients },
     },
   });
   await audit(user.schoolId, user.id, "assignment.create", "Assignment", a.id, { recipients: raw });
-  redirect(`/teacher/assignments/${a.id}`);
+  revalidatePath("/teacher/my-activities");
+  revalidatePath("/teacher/assignments");
+  redirect(`/teacher/assignments/${a.id}?new=1`);
 }
 
 export async function setAssignmentActive(form: FormData) {

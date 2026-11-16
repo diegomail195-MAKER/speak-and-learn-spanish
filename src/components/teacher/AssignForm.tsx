@@ -15,22 +15,43 @@ type Tree = Array<{
 }>;
 
 type Option = { id: string; title: string };
+type GameOption = Option & { flashcards: boolean; repeat: boolean };
 
-export function AssignForm({ games, videos, collections, tree, initial }: { games: Option[]; videos: Option[]; collections: Option[]; tree: Tree; initial?: string }) {
+export function AssignForm({ games, videos, collections, tree, initial }: { games: GameOption[]; videos: Option[]; collections: Option[]; tree: Tree; initial?: string }) {
   const [state, action, pending] = useActionState(createAssignment, undefined);
   const [instructions, setInstructions] = useState("");
+  const [activity, setActivity] = useState(initial && [...games.map((g) => `game:${g.id}`), ...videos.map((v) => `video:${v.id}`), ...collections.map((c) => `collection:${c.id}`)].includes(initial) ? initial : "");
+  const chosenGame = activity.startsWith("game:") ? games.find((g) => `game:${g.id}` === activity) : undefined;
+  // An activity that isn't published yet can't be picked: say so instead of an empty list.
+  const notPublished = !!initial && !activity;
   const chip = "flex items-center gap-2 rounded-full border border-line bg-card px-3 py-1.5 text-sm font-semibold has-[:checked]:border-teal has-[:checked]:bg-teal-soft has-[:checked]:text-teal-dark";
   return (
     <form action={action} className="space-y-6">
       <div className="max-w-xl">
         <Label htmlFor="activity">Activity</Label>
-        <Select id="activity" name="activity" defaultValue={initial ?? ""} required>
+        <Select id="activity" name="activity" value={activity} onChange={(e) => setActivity(e.target.value)} required>
           <option value="" disabled>Choose a published game, video or collection</option>
           {games.length > 0 && <optgroup label="Interactive games">{games.map((g) => <option key={g.id} value={`game:${g.id}`}>{g.title}</option>)}</optgroup>}
           {videos.length > 0 && <optgroup label="Videos">{videos.map((v) => <option key={v.id} value={`video:${v.id}`}>{v.title}</option>)}</optgroup>}
           {collections.length > 0 && <optgroup label="Video collections">{collections.map((c) => <option key={c.id} value={`collection:${c.id}`}>{c.title}</option>)}</optgroup>}
         </Select>
+        {notPublished && <p className="mt-1.5 text-sm font-semibold text-coral-dark">This activity isn&apos;t published yet. Open it in the editor and press Assign (it publishes it first).</p>}
       </div>
+
+      {chosenGame?.flashcards && (
+        <div className="max-w-xl rounded-xl2 border border-line bg-card p-4" key={chosenGame.id}>
+          <p className="mb-2 font-bold text-ink-2">Activity mode</p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <label htmlFor="mode" className="text-sm font-semibold text-ink-2">Repeat cards</label>
+            <div className="w-full sm:w-72">
+              <Select id="mode" name="mode" defaultValue={chosenGame.repeat ? "repeat" : "once"}>
+                <option value="repeat">Repeat cards until all correct</option>
+                <option value="once">Each card only once</option>
+              </Select>
+            </div>
+          </div>
+        </div>
+      )}
 
       <fieldset>
         <legend className="mb-2 text-sm font-bold text-ink-2">Who gets it</legend>

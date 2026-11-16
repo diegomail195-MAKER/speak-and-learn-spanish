@@ -80,10 +80,23 @@ async function VideoResults({ id }: { id: string }) {
   );
 }
 
-export default async function AssignmentResults({ params }: { params: Promise<{ id: string }> }) {
+/** Shown once, right after assigning: who got it and where they find it. */
+function AssignedBanner({ students, repeat }: { students: number; repeat: boolean | null }) {
+  return (
+    <div role="status" data-testid="assigned-banner" className="mb-5 rounded-xl2 border-2 border-leaf bg-leaf-soft px-4 py-3 text-sm">
+      <p className="font-bold text-leaf">✓ Assigned to {students} student{students === 1 ? "" : "s"}.</p>
+      <p className="mt-0.5 text-ink-2">
+        They see it now under My activities when they sign in.{repeat === null ? "" : repeat ? " Cards repeat until all are correct." : " Each card is shown only once."} Results appear here as they play.
+      </p>
+    </div>
+  );
+}
+
+export default async function AssignmentResults({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ new?: string }> }) {
   const { id } = await params;
+  const isNew = (await searchParams).new === "1";
   const { teacher } = await requireTeacherPage();
-  const owned = await db.assignment.findFirst({ where: { id, teacherId: teacher.id }, select: { id: true, gameId: true, topicId: true } });
+  const owned = await db.assignment.findFirst({ where: { id, teacherId: teacher.id }, select: { id: true, gameId: true, topicId: true, settings: true } });
   if (!owned) notFound();
   if (owned.topicId) redirect(`/teacher/tasks/${id}`);
   if (!owned.gameId) return <VideoResults id={id} />;
@@ -98,6 +111,7 @@ export default async function AssignmentResults({ params }: { params: Promise<{ 
         subtitle={<>{rows.length} students · {completed} completed · {a.dueAt ? `due ${a.dueAt.toLocaleString("en-US")}` : "no due date"} · {a.maxAttempts ? `${a.maxAttempts} attempts allowed` : "unlimited attempts"}</>}
         actions={<Actions a={a} />}
       />
+      {isNew && <AssignedBanner students={rows.length} repeat={typeof (owned.settings as { practiceMissed?: boolean })?.practiceMissed === "boolean" ? (owned.settings as { practiceMissed: boolean }).practiceMissed : null} />}
       <Panel className="mb-6 overflow-x-auto">
         <h2 className="mb-3 font-display text-xl font-semibold">Students</h2>
         {rows.length === 0 ? (

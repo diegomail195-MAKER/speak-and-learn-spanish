@@ -97,7 +97,7 @@ export const TEMPLATES: TemplateDef[] = [
         ],
       },
       { key: "shuffle", label: "Shuffle cards", type: "boolean", default: false },
-      { key: "practiceMissed", label: "Practice missed cards at the end", type: "boolean", default: true },
+      { key: "practiceMissed", label: "Repeat cards until all correct (off: each card only once)", type: "boolean", default: true },
     ],
     itemNoun: "card",
     maxItems: 100,

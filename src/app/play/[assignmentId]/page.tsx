@@ -32,6 +32,9 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
   }
   const game = await buildPlayGame(student.schoolId, gameId, splitSpellingName(student.spellingName, student.firstName));
   if (a.instructions) game.instructions = [a.instructions, game.instructions].filter(Boolean).join(" ");
+  // The teacher's choice for this assignment (flashcards: repeat until all correct, or each card once).
+  const practiceMissed = (a.settings as { practiceMissed?: unknown } | null)?.practiceMissed;
+  if (typeof practiceMissed === "boolean") game.options = { ...game.options, practiceMissed };
   const done = open ? await finishedQuestions(open.id) : {};
   const materials = videoId ? 0 : await db.gameResource.count({ where: { gameId, resource: { status: { in: ["PUBLISHED", "ARCHIVED"] }, currentVersionId: { not: null } } } });
   return (

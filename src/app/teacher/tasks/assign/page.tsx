@@ -1,4 +1,5 @@
 import { AssignTaskWizard } from "@/components/teacher/AssignTaskWizard";
+import { ButtonLink } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/Panel";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
@@ -34,6 +35,12 @@ export default async function AssignTaskPage({ searchParams }: { searchParams: P
   return (
     <>
       <PageHeader eyebrow="Tasks" title="Assign Task" subtitle="Choose who gets it, pick a topic, preview its activities and choose the ones to assign." />
+      <div data-testid="assign-own" className="mb-6 flex flex-wrap items-center gap-3 rounded-xl2 border border-line bg-card px-4 py-3">
+        <span className="flex-1 text-sm">
+          <strong>Want to assign one of your own activities</strong> (flashcards, games, videos)? Choose it from your list.
+        </span>
+        <ButtonLink href="/teacher/assignments/new">Assign one of my activities</ButtonLink>
+      </div>
       {data.length === 0 ? (
         <p className="rounded-[22px] border-2 border-dashed border-line p-8 text-center font-bold text-ink-2">Create a class and add students first.</p>
       ) : (
