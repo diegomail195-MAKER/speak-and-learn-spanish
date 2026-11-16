@@ -32,3 +32,21 @@ describe("multilingual synthesis", () => {
     expect(Math.abs(out[out.length - 1])).toBeLessThan(300);
   });
 });
+
+describe("AI Gateway audio helpers", () => {
+  it("reads the sample rate of a WAV file", async () => {
+    const { joinPcm, wavRate } = await import("./index");
+    expect(wavRate(joinPcm([new Int16Array(100).fill(1000)], 24000))).toBe(24000);
+    expect(wavRate(joinPcm([new Int16Array(100).fill(1000)], 44100))).toBe(44100);
+  });
+
+  it("cache key changes with voice, speed and text, and not with spacing", async () => {
+    const { ttsCacheKey } = await import("./index");
+    const v = { id: "g:es", label: "", language: "es-419" as const, providerLocale: "es-MX", model: "m", name: "A" };
+    const k = (text: string, rate = 0.95, voice = v) => ttsCacheKey("gateway", { parts: [{ text, voice }], rate });
+    expect(k("pingüino")).toBe(k(" pingüino "));
+    expect(k("pingüino")).not.toBe(k("pinguino"));
+    expect(k("rojo", 0.95)).not.toBe(k("rojo", 0.8));
+    expect(k("rojo")).not.toBe(k("rojo", 0.95, { ...v, id: "g:es2" }));
+  });
+});

@@ -112,7 +112,7 @@ export class Speaker {
   }
 
   stop() {
-    if (this.audio && !this.audio.paused) this.audio.pause();
+    if (this.audio) this.audio.pause();
     if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
     const c = this.cancelFn;
     this.cancelFn = null;

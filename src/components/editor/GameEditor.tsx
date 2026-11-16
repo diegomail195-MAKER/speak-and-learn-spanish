@@ -504,10 +504,10 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                       <Label htmlFor={`voice-${l.code}`} hint={main ? "main voice" : "for words marked in this language"}>{LANG_SHORT[l.code]} voice</Label>
                       <Select
                         id={`voice-${l.code}`}
-                        value={value ?? list[0]?.id ?? ""}
+                        value={value ?? (list.find((v) => v.recommended) ?? list[0])?.id ?? ""}
                         onChange={(e) => (main ? setSettings({ voice: e.target.value }) : setSettings({ voices: { ...otherVoices, [l.code]: e.target.value } }))}
                       >
-                        {list.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+                        {list.map((v) => <option key={v.id} value={v.id}>{v.description ? `${v.label} — ${v.description}` : v.label}</option>)}
                       </Select>
                     </div>
                   );
@@ -516,7 +516,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
             ) : (
               <p className="rounded-xl bg-paper-2 p-3 text-xs text-ink-2">
                 {tts
-                  ? "No text-to-speech provider is configured. Students hear the device's own voices (each marked run in its own language, when the device has that voice). Add AZURE_SPEECH_KEY or GOOGLE_CLOUD_API_KEY for natural, saved audio."
+                  ? "No voice service is configured. Students hear the device's own voices (each marked run in its own language, when the device has that voice). Set TTS_PROVIDER=gateway on Vercel (or an Azure/Google key) for natural, saved audio."
                   : "Loading voices…"}
               </p>
             )}

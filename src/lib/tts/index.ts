@@ -1,5 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
+import { appendFileSync } from "node:fs";
 import { gatewayAvailable, gatewaySpeech } from "./gateway";
 import { AZURE_VOICES, GATEWAY_VOICES, GOOGLE_VOICES, type Voice } from "./voices";
 
@@ -8,10 +9,12 @@ import { AZURE_VOICES, GATEWAY_VOICES, GOOGLE_VOICES, type Voice } from "./voice
 //   TTS_PROVIDER=azure   + AZURE_SPEECH_KEY + AZURE_SPEECH_REGION
 //   TTS_PROVIDER=google  + GOOGLE_CLOUD_API_KEY
 
-export type TtsProviderName = "gateway" | "azure" | "google";
+export type TtsProviderName = "gateway" | "azure" | "google" | "test";
 
 export function ttsProvider(): TtsProviderName | null {
   const p = process.env.TTS_PROVIDER;
+  // Local end-to-end tests only: a short tone per text, never on Vercel.
+  if (p === "test" && !process.env.VERCEL) return "test";
   if (p === "gateway" && gatewayAvailable()) return "gateway";
   if (p === "azure" && process.env.AZURE_SPEECH_KEY && process.env.AZURE_SPEECH_REGION) return "azure";
   if (p === "google" && process.env.GOOGLE_CLOUD_API_KEY) return "google";
@@ -19,7 +22,7 @@ export function ttsProvider(): TtsProviderName | null {
 }
 
 export function voicesFor(provider: TtsProviderName | null): Voice[] {
-  return provider === "gateway" ? GATEWAY_VOICES : provider === "azure" ? AZURE_VOICES : provider === "google" ? GOOGLE_VOICES : [];
+  return provider === "gateway" || provider === "test" ? GATEWAY_VOICES : provider === "azure" ? AZURE_VOICES : provider === "google" ? GOOGLE_VOICES : [];
 }
 
 /** One spoken run: text read by one voice (one language). */
@@ -199,5 +202,19 @@ export function wavRate(wav: Buffer): number {
 }
 
 export async function synthesize(provider: TtsProviderName, r: TtsRequest): Promise<{ data: Buffer; mime: string }> {
+  if (provider === "test") return testTone(r);
   return provider === "gateway" ? gateway(r) : provider === "azure" ? azure(r) : google(r);
+}
+
+/** Test provider: a quiet tone whose length follows the text (deterministic, no network). */
+function testTone(r: TtsRequest): Promise<{ data: Buffer; mime: string }> {
+  const text = r.parts.map((p) => p.text).join(" ");
+  // Length follows the speed and pitch follows the text and voice, so each distinct request
+  // yields distinct bytes (storage deduplicates identical files).
+  const n = Math.round((16000 * Math.min(2, 0.25 + text.length * 0.02)) / r.rate);
+  const seed = createHash("sha256").update(JSON.stringify([text, r.parts.map((p) => p.voice.id), r.style ?? ""])).digest()[0];
+  const f = 300 + seed * 2;
+  const pcm = new Int16Array(n).map((_, i) => Math.round(Math.sin((2 * Math.PI * f * i) / 16000) * 2000));
+  if (process.env.E2E_TTS_LOG) appendFileSync(process.env.E2E_TTS_LOG, JSON.stringify({ text, voices: r.parts.map((p) => p.voice.id), rate: r.rate }) + "\n");
+  return Promise.resolve({ data: joinPcm([pcm], 16000, 0), mime: "audio/wav" });
 }
