@@ -16,6 +16,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   const [first, ...rest] = user.displayName.split(/\s+/);
   const game = await buildPlayGame(user.schoolId, id, { firstName: first ?? "", lastName: rest.join(" ") }).catch(() => null);
   if (!game) notFound();
+  if (game.board === "flashcards") game.practiceAudioUrl = `/api/games/${id}/practice-audio`;
   const row = await db.game.findFirst({ where: { id, schoolId: user.schoolId }, select: { status: true } });
   const below =
     game.board === "flashcards" ? (

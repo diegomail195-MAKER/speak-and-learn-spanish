@@ -76,8 +76,9 @@ export function FeedbackBubble({ feedback }: { feedback: Feedback }) {
   if (!feedback) return <div className="h-14" />;
   const tone = { good: "bg-leaf text-white", retry: "bg-sun-soft text-[#6b4700]", unsure: "bg-sky-soft text-sky", info: "bg-paper-2 text-ink-2" }[feedback.tone];
   return (
-    <div key={feedback.text + (feedback.model ?? "")} className={`animate-pop-in rounded-2xl px-5 py-3 text-center font-display text-2xl font-semibold ${tone}`} role="status" aria-live="polite">
+    <div key={feedback.text + (feedback.model ?? "") + (feedback.sub ?? "")} className={`animate-pop-in rounded-2xl px-5 py-3 text-center font-display text-2xl font-semibold ${tone}`} role="status" aria-live="polite">
       {feedback.text}
+      {feedback.sub && <span className="block text-base font-medium opacity-75">{feedback.sub}</span>}
       {feedback.model && <span className="mt-1 block text-lg font-medium">“{feedback.model}”</span>}
     </div>
   );

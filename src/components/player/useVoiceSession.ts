@@ -20,7 +20,11 @@ import type { AppLanguage, AudioLanguage } from "@/lib/tts/voices";
 
 export type Support = "NONE" | "HINT" | "MODEL";
 export type Phase = "start" | "intro" | "speaking" | "listening" | "thinking" | "feedback" | "idle" | "suspended" | "error" | "ready" | "done";
-export type Feedback = { tone: "good" | "retry" | "unsure" | "info"; text: string; model?: string } | null;
+export type Feedback = { tone: "good" | "retry" | "unsure" | "info"; text: string; model?: string; sub?: string } | null;
+/** A spoken line chosen by the board instead of the default phrases (text, translation, natural-voice clip). */
+export type CoachLine = { text: string; sub?: string; url?: string | null; language?: AudioLanguage };
+/** Lets a board choose its own feedback: "retry" never gives the answer; "model" comes before it. */
+export type Coach = (event: "correct" | "retry" | "model" | "uncertain" | "waiting", info: { tries: number }) => CoachLine;
 export type Input = "voice" | "typed" | "choice";
 export type TurnResult = Evaluation & { endsQuestion: boolean };
 
@@ -270,7 +274,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
    * spelling without pressing anything, and only a finished or wrong spelling is checked.
    */
   const ask = useCallback(
-    async (q: PlayQuestion, o?: { skipPresent?: boolean; initialSupport?: Support; prompt?: (x?: { withAudio?: boolean }) => Promise<void> }): Promise<Support | null | "skipped" | "aborted"> => {
+    async (q: PlayQuestion, o?: { skipPresent?: boolean; initialSupport?: Support; prompt?: (x?: { withAudio?: boolean }) => Promise<void>; coach?: Coach }): Promise<Support | null | "skipped" | "aborted"> => {
       const myRun = runId.current;
       const alive = () => runId.current === myRun;
       current.current = q;
@@ -285,6 +289,11 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
       let spelled = ""; // letters heard so far (LETTERS mode)
       const expectedLetters = q.mode === "LETTERS" ? lettersOf(q.expected) : [];
       const presentIt = o?.prompt ?? ((x?: { withAudio?: boolean }) => present(q, x));
+      const coachSay = async (event: Parameters<Coach>[0], tone: NonNullable<Feedback>["tone"]) => {
+        const l = o!.coach!(event, { tries: t.incorrect });
+        setFeedback({ tone, text: l.text, sub: l.sub });
+        await say(l.text, l.url, l.language);
+      };
       if (!o?.skipPresent) await presentIt();
 
       while (alive()) {
@@ -333,7 +342,8 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
             if (!alive()) return "aborted";
             timeouts = 0;
             await presentIt();
-          } else await sayPhrase("waiting", "info");
+          } else if (o?.coach) await coachSay("waiting", "info");
+          else await sayPhrase("waiting", "info");
           continue;
         }
         timeouts = 0;
@@ -390,6 +400,28 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
         });
 
         setPhase("feedback");
+        if (o?.coach) {
+          // The board's own feedback: no hint, and the answer only after the last try.
+          if (ev.outcome === "CORRECT") {
+            await coachSay("correct", "good");
+            return supportRef.current;
+          }
+          if (ev.outcome === "UNCERTAIN") {
+            await coachSay("uncertain", "unsure");
+            continue;
+          }
+          t.incorrect++;
+          if (ev.endsQuestion) {
+            raiseSupport("MODEL");
+            const l = o.coach("model", { tries: t.incorrect });
+            setFeedback({ tone: "info", text: l.text, sub: l.sub, model: plainText(q.expected) });
+            await say(l.text, l.url, l.language);
+            await say(q.expected, q.modelAudioUrl, q.answerLanguage);
+            return null;
+          }
+          await coachSay("retry", "retry");
+          continue;
+        }
         if (ev.outcome === "CORRECT") {
           await sayPhrase("correct", "good");
           return supportRef.current;

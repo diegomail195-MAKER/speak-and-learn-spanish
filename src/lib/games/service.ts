@@ -8,6 +8,7 @@ import { mediaUrl } from "@/lib/media/save";
 import { sttLocale, sttProvider } from "@/lib/stt";
 import { ensureAudio } from "@/lib/tts/generate";
 import { AUDIO_LANGUAGE_CODES, type AudioLanguage } from "@/lib/tts/voices";
+import { clipKey, practiceCardClips, practicePhraseClips } from "./practice";
 import { maxItemsFor, templateByKey, templateOptions } from "./templates";
 import { DEFAULT_SETTINGS, SPELL_TOKENS, type EditorGame, type FaceAudio, type GameSettings, type ItemData, type PlayFace, type PlayGame } from "./types";
 
@@ -339,6 +340,10 @@ export async function publishGame(schoolId: string, userId: string, id: string) 
       if (r) phraseAudio[text] = r.asset.id;
     }
     const instr = g.instructions.trim() ? await gen(g.instructions) : null;
+    if (templateByKey(g.templateKey)?.board === "flashcards" && templateOptions(templateByKey(g.templateKey), g.settings.options).letsPractice === true) {
+      // The speaking round's clips, so students hear the natural voice from the first card.
+      await practiceAudio(schoolId, userId, await buildPlayGame(schoolId, id, { firstName: "", lastName: "" }));
+    }
     await db.game.update({
       where: { id },
       data: {
@@ -442,6 +447,40 @@ export async function buildPlayGame(schoolId: string, gameId: string, names: { f
     phraseAudio,
     questions,
   };
+}
+
+/**
+ * Natural-voice clips for the "Let's practice" speaking round (questions, answers and the fixed
+ * Montessori lines in Spanish and English). Clips are cached per school, so after the first
+ * time (or after publishing) this only looks them up. Returns "language|text" → audio URL.
+ */
+export async function practiceAudio(schoolId: string, userId: string | null, game: PlayGame): Promise<Record<string, string>> {
+  const row = await db.game.findFirst({ where: { id: game.gameId, schoolId }, select: { settings: true } });
+  if (!row) return {};
+  const settings = readSettings(row.settings);
+  const clips = [...practiceCardClips(game), ...practicePhraseClips()];
+  const seen = new Set<string>();
+  const todo = clips.filter((c) => {
+    const k = clipKey(c.language, c.text);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  const out: Record<string, string> = {};
+  let next = 0;
+  const worker = async () => {
+    while (next < todo.length) {
+      const c = todo[next++];
+      try {
+        const r = await ensureAudio({ schoolId, userId, text: c.text, language: c.language, voiceId: c.language === game.language ? settings.voice : undefined, voices: settings.voices, rate: settings.rate });
+        if (r) out[clipKey(c.language, c.text)] = mediaUrl(r.asset.mediaAssetId);
+      } catch (e) {
+        console.error("practice audio", e);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: 4 }, worker));
+  return out;
 }
 
 export function splitSpellingName(spellingName: string, firstName: string) {
