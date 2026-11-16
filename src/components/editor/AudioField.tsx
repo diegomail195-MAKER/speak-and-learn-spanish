@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { Speaker } from "@/lib/client/speaker";
+import { preloadAudio, Speaker } from "@/lib/client/speaker";
 import type { AudioLanguage, FaceAudio } from "@/lib/games/types";
 import { AUDIO_LANGUAGE_LABELS } from "@/lib/tts/voices";
 import type { TtsConfig } from "./AudioControl";
@@ -152,6 +152,7 @@ function AudioPanel({ audio, defaultText, defaultLanguage, tts, rate: activityRa
   const [error, setError] = useState("");
   const [micBlocked, setMicBlocked] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const inflight = useRef<{ key: string; p: Promise<{ mediaId: string; url: string; key: string }> } | null>(null);
   const voices = voicesOf(language);
   const ttsKey = `${text.trim()}|${language}|${voice}|${rate.toFixed(2)}`;
   const savedKey = audio?.source === "tts" && audio.mediaId ? `${audio.text.trim()}|${audio.language}|${audio.voice ?? ""}|${(audio.rate ?? activityRate).toFixed(2)}` : null;
@@ -194,11 +195,29 @@ function AudioPanel({ audio, defaultText, defaultLanguage, tts, rate: activityRa
   async function ensureGenerated(regenerate = false) {
     if (!regenerate && generated?.key === ttsKey) return generated;
     if (!regenerate && savedKey === ttsKey && audio?.mediaId) return { mediaId: audio.mediaId, url: mediaSrc(audio.mediaId)!, key: ttsKey };
-    const json = await requestTts({ text: text.trim(), language, voice: voice || undefined, rate, regenerate });
-    const g = { mediaId: json.mediaId, url: json.url, key: ttsKey };
-    setGenerated(g);
-    return g;
+    // One request per text/voice/speed: Listen or Save while the early generation is still
+    // running waits for it instead of asking twice.
+    const key = ttsKey;
+    if (!regenerate && inflight.current?.key === key) return inflight.current.p;
+    const p = requestTts({ text: text.trim(), language, voice: voice || undefined, rate, regenerate }).then((json) => {
+      const g = { mediaId: json.mediaId, url: json.url, key };
+      setGenerated(g);
+      preloadAudio([json.url]);
+      return g;
+    });
+    inflight.current = { key, p };
+    p.catch(() => inflight.current?.p === p && (inflight.current = null));
+    return p;
   }
+
+  // Start generating as soon as the panel opens (and after the text, voice or speed settle), so
+  // Listen and Save are usually instant.
+  useEffect(() => {
+    if (!natural || tab !== "tts" || !text.trim() || savedKey === ttsKey || generated?.key === ttsKey) return;
+    const t = setTimeout(() => void ensureGenerated().catch(() => {}), 700);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ttsKey, natural, tab]);
 
   async function previewTts(regenerate = false) {
     setError("");

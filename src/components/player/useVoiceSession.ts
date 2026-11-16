@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { pick, type PhraseKind } from "@/lib/feedback";
 import { MicSession, type MicState } from "@/lib/client/mic-session";
-import { Speaker } from "@/lib/client/speaker";
+import { audioUrlsIn, preloadAudio, Speaker } from "@/lib/client/speaker";
 import { ServerEngine, WebSpeechEngine, webSpeechAvailable, type EngineResult, type SpeechEngine } from "@/lib/client/speech-engine";
 import { scoreTurn } from "@/lib/games/turn";
 import type { PlayFace, PlayGame, PlayQuestion } from "@/lib/games/types";
@@ -101,6 +101,10 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
   const presented = useRef(new Set<string>());
   const tries = useRef<Record<string, { n: number; incorrect: number }>>({});
   const current = useRef<PlayQuestion | null>(null);
+
+  // Download every clip of the activity in the background (first card first), so audio starts
+  // as soon as a card or question appears.
+  useEffect(() => preloadAudio(audioUrlsIn(game)), [game]);
 
   useEffect(() => {
     speaker.current = new Speaker();

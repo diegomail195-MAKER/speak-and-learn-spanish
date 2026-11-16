@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { appendFileSync } from "node:fs";
 import { gatewayAvailable, gatewaySpeech } from "./gateway";
+import { pcmToMp3 } from "./mp3";
 import { AZURE_VOICES, GATEWAY_VOICES, GOOGLE_VOICES, type Voice } from "./voices";
 
 // Text-to-speech providers. Keys live only on the server (env vars), never in the browser.
@@ -40,7 +41,7 @@ export interface TtsRequest {
 
 export function ttsCacheKey(provider: string, r: TtsRequest) {
   return createHash("sha256")
-    .update(JSON.stringify([provider, r.parts.map((p) => [p.voice.id, p.voice.model ?? "", p.voice.instructions ?? "", p.text.normalize("NFC").trim()]), r.rate.toFixed(2), r.style ?? ""]))
+    .update(JSON.stringify([provider === "gateway" ? "gateway-mp3" : provider, r.parts.map((p) => [p.voice.id, p.voice.model ?? "", p.voice.instructions ?? "", p.text.normalize("NFC").trim()]), r.rate.toFixed(2), r.style ?? ""]))
     .digest("hex");
 }
 
@@ -178,16 +179,33 @@ async function gatewayPart(p: TtsPart, rate: number, format: "mp3" | "wav") {
   });
 }
 
-/** AI Gateway: one request per language run; mixed-language sentences are joined as PCM. */
+/**
+ * AI Gateway: one request per language run; mixed-language sentences are joined as PCM. WAV
+ * results are stored as MP3, which is about six times lighter, so clips start sooner.
+ */
 async function gateway(r: TtsRequest): Promise<{ data: Buffer; mime: string }> {
   if (r.parts.length === 1) {
     // Gemini only returns WAV; ask for it directly instead of an MP3 it would ignore.
     const a = await gatewayPart(r.parts[0], r.rate, r.parts[0].voice.model?.startsWith("google/") ? "wav" : "mp3");
-    return { data: a.data, mime: a.mime };
+    if (a.mime !== "audio/wav" || wavChannels(a.data) !== 1) return { data: a.data, mime: a.mime };
+    return { data: pcmToMp3(wavSamples(a.data), wavRate(a.data)), mime: "audio/mpeg" };
   }
   const wavs = await Promise.all(r.parts.map((p) => gatewayPart(p, r.rate, "wav")));
   const rate = wavRate(wavs[0].data);
-  return { data: joinPcm(wavs.map((w) => wavSamples(w.data)), rate), mime: "audio/wav" };
+  if (wavs.some((w) => wavChannels(w.data) !== 1)) return { data: joinPcm(wavs.map((w) => wavSamples(w.data)), rate), mime: "audio/wav" };
+  return { data: pcmToMp3(wavSamples(joinPcm(wavs.map((w) => wavSamples(w.data)), rate)), rate), mime: "audio/mpeg" };
+}
+
+/** Channel count from a WAV "fmt " chunk (1 when it can't be read). */
+export function wavChannels(wav: Buffer): number {
+  let o = 12;
+  while (o + 8 <= wav.length) {
+    const id = wav.toString("ascii", o, o + 4);
+    const size = wav.readUInt32LE(o + 4);
+    if (id === "fmt ") return wav.readUInt16LE(o + 10);
+    o += 8 + size + (size & 1);
+  }
+  return 1;
 }
 
 /** Sample rate from a WAV "fmt " chunk (24 kHz when it can't be read). */
