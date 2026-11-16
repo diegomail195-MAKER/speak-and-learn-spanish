@@ -1,4 +1,5 @@
 import { AssignForm } from "@/components/teacher/AssignForm";
+import { ButtonLink } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/Panel";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
@@ -10,7 +11,7 @@ export default async function NewAssignment({ searchParams }: { searchParams: Pr
   const initial = gameId ? `game:${gameId}` : videoId ? `video:${videoId}` : collectionId ? `collection:${collectionId}` : undefined;
   const { user, teacher } = await requireTeacherPage();
   const [games, videos, collections, classes] = await Promise.all([
-    db.game.findMany({ where: { schoolId: user.schoolId, status: "PUBLISHED" }, select: { id: true, title: true }, orderBy: { updatedAt: "desc" } }),
+    db.game.findMany({ where: { schoolId: user.schoolId, status: "PUBLISHED" }, select: { id: true, title: true, templateKey: true, settings: true }, orderBy: { updatedAt: "desc" } }),
     db.video.findMany({ where: { schoolId: user.schoolId, status: "PUBLISHED" }, select: { id: true, title: true }, orderBy: { updatedAt: "desc" } }),
     db.collection.findMany({ where: { schoolId: user.schoolId, videos: { some: { video: { status: "PUBLISHED" } } } }, select: { id: true, title: true }, orderBy: { createdAt: "desc" } }),
     db.classroom.findMany({
@@ -27,10 +28,21 @@ export default async function NewAssignment({ searchParams }: { searchParams: Pr
     levels: c.levels.map((l) => ({ id: l.id, name: l.name, groups: l.groups.map((g) => ({ id: g.id, name: g.name, count: g._count.memberships })) })),
     students: c.students.map((s) => ({ id: s.id, name: `${s.firstName} ${s.lastInitial}`.trim() })),
   }));
+  const gameOptions = games.map((g) => ({
+    id: g.id,
+    title: g.title || "Untitled activity",
+    flashcards: g.templateKey === "FLASHCARDS",
+    repeat: (g.settings as { options?: { practiceMissed?: boolean } } | null)?.options?.practiceMissed !== false,
+  }));
   return (
     <>
-      <PageHeader eyebrow="Assign" title="Assign an activity" subtitle="Send it to a whole class, a level, a group or individual students. Games show up under My Activities, videos under My Videos." />
-      <AssignForm games={games} videos={videos} collections={collections} tree={tree} initial={initial} />
+      <PageHeader
+        eyebrow="Assign"
+        title="Assign an activity"
+        subtitle="Send one of your activities to a whole class, a level, a group or individual students. Students see it in their portal right away."
+        actions={<ButtonLink href="/teacher/tasks/assign" variant="secondary">Assign a Library topic instead</ButtonLink>}
+      />
+      <AssignForm games={gameOptions} videos={videos} collections={collections} tree={tree} initial={initial} />
     </>
   );
 }
