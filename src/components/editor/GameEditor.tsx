@@ -688,7 +688,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
       )}
 
       <div className="sticky top-0 z-20 -mx-5 mb-4 flex flex-wrap items-center gap-3 border-b border-line bg-paper/95 px-5 py-3 backdrop-blur">
-        <Link href="/teacher/games" className="text-sm font-bold text-muted hover:text-ink">← Activities</Link>
+        <Link href="/teacher/my-activities" className="text-sm font-bold text-muted hover:text-ink">← My Activities</Link>
         <Badge tone="sky">{template.name}</Badge>
         <Badge tone={game.status === "PUBLISHED" ? "leaf" : "neutral"}>{game.status === "PUBLISHED" ? "Published" : game.status === "ARCHIVED" ? "Archived" : "Draft"}</Badge>
         <span

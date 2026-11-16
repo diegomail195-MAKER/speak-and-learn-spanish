@@ -34,6 +34,9 @@ try {
   await page.click("button[type=submit]");
   await page.waitForURL(`${BASE}/teacher`);
 
+  // Header: "+ Create Activity" instead of "Voice Activities"
+  assert((await page.getByRole("link", { name: "Voice Activities" }).count()) === 0, "Voice Activities removed from the menu");
+  assert((await page.getByRole("link", { name: "+ Create Activity" }).first().getAttribute("href")) === "/teacher/games/new", "Create Activity button");
   // Nav button and empty state
   await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "My Activities" }).click();
   await page.waitForURL(`${BASE}/teacher/my-activities`);
@@ -118,8 +121,8 @@ try {
 
   // Link click right after typing: saved before leaving
   await front(page, 0).fill("morado");
-  await page.getByRole("link", { name: "← Activities" }).click();
-  await page.waitForURL(`${BASE}/teacher/games`);
+  await page.getByRole("link", { name: "← My Activities" }).click();
+  await page.waitForURL(`${BASE}/teacher/my-activities`);
   server = await api(page, gameId);
   assert(server.items[0].text === "morado", `link click saved first (got ${server.items[0].text})`);
   log("link with unsaved changes: saved first");
@@ -133,6 +136,72 @@ try {
   await page.waitForSelector("text=unsaved changes on this device");
   await shot(page, "3-my-activities");
   log("My Activities: lists the activity and the device reminder");
+
+  // Folders: create, drag an activity in, open it, move back with the menu
+  const newFolder = async (name, colour) => {
+    await page.getByRole("button", { name: "+ New folder" }).click();
+    const d = page.getByRole("dialog", { name: "New folder" });
+    await d.getByLabel("Name").fill(name);
+    await d.getByLabel(colour).check({ force: true });
+    await d.getByRole("button", { name: "Create folder" }).click();
+    await page.locator("[data-testid=folder]", { hasText: name }).waitFor();
+  };
+  await newFolder("Colores", "Red");
+  await newFolder("Grade 2", "Green");
+  const card = page.locator("[data-testid=activity]", { hasText: "Los colores" });
+  await card.dragTo(page.locator("[data-testid=folder]", { hasText: "Colores" }));
+  await card.waitFor({ state: "detached" });
+  await page.locator("[data-testid=folder]", { hasText: "Colores" }).getByText("1 activity").waitFor();
+  log("folders: created two, dragged the activity into “Colores”");
+  // Drag the folder "Colores" into "Grade 2", then open Grade 2 › Colores
+  await page.locator("[data-testid=folder]", { hasText: "Colores" }).dragTo(page.locator("[data-testid=folder]", { hasText: "Grade 2" }));
+  await page.locator("[data-testid=folder]", { hasText: "Grade 2" }).getByText("1 folder").waitFor();
+  await page.locator("[data-testid=folder]", { hasText: "Grade 2" }).getByRole("link").click();
+  await page.locator("[data-testid=folder]", { hasText: "Colores" }).getByRole("link").click();
+  await page.getByRole("heading", { name: "Colores" }).waitFor();
+  await page.locator("[data-testid=activity]", { hasText: "Los colores" }).waitFor();
+  await shot(page, "4-inside-folder");
+  log("nested folders: Grade 2 › Colores holds the activity");
+  // Search finds it from the top level, showing its folder
+  await page.goto(`${BASE}/teacher/my-activities?q=colores`);
+  await page.locator("[data-testid=activity]", { hasText: "Los colores" }).getByText("Colores", { exact: false }).first().waitFor();
+  // Move back to the top with ⋮ › Move to…
+  await page.getByRole("button", { name: "Options for Los colores" }).click();
+  await page.getByRole("menuitem", { name: /^Move to…/ }).click();
+  const moved = page.waitForResponse((r) => r.request().method() === "POST");
+  await page.getByRole("menuitem", { name: "My Activities (top)" }).click();
+  await moved;
+  await page.goto(`${BASE}/teacher/my-activities`);
+  await page.locator("[data-testid=activity]", { hasText: "Los colores" }).waitFor();
+  log("search across folders and Move to… work");
+  // Recycle Bin: move in, restore
+  await page.getByRole("button", { name: "Options for Los colores" }).click();
+  await page.getByRole("menuitem", { name: "Move to Recycle Bin" }).click();
+  await page.locator("[data-testid=activity]", { hasText: "Los colores" }).waitFor({ state: "detached" });
+  await page.getByRole("link", { name: "Recycle Bin" }).click();
+  await page.getByRole("heading", { name: "Recycle Bin" }).waitFor();
+  await shot(page, "5-bin");
+  await page.getByRole("button", { name: "Options for Los colores" }).click();
+  const restored = page.waitForResponse((r) => r.request().method() === "POST");
+  await page.getByRole("menuitem", { name: "Restore" }).click();
+  await restored;
+  await page.locator("[data-testid=activity]", { hasText: "Los colores" }).waitFor({ state: "detached" });
+  await page.goto(`${BASE}/teacher/my-activities`);
+  await page.locator("[data-testid=activity]", { hasText: "Los colores" }).waitFor();
+  log("Recycle Bin: trash and restore");
+  // Order and small view
+  await page.getByRole("link", { name: /^Name/ }).click();
+  await page.waitForURL(/sort=name/);
+  await page.getByRole("link", { name: "Small tiles" }).click();
+  await page.waitForURL(/view=small/);
+  await shot(page, "6-small-view");
+  // Delete a folder: contents move up
+  await page.getByRole("button", { name: "Options for folder Grade 2" }).click();
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("menuitem", { name: "Delete folder" }).click();
+  await page.locator("[data-testid=folder]", { hasText: "Colores" }).waitFor();
+  assert((await page.locator("[data-testid=folder]", { hasText: "Grade 2" }).count()) === 0, "Grade 2 deleted");
+  log("order by name, small tiles, delete folder keeps its contents");
 
   const ctx2 = await browser.newContext();
   const p2 = await ctx2.newPage();

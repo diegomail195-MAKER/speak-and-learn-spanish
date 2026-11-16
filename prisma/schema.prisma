@@ -148,13 +148,32 @@ model Teacher {
   userId   String @unique
   schoolId String
 
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   classrooms  Classroom[]
   games       Game[]
   videos      Video[]
   assignments Assignment[]
+  folders     ActivityFolder[]
 
   @@index([schoolId])
+}
+
+// My Activities: a teacher's own folders (they can be nested) to organise the activities they create.
+model ActivityFolder {
+  id        String   @id @default(cuid())
+  teacherId String
+  parentId  String?
+  name      String
+  color     String   @default("sky")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacher  Teacher          @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  parent   ActivityFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children ActivityFolder[] @relation("FolderTree")
+  games    Game[]
+
+  @@index([teacherId, parentId])
 }
 
 // Students get minimal personal data: first name + last initial, a username and a PIN.
@@ -382,6 +401,8 @@ model Game {
   estimatedMinutes   Int?
   status             ContentStatus @default(DRAFT)
   settings           Json          @default("{}")
+  // My Activities folder (null = top level). Removing a folder never deletes its activities.
+  folderId           String?
   publishedAt        DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
@@ -390,6 +411,7 @@ model Game {
   teacher          Teacher          @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   template         GameTemplate     @relation(fields: [templateKey], references: [key])
   category         Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  folder           ActivityFolder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
   instructionAudio AudioAsset?      @relation("InstructionAudio", fields: [instructionAudioId], references: [id], onDelete: SetNull)
   items            GameItem[]
   assignments      Assignment[]
@@ -399,6 +421,7 @@ model Game {
 
   @@index([schoolId, status])
   @@index([teacherId])
+  @@index([folderId])
 }
 
 model GameItem {

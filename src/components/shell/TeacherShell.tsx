@@ -11,7 +11,6 @@ const LINKS = [
   { href: "/teacher/library", label: "Library" },
   { href: "/teacher/my-activities", label: "My Activities" },
   { href: "/teacher/tasks/assign", label: "Assign Task" },
-  { href: "/teacher/games", label: "Voice Activities" },
   { href: "/teacher/videos", label: "Videos" },
   { href: "/teacher/assignments", label: "Results" },
 ];
@@ -29,7 +28,8 @@ export function TeacherShell({ name, school, isAdmin, unverifiedEmail, children 
             <NavLinks links={links} />
           </div>
           <div className="ml-auto flex items-center gap-3 text-sm">
-            <span className="hidden text-right leading-tight xl:block">
+            <Link href="/teacher/games/new" className="rounded-full bg-coral px-4 py-2 font-bold text-white shadow-[0_2px_0_var(--color-coral-dark)] hover:bg-coral-dark">+ Create Activity</Link>
+            <span className="hidden text-right leading-tight 2xl:block">
               <span className="block font-bold">{name}</span>
               <span className="block text-xs text-muted">{school}</span>
             </span>
