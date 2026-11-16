@@ -124,3 +124,23 @@ body {
 
 @keyframes wiggle { 0%,100% { transform: rotate(0) } 25% { transform: rotate(-6deg) } 75% { transform: rotate(6deg) } }
 .animate-wiggle { animation: wiggle 600ms ease-in-out 2; }
+
+/* Flashcards: the card turns over in 3D (front and back are the two faces of one card). */
+.ls-flip-card {
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transition: transform 700ms cubic-bezier(0.3, 0.7, 0.3, 1);
+  will-change: transform;
+}
+.ls-flip-card[data-flipped="true"] { animation: ls-flip-lift 700ms ease-out; }
+.ls-flip-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.ls-flip-back { transform: rotateY(180deg); }
+@keyframes ls-flip-lift { 0%, 100% { scale: 1 } 50% { scale: 1.06 } }
+/* Turning the card is the activity itself, so it keeps its turn when the device asks for
+   reduced motion (Windows "Animation effects" off); only the lift is dropped. */
+@media (prefers-reduced-motion: reduce) {
+  .ls-flip-card { transition-duration: 600ms !important; animation: none !important; }
+}

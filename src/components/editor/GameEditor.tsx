@@ -12,7 +12,7 @@ import { maxItemsFor, templateOptions, type OptionDef, type TemplateDef } from "
 import { SPELL_TOKENS, type EditorGame, type EditorItem } from "@/lib/games/types";
 import { LANGUAGES, type AppLanguage } from "@/lib/tts/voices";
 import { AudioControl, type TtsConfig } from "./AudioControl";
-import { AudioField } from "./AudioField";
+import { AudioDefaultsContext, AudioField, type AudioDefaults } from "./AudioField";
 import { DiagramPoints } from "./DiagramPoints";
 import { FaceEditor, FlashcardPreview, RowControls, swapItem } from "./FlashcardParts";
 import { UiLangProvider, useUi } from "./i18n";
@@ -373,6 +373,17 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
   const otherVoices = game.settings.voices ?? {};
   // Voices for every language, so marked runs ("…en español, [en]love[/en]?") use the teacher's choice.
   const voiceMap: Partial<Record<AppLanguage, string>> = { ...otherVoices, ...(game.settings.voice ? { [game.language]: game.settings.voice } : {}) };
+  // The Audio panel starts from these and can save its choice as the activity default.
+  const audioDefaults: AudioDefaults = {
+    voices: voiceMap,
+    rate: game.settings.rate,
+    set: (language, voice, rate) =>
+      setGame((g) => {
+        const main = language === g.language;
+        const voices = voice && !main ? { ...(g.settings.voices ?? {}), [language]: voice } : g.settings.voices;
+        return { ...g, settings: { ...g.settings, rate, voices, ...(voice && main ? { voice } : {}) } };
+      }),
+  };
   const fields = template.fields;
   const noun = template.itemNoun;
   const typedSpelling = template.key === "SPELL_THE_WORD" && options.spellMode === "type";
@@ -623,10 +634,10 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                       <Label htmlFor={`voice-${l.code}`} hint={main ? "main voice" : "for words marked in this language"}>{LANG_SHORT[l.code]} voice</Label>
                       <Select
                         id={`voice-${l.code}`}
-                        value={value ?? list[0]?.id ?? ""}
+                        value={value ?? (list.find((v) => v.recommended) ?? list[0])?.id ?? ""}
                         onChange={(e) => (main ? setSettings({ voice: e.target.value }) : setSettings({ voices: { ...otherVoices, [l.code]: e.target.value } }))}
                       >
-                        {list.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+                        {list.map((v) => <option key={v.id} value={v.id}>{v.description ? `${v.label} — ${v.description}` : v.label}</option>)}
                       </Select>
                     </div>
                   );
@@ -635,7 +646,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
             ) : (
               <p className="rounded-xl bg-paper-2 p-3 text-xs text-ink-2">
                 {tts
-                  ? "No text-to-speech provider is configured. Students hear the device's own voices (each marked run in its own language, when the device has that voice). Add AZURE_SPEECH_KEY or GOOGLE_CLOUD_API_KEY for natural, saved audio."
+                  ? "No voice service is configured. Students hear the device's own voices (each marked run in its own language, when the device has that voice). Set TTS_PROVIDER=gateway on Vercel (or an Azure/Google key) for natural, saved audio."
                   : "Loading voices…"}
               </p>
             )}
@@ -663,6 +674,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
   );
 
   return (
+    <AudioDefaultsContext.Provider value={audioDefaults}>
     <SpanishKeyboardProvider>
       <form ref={dupForm} action={duplicateGame} className="hidden">
         <input type="hidden" name="gameId" value={game.id} />
@@ -1001,6 +1013,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
         {!flash && <aside className="space-y-4">{settingsSections}</aside>}
       </div>
     </SpanishKeyboardProvider>
+    </AudioDefaultsContext.Provider>
   );
 }
 

@@ -124,11 +124,12 @@ export function VoiceDock({ s, children, showControls = true }: { s: VoiceSessio
           <Button variant="secondary" size="lg" onClick={s.resume}>Try again</Button>
         </div>
       )}
+      {s.audioBlocked && <ListenBlocked s={s} />}
       <div className="flex flex-wrap justify-center gap-2">
         {children}
         {showControls && s.usesMic && (
           <>
-            <Button variant="secondary" onClick={s.repeat} disabled={s.phase !== "listening"}>🔊 Escuchar otra vez</Button>
+            <Button variant="secondary" onClick={() => (s.unlock(), s.repeat())} disabled={s.phase !== "listening"}>🔊 Escuchar otra vez</Button>
             <Button variant="ghost" onClick={s.skip}>Siguiente →</Button>
             <Button variant="ghost" onClick={s.stopMic} aria-label="Stop the microphone">■ Stop mic</Button>
           </>
@@ -138,13 +139,32 @@ export function VoiceDock({ s, children, showControls = true }: { s: VoiceSessio
   );
 }
 
-/** Plays the item's own audio (recording, file or device voice) only when the student asks. */
+/** The browser refused to play a clip by itself: one tap plays it (and allows the next ones). */
+export function ListenBlocked({ s }: { s: VoiceSession }) {
+  return (
+    <div className="animate-pop-in text-center" data-testid="audio-blocked">
+      <p className="mb-2 text-sm text-ink-2">Toca para escuchar · Tap to listen</p>
+      <Button variant="voice" size="lg" onClick={s.replay}>🔊 Escuchar</Button>
+    </div>
+  );
+}
+
+/** Plays the item's own audio again (recording, file or chosen voice) whenever the student asks. */
 export function ItemAudioButton({ s, q }: { s: VoiceSession; q: PlayQuestion }) {
   if (!q.audio) return null;
   const a = q.audio;
   return (
-    <button type="button" onClick={() => s.say(a.text, a.url, a.language)} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-teal-soft px-4 py-1.5 font-bold text-teal-dark hover:bg-teal hover:text-white" aria-label="Listen to this item">
-      🔊 Listen
+    <button
+      type="button"
+      onClick={() => {
+        s.unlock();
+        if (!s.repeat()) void s.sayAudio(a); // while listening: the question again, mic re-armed after it
+      }}
+      className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-teal-soft px-4 py-1.5 font-bold text-teal-dark hover:bg-teal hover:text-white"
+      aria-label="Escuchar"
+      data-testid="item-listen"
+    >
+      🔊 Escuchar
     </button>
   );
 }

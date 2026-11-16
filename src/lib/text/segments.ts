@@ -3,7 +3,7 @@
 //   [en]How do you say[/en] manzana [en]in English?[/en]
 // Untagged text is in the field's base language. Tags are set or confirmed by the teacher;
 // proposeTags() only suggests them (a word's spelling alone never decides its language).
-import type { AppLanguage } from "@/lib/tts/voices";
+import type { AppLanguage, AudioLanguage } from "@/lib/tts/voices";
 
 export type TagCode = "es" | "en" | "fr";
 export const TAG_LANG: Record<TagCode, AppLanguage> = { es: "es-419", en: "en-US", fr: "fr-FR" };
@@ -12,7 +12,7 @@ export const LANG_NAME: Record<AppLanguage, string> = { "es-419": "Español", "e
 
 export interface Segment {
   text: string;
-  language: AppLanguage;
+  language: AudioLanguage;
 }
 
 const TAG_RE = /\[(es|en|fr)\]([\s\S]*?)\[\/\1\]/g;
@@ -25,9 +25,9 @@ export function plainText(text: string): string {
 }
 
 /** Splits tagged text into language runs. Adjacent runs in the same language are merged. */
-export function parseSegments(text: string, base: AppLanguage): Segment[] {
+export function parseSegments(text: string, base: AudioLanguage): Segment[] {
   const out: Segment[] = [];
-  const push = (t: string, language: AppLanguage) => {
+  const push = (t: string, language: AudioLanguage) => {
     if (!t) return;
     const last = out.at(-1);
     if (last && last.language === language) last.text += t;
@@ -44,7 +44,7 @@ export function parseSegments(text: string, base: AppLanguage): Segment[] {
 }
 
 /** Runs that are actually spoken: punctuation/space-only runs join the previous run. */
-export function speechSegments(text: string, base: AppLanguage): Segment[] {
+export function speechSegments(text: string, base: AudioLanguage): Segment[] {
   const out: Segment[] = [];
   for (const s of parseSegments(text, base)) {
     if (!/[\p{L}\p{N}]/u.test(s.text) && out.length) out[out.length - 1] = { ...out.at(-1)!, text: out.at(-1)!.text + s.text };

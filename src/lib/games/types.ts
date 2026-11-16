@@ -4,7 +4,7 @@ export interface GameSettings {
   acceptShortAnswer: boolean;
   voice?: string;
   /** Voices for runs in other languages ("…en español, [en]love[/en]?"). */
-  voices?: Partial<Record<"es-419" | "en-US" | "fr-FR", string>>;
+  voices?: Partial<Record<AudioLanguage, string>>;
   rate: number;
   /** Incorrect tries before the model answer and moving on. */
   maxTries: number;
@@ -17,6 +17,8 @@ export interface GameSettings {
 }
 
 export type Lang = "es-419" | "en-US" | "fr-FR";
+export type { AudioLanguage } from "@/lib/tts/voices";
+import type { AudioLanguage } from "@/lib/tts/voices";
 
 /**
  * Audio attached to a card face or an item. A recording, an uploaded file or saved
@@ -27,8 +29,10 @@ export interface FaceAudio {
   mediaId?: string | null;
   /** Words read aloud (may differ from the visible text: show a picture, say "rojo"). */
   text: string;
-  language: Lang;
+  language: AudioLanguage;
   voice?: string | null;
+  /** Speed the audio was generated at (0.5–1.5). */
+  rate?: number;
   source: "record" | "upload" | "tts" | "browser";
   /** File name for uploads, shown in the editor. */
   name?: string;
@@ -118,7 +122,7 @@ export interface PlayFace {
   text: string;
   imageUrl: string | null;
   imageAlt: string;
-  audio: { url: string | null; text: string; language: Lang } | null;
+  audio: { url: string | null; text: string; language: AudioLanguage; rate?: number } | null;
 }
 
 /** What the activity player receives. */

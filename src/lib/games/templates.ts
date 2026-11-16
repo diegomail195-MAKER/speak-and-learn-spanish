@@ -364,6 +364,16 @@ export const TEMPLATES: TemplateDef[] = [
   ),
 ];
 
+/** Shared by every template: the audio of each card, box, slice or word plays when it appears. */
+export const AUTOPLAY_OPTION: OptionDef = {
+  key: "autoplayAudio",
+  label: "Play audio automatically",
+  help: "Each card, box, slice or word says its audio when it appears (and when a card flips). Off: students tap Listen. If the browser blocks it, a Listen button appears.",
+  type: "boolean",
+  default: true,
+};
+for (const t of TEMPLATES) if (t.available && !t.options.some((o) => o.key === AUTOPLAY_OPTION.key)) t.options.push(AUTOPLAY_OPTION);
+
 export const templateByKey = (key: string) => TEMPLATES.find((t) => t.key === key);
 
 export const FILTERS: Array<{ key: TemplateFilter | "all"; label: string }> = [

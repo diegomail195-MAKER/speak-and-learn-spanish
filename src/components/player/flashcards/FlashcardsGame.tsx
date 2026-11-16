@@ -46,11 +46,11 @@ export function FlashcardsGame({ game, mode, diagnostics, submitTurn, onFinish, 
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-3 py-3 sm:px-5 sm:py-5">
+    <div className="mx-auto w-full max-w-7xl px-2 py-2 sm:px-4 sm:py-3">
       <main
         ref={stage}
         data-testid="flashcards-stage"
-        className={`relative flex flex-col overflow-hidden bg-ink text-white ${full ? "h-dvh w-full" : "min-h-[min(640px,86dvh)] rounded-[1.75rem] shadow-soft sm:min-h-[620px]"}`}
+        className={`relative flex flex-col overflow-hidden bg-ink text-white ${full ? "h-dvh w-full" : "min-h-[calc(100dvh-1rem)] rounded-[1.75rem] shadow-soft sm:min-h-[calc(100dvh-1.5rem)]"}`}
       >
         <StageDecor />
         <div className="relative z-10 flex items-center gap-2 px-3 pt-3 sm:px-5">
@@ -154,9 +154,9 @@ function Face({ face, fallbackAlt, big }: { face: PlayFace; fallbackAlt: string;
     <>
       {face.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={face.imageUrl} alt={face.imageAlt || text || fallbackAlt} className={`w-full min-h-0 flex-1 object-contain ${text ? "max-h-[68%]" : "max-h-full"}`} draggable={false} />
+        <img src={face.imageUrl} alt={face.imageAlt || text || fallbackAlt} className={`w-full min-h-0 flex-1 object-contain ${text ? "max-h-[82%]" : "max-h-full"}`} draggable={false} />
       )}
-      {text && <span className={`text-center font-display font-bold leading-tight text-ink ${face.imageUrl ? "text-2xl sm:text-3xl" : big ? "text-4xl sm:text-6xl" : "text-3xl sm:text-5xl"}`}>{text}</span>}
+      {text && <span className={`text-center font-display font-bold leading-tight text-ink ${face.imageUrl ? "text-3xl sm:text-5xl" : big ? "text-4xl sm:text-6xl" : "text-3xl sm:text-5xl"}`}>{text}</span>}
       {!face.imageUrl && !text && face.audio && <span className="text-7xl" aria-hidden>🔊</span>}
     </>
   );
@@ -238,6 +238,7 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
     const q = byId(ord[i]);
     if (!speaks(q)) {
       setAsking(false);
+      if (s.autoplay && q.audio) void s.sayAudio(q.audio); // the front's own audio, as the card appears
       return; // look, flip and check yourself
     }
     setAsking(true);
@@ -295,6 +296,10 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
   const flip = useCallback(() => {
     if (!q || oneSide || overlay || paused) return;
     if (!flipped && speaks(q) && asking) s.raiseSupport("MODEL"); // seeing the answer first means it's not independent
+    s.unlock(); // a click, tap or Space
+    // Each face has its own audio: the back says its words when it turns over, the front its own.
+    const face = flipped ? q.audio : q.back?.audio;
+    if (s.autoplay && face && !(speaks(q) && asking && s.phase === "listening")) void s.sayAudio(face);
     setFlipped((f) => !f);
   }, [q, oneSide, overlay, paused, flipped, asking, s]);
 
@@ -395,6 +400,7 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
   const front: PlayFace = { text: q.displayText, imageUrl: q.imageUrl, imageAlt: q.imageAlt, audio: q.audio };
   const visibleAudio = flipped ? q.back?.audio : q.audio;
   const listen = () => {
+    s.unlock();
     if (visibleAudio) return s.say(visibleAudio.text, visibleAudio.url, visibleAudio.language);
     if (flipped || s.repeat()) return null;
     if (q.prompt || q.displayText) return s.say(q.prompt || q.displayText, q.prompt ? q.promptAudioUrl : null);
@@ -408,7 +414,7 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
   return (
     <div className="flex w-full flex-1 flex-col items-center">
       {/* time · n of N · cards known */}
-      <div className="grid w-full max-w-3xl grid-cols-[1fr_auto_1fr] items-center font-display text-lg font-bold sm:text-xl">
+      <div className="grid w-full max-w-6xl grid-cols-[1fr_auto_1fr] items-center font-display text-lg font-bold sm:text-xl">
         <span className="tabular-nums text-white/85" aria-label={`Time ${clockText(ms)}`} data-testid="game-clock">{clockText(ms)}</span>
         <span className="flex items-center gap-1">
           <button type="button" onClick={() => play(pos - 1, order)} disabled={pos === 0 || paused} className={arrow} aria-label="Previous card">
@@ -424,21 +430,23 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
 
       <div className="mt-3 flex w-full flex-1 items-center justify-center gap-3 sm:gap-4">
         <div aria-hidden className="hidden w-16 shrink-0 sm:block" />
-        <div className="relative h-[clamp(14rem,44dvh,25rem)] w-full max-w-xl [perspective:1400px]">
+        <div className="relative h-[clamp(16rem,calc(100dvh-19rem),60rem)] w-full max-w-6xl" style={{ perspective: 1600, WebkitPerspective: 1600 }}>
           <button
+            key={q.id /* a new card starts face up, without turning back */}
             type="button"
             data-card
+            data-flipped={flipped ? "true" : "false"}
             onClick={flip}
             aria-label={oneSide ? "Card" : flipped ? "Card, back. Flip it to see the front" : "Card, front. Flip it over"}
-            className="relative block h-full w-full cursor-pointer transition-transform duration-500 [transform-style:preserve-3d] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-sun"
-            style={{ transform: flipped ? "rotateY(180deg)" : undefined }}
+            className="ls-flip-card relative block h-full w-full cursor-pointer focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-sun"
+            style={{ transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
           >
-            <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-[1.75rem] bg-card p-5 shadow-[0_10px_0_rgba(0,0,0,.18)] [backface-visibility:hidden] sm:p-8">
+            <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-[1.75rem] bg-card p-3 shadow-[0_10px_0_rgba(0,0,0,.18)] ls-flip-face sm:p-5">
               <Face face={front} fallbackAlt="Card picture" big />
               {q.prompt && <span className="text-center font-display text-xl text-ink-2 sm:text-2xl">{plainText(q.prompt)}</span>}
             </span>
             {!oneSide && (
-              <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-[1.75rem] bg-teal-soft p-5 shadow-[0_10px_0_rgba(0,0,0,.18)] [backface-visibility:hidden] [transform:rotateY(180deg)] sm:p-8">
+              <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-[1.75rem] bg-teal-soft p-3 shadow-[0_10px_0_rgba(0,0,0,.18)] ls-flip-face ls-flip-back sm:p-5">
                 {q.back ? (
                   <>
                     <Face face={q.back} fallbackAlt="Back of the card" big />
@@ -484,9 +492,15 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
 
       {s.showHint && q.hint && <p className="mt-3 rounded-full bg-sun-soft px-4 py-1.5 font-semibold text-[#7a5200]">💡 {plainText(q.hint)}</p>}
 
-      <button type="button" onClick={listen} disabled={!canListen || paused} className="mt-3 grid h-10 w-12 place-items-center rounded-xl bg-white/15 text-white hover:bg-white/25 disabled:opacity-30" aria-label="Listen" title="Listen">
-        <IconSound />
-      </button>
+      {s.audioBlocked && !speaks(q) ? (
+        <button type="button" onClick={() => (s.unlock(), listen())} data-testid="audio-blocked" className="animate-pop-in mt-3 inline-flex h-12 items-center gap-2 rounded-full bg-sun px-5 font-display text-lg font-semibold text-ink shadow-[0_3px_0_rgba(0,0,0,.25)]" aria-label="Listen" title="Escuchar">
+          <IconSound /> Escuchar
+        </button>
+      ) : (
+        <button type="button" onClick={listen} disabled={!canListen || paused} className="mt-3 grid h-10 w-12 place-items-center rounded-xl bg-white/15 text-white hover:bg-white/25 disabled:opacity-30" aria-label="Listen" title="Escuchar">
+          <IconSound />
+        </button>
+      )}
 
       {speaks(q) && (
         <div className="mt-3 w-full max-w-2xl rounded-[1.25rem] bg-paper px-3 pb-3 text-ink">

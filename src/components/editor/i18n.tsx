@@ -106,6 +106,19 @@ const ES = {
   card: "tarjeta",
   item: "Elemento",
   itemAudio: "Audio del elemento",
+  speed: "Velocidad",
+  slow: "Lenta",
+  normal: "Normal",
+  fast: "Rápida",
+  sample: "Escuchar muestra",
+  regenerate: "Generar de nuevo",
+  changedRegen: "Cambiaste el texto, la voz o la velocidad: al guardar se genera el audio nuevo.",
+  makeDefault: "Usar este idioma, voz y velocidad como predeterminados de la actividad",
+  defaultSet: "Predeterminado de la actividad",
+  recommended: "recomendada",
+  generating: "Generando…",
+  voiceError: "El servicio de voz no respondió.",
+  naturalVoice: "Voz natural (se guarda en la tarjeta)",
 };
 type Dict = typeof ES;
 const EN: Dict = {
@@ -208,6 +221,19 @@ const EN: Dict = {
   card: "card",
   item: "Item",
   itemAudio: "Item audio",
+  speed: "Speed",
+  slow: "Slow",
+  normal: "Normal",
+  fast: "Fast",
+  sample: "Play a sample",
+  regenerate: "Generate again",
+  changedRegen: "You changed the text, voice or speed: saving creates the new audio.",
+  makeDefault: "Use this language, voice and speed as the activity's default",
+  defaultSet: "Activity default",
+  recommended: "recommended",
+  generating: "Generating…",
+  voiceError: "The voice service didn't respond.",
+  naturalVoice: "Natural voice (saved on the card)",
 };
 
 const Ctx = createContext<{ lang: UiLang; t: Dict; setLang: (l: UiLang) => void }>({ lang: "en", t: EN, setLang: () => undefined });

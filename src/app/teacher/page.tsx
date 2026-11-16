@@ -92,7 +92,7 @@ export default async function Dashboard() {
           <h2 className="font-display text-lg font-semibold">Speech services</h2>
           <ul className="mt-3 space-y-2 text-sm">
             <li>
-              <strong>Voice generation (TTS):</strong> {tts ? <span className="text-leaf">{tts} connected</span> : <span className="text-[#8a5a00]">not configured — students hear the device&apos;s Spanish voice when available</span>}
+              <strong>Voice generation (TTS):</strong> {tts ? <span className="text-leaf">{tts === "gateway" ? "natural voices (Vercel AI Gateway)" : tts} connected</span> : <span className="text-[#8a5a00]">not configured — students hear the device&apos;s Spanish voice when available</span>}
             </li>
             <li>
               <strong>Speech recognition (STT):</strong> {stt === "scripted-test" ? <span className="font-bold text-coral-dark">TEST RECOGNIZER — for automated tests only, not for classrooms</span> : stt ? <span className="text-leaf">{stt} connected</span> : <span className="text-[#8a5a00]">using Chrome&apos;s built-in recognizer (needs internet; audio goes to Google)</span>}
