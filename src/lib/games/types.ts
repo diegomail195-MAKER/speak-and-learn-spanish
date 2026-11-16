@@ -165,6 +165,8 @@ export interface PlayGame {
   diagramImageUrl: string | null;
   settings: { acceptShortAnswer: boolean; maxTries: number; showAnswerText: boolean; rate: number };
   phraseAudio: Record<string, string>;
+  /** Flashcards: where the player gets the natural-voice clips of the "Let's practice" round. */
+  practiceAudioUrl?: string;
   questions: PlayQuestion[];
 }
 

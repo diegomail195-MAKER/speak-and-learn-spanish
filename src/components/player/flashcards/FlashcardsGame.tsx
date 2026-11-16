@@ -5,7 +5,8 @@ import type { PlayFace, PlayQuestion } from "@/lib/games/types";
 import { plainText } from "@/lib/text/segments";
 import { DiagnosticsPanel, DoneScreen, VoiceDock, shuffled } from "../parts";
 import { useVoiceSession, type SubmitTurn, type Support, type VoiceSession } from "../useVoiceSession";
-import { LetsPractice, practiceCards } from "./LetsPractice";
+import { practiceCards, PRACTICE } from "@/lib/games/practice";
+import { LetsPractice, sayBoth, usePracticeClips } from "./LetsPractice";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -215,6 +216,7 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
   const [paused, setPaused] = useState(false);
   const [practising, setPractising] = useState(false);
   const canPractise = opts.letsPractice === true && practiceCards(s.game).length > 0;
+  const clips = usePracticeClips(s.game.practiceAudioUrl, canPractise); // natural voice, loaded while the cards are played
   const ms = useClock(!complete && !paused && s.phase !== "done");
   const token = useRef(0);
   const byId = useCallback((id: string) => questions.find((q) => q.id === id)!, [questions]);
@@ -294,6 +296,12 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [complete]);
 
+  // The results, then the invitation to the speaking round, in Spanish and English.
+  useEffect(() => {
+    if (complete && canPractise && !practising) void sayBoth(s.say, PRACTICE.invite, clips);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [complete]);
+
   const q = complete ? null : byId(order[pos]);
 
   const flip = useCallback(() => {
@@ -342,7 +350,7 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
   }
 
   if ((complete || !q) && practising) {
-    return <LetsPractice game={s.game} onBack={() => setPractising(false)} onDone={() => s.finish()} />;
+    return <LetsPractice game={s.game} clips={clips} onDone={() => s.finish()} />;
   }
 
   if (complete || !q) {
@@ -395,11 +403,11 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
             <dd className="font-display text-3xl font-bold">{clockText(ms)}</dd>
           </div>
         </dl>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        {!canPractise && <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button type="button" onClick={() => setShowAnswers(true)} className="h-12 rounded-full bg-card px-5 font-bold ring-1 ring-line hover:ring-ink-2/40">Show answers</button>
           <button type="button" onClick={onRestart} className="h-12 rounded-full bg-teal px-5 font-bold text-white shadow-[0_2px_0_var(--color-teal-dark)] hover:bg-teal-dark">⟲ Start again</button>
-          {!canPractise && <button type="button" onClick={() => s.finish()} className="h-12 rounded-full bg-coral px-5 font-bold text-white shadow-[0_2px_0_var(--color-coral-dark)] hover:bg-coral-dark">Finish</button>}
-        </div>
+          <button type="button" onClick={() => s.finish()} className="h-12 rounded-full bg-coral px-5 font-bold text-white shadow-[0_2px_0_var(--color-coral-dark)] hover:bg-coral-dark">Finish</button>
+        </div>}
         {canPractise && (
           <button
             type="button"
@@ -410,7 +418,7 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
             <span className="text-3xl" aria-hidden>🎤</span>
             <span className="text-left leading-tight">
               <span className="block font-display text-xl font-bold">¡Vamos a practicar!</span>
-              <span className="block text-sm font-semibold text-white/85">Let&apos;s practice! · answer out loud</span>
+              <span className="block text-sm font-semibold text-white/85">Let&apos;s practice! · Activa el micrófono · Turn on the microphone</span>
             </span>
           </button>
         )}

@@ -100,20 +100,28 @@ try {
     await page.waitForTimeout(900);
   }
   await page.getByTestId("round-results").waitFor();
+  assert((await page.getByText("Show answers").count()) === 0, "results screen shows only the result and the practice button");
   await shot(page, "lp3-results");
-  await page.getByTestId("go-practice").click();
-  await page.getByTestId("lets-practice-intro").waitFor();
-  await shot(page, "lp4-practice-intro");
-  script([{ text: "el perro", confidence: 0.95 }, { text: "red", confidence: 0.95 }]);
-  await page.getByTestId("lets-practice-start").click();
-  await page.getByTestId("lets-practice").waitFor();
-  await page.waitForTimeout(600);
-  await shot(page, "lp5-practice-card");
+  // Card 1: a first miss gets "look again" without the answer, then the right answer.
+  // Card 2: two misses, then the answer is given.
+  script([{ text: "gato", confidence: 0.95 }, { text: "el perro", confidence: 0.95 }, { text: "blue", confidence: 0.95 }, { text: "green", confidence: 0.95 }]);
+  await page.getByTestId("go-practice").click(); // turns the microphone on by itself
+  await page.getByTestId("lets-practice").waitFor({ timeout: 15000 });
+  assert((await page.getByTestId("practice-question").textContent()) === "¿Qué es esto?", "card 1 question");
+  await page.waitForSelector("text=/Observemos este nuevamente|Mira este otra vez con calma/", { timeout: 30000 });
+  assert((await page.locator("[role=status]", { hasText: "el perro" }).count()) === 0, "the answer is not given after the first miss");
+  await shot(page, "lp5-practice-retry");
+  log("first miss: look again, no answer");
+  await page.waitForSelector("text=/Así es|Lo dijiste correctamente|Lo hiciste por tu cuenta|Seguiste intentándolo|Notaste la diferencia/", { timeout: 30000 });
+  await page.getByTestId("practice-question").filter({ hasText: "What color is this?" }).waitFor({ timeout: 15000 });
+  await page.waitForSelector("text=You're still learning this word", { timeout: 40000 });
+  await shot(page, "lp5b-practice-model");
+  log("second miss on card 2: the answer is given");
   await page.getByTestId("lets-practice-results").waitFor({ timeout: 60000 });
   const score = await page.getByTestId("practice-score").textContent();
   await shot(page, "lp6-practice-done");
-  assert(score === "2/2", `practice score ${score}`);
-  log("Let's practice: both cards answered out loud →", score);
+  assert(score === "1/2", `practice score ${score}`);
+  log("Let's practice:", score);
   assert(!errors.length, errors.join(" | "));
   log("ALL LET'S PRACTICE CHECKS PASSED");
 } catch (e) {
