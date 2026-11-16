@@ -9,7 +9,7 @@ type WebResult = { id: string; thumb: string; tags: string; author: string; page
 
 export const mediaSrc = (id: string | null | undefined) => (id ? `/api/media/${id}` : null);
 
-async function uploadBlob(blob: Blob, name: string): Promise<Asset> {
+export async function uploadBlob(blob: Blob, name: string): Promise<Asset> {
   const fd = new FormData();
   fd.append("file", new File([blob], name, { type: blob.type }));
   const res = await fetch("/api/media", { method: "POST", body: fd });

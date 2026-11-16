@@ -4,10 +4,15 @@ import "server-only";
 // configured provider and discarded — it is never written to disk or the database.
 //   STT_PROVIDER=azure  + AZURE_SPEECH_KEY + AZURE_SPEECH_REGION   (recognition + pronunciation assessment)
 //   STT_PROVIDER=google + GOOGLE_CLOUD_API_KEY                      (recognition)
+//   STT_PROVIDER=gateway (Vercel AI Gateway, OpenAI transcription; STT_GATEWAY_MODEL, default
+//                        openai/gpt-4o-mini-transcribe). Also the default on Vercel when no
+//                        STT_PROVIDER is set, since the natural voices use the same gateway.
 // Without a server provider the browser's Web Speech API is used instead (Chrome sends that
 // audio to Google; see docs/PRIVACY.md).
 
-export type SttProviderName = "azure" | "google" | "scripted-test";
+import { gatewayAvailable, gatewayTranscribe } from "@/lib/tts/gateway";
+
+export type SttProviderName = "azure" | "google" | "gateway" | "scripted-test";
 
 /**
  * "scripted-test" exists only for automated end-to-end tests: it receives the real WAV from the
@@ -19,6 +24,7 @@ export function sttProvider(): SttProviderName | null {
   if (p === "scripted-test" && process.env.E2E_SCRIPTED_STT === "1" && process.env.E2E_STT_SCRIPT_FILE) return "scripted-test";
   if (p === "azure" && process.env.AZURE_SPEECH_KEY && process.env.AZURE_SPEECH_REGION) return "azure";
   if (p === "google" && process.env.GOOGLE_CLOUD_API_KEY) return "google";
+  if ((p === "gateway" || !p) && gatewayAvailable() && process.env.STT_PROVIDER !== "browser") return "gateway";
   return null;
 }
 
@@ -40,7 +46,32 @@ const LETTER_HINTS = ["a", "be", "ce", "de", "e", "efe", "ge", "hache", "i", "jo
 
 export async function recognize(provider: SttProviderName, wav: Buffer, opts: { locale: string; mode: "PHRASE" | "LETTERS"; reference?: string }): Promise<SttResult> {
   if (provider === "scripted-test") return scripted(wav, opts);
+  if (provider === "gateway") return gateway(wav, opts);
   return provider === "azure" ? azure(wav, opts) : google(wav, opts);
+}
+
+/**
+ * OpenAI transcription through Vercel AI Gateway. The language is fixed to the activity's (never
+ * auto-detected), and the expected answer is never sent, so the engine can't be nudged towards
+ * the right answer. Letter names get a hint of the alphabet, as with Google.
+ */
+async function gateway(wav: Buffer, opts: { locale: string; mode: string }): Promise<SttResult> {
+  const samples = (wav.length - 44) / 2;
+  if (samples / 16000 < 0.25) return { provider: "gateway", locale: opts.locale, status: "NoMatch", alternatives: [], pronunciation: null };
+  const model = process.env.STT_GATEWAY_MODEL || "openai/gpt-4o-mini-transcribe";
+  const prompt = opts.mode === "LETTERS" ? `Letras del alfabeto: ${LETTER_HINTS.join(", ")}.` : undefined;
+  let text = "";
+  try {
+    text = (await gatewayTranscribe(model, wav, "audio/wav", opts.locale.slice(0, 2), prompt)).trim();
+  } catch (e) {
+    // A model the gateway doesn't offer: fall back to Whisper once.
+    if (model === "openai/whisper-1") throw e;
+    text = (await gatewayTranscribe("openai/whisper-1", wav, "audio/wav", opts.locale.slice(0, 2), prompt)).trim();
+  }
+  // Whisper-style models sometimes "hear" these on silence; treat them as nothing heard.
+  const junk = /^(gracias( por ver( el video)?)?|subtítulos .*|thank you|merci)[.!]?$/i;
+  const status = text && !junk.test(text) ? "Success" : "NoMatch";
+  return { provider: "gateway", locale: opts.locale, status, alternatives: status === "Success" ? [{ text, confidence: null }] : [], pronunciation: null };
 }
 
 async function scripted(wav: Buffer, opts: { locale: string; mode: string }): Promise<SttResult> {

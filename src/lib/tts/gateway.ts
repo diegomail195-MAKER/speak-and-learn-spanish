@@ -71,8 +71,8 @@ export async function gatewaySpeech(r: GatewaySpeechRequest): Promise<{ data: Bu
   return { data, mime: sniff(data), warnings: json.warnings ?? [] };
 }
 
-/** Used to check pronunciation of generated samples (round trip). */
-export async function gatewayTranscribe(model: string, audio: Buffer, mediaType: string, language?: string): Promise<string> {
+/** Speech to text: students' answers (lib/stt) and checking generated samples (round trip). */
+export async function gatewayTranscribe(model: string, audio: Buffer, mediaType: string, language?: string, prompt?: string): Promise<string> {
   const res = await fetch(`${BASE}/transcription-model`, {
     method: "POST",
     headers: {
@@ -82,7 +82,7 @@ export async function gatewayTranscribe(model: string, audio: Buffer, mediaType:
       "ai-model-id": model,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ audio: audio.toString("base64"), mediaType, ...(language ? { providerOptions: { openai: { language } } } : {}) }),
+    body: JSON.stringify({ audio: audio.toString("base64"), mediaType, ...(language || prompt ? { providerOptions: { openai: { ...(language ? { language } : {}), ...(prompt ? { prompt } : {}) } } } : {}) }),
     signal: AbortSignal.timeout(45_000),
   });
   const body = await res.text();

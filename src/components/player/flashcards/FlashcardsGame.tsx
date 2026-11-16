@@ -5,6 +5,7 @@ import type { PlayFace, PlayQuestion } from "@/lib/games/types";
 import { plainText } from "@/lib/text/segments";
 import { DiagnosticsPanel, DoneScreen, VoiceDock, shuffled } from "../parts";
 import { useVoiceSession, type SubmitTurn, type Support, type VoiceSession } from "../useVoiceSession";
+import { LetsPractice, practiceCards } from "./LetsPractice";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -212,6 +213,8 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
   const [complete, setComplete] = useState(false);
   const [showAnswers, setShowAnswers] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [practising, setPractising] = useState(false);
+  const canPractise = opts.letsPractice === true && practiceCards(s.game).length > 0;
   const ms = useClock(!complete && !paused && s.phase !== "done");
   const token = useRef(0);
   const byId = useCallback((id: string) => questions.find((q) => q.id === id)!, [questions]);
@@ -338,6 +341,10 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
     );
   }
 
+  if ((complete || !q) && practising) {
+    return <LetsPractice game={s.game} onBack={() => setPractising(false)} onDone={() => s.finish()} />;
+  }
+
   if (complete || !q) {
     if (showAnswers) {
       return (
@@ -391,8 +398,22 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button type="button" onClick={() => setShowAnswers(true)} className="h-12 rounded-full bg-card px-5 font-bold ring-1 ring-line hover:ring-ink-2/40">Show answers</button>
           <button type="button" onClick={onRestart} className="h-12 rounded-full bg-teal px-5 font-bold text-white shadow-[0_2px_0_var(--color-teal-dark)] hover:bg-teal-dark">⟲ Start again</button>
-          <button type="button" onClick={() => s.finish()} className="h-12 rounded-full bg-coral px-5 font-bold text-white shadow-[0_2px_0_var(--color-coral-dark)] hover:bg-coral-dark">Finish</button>
+          {!canPractise && <button type="button" onClick={() => s.finish()} className="h-12 rounded-full bg-coral px-5 font-bold text-white shadow-[0_2px_0_var(--color-coral-dark)] hover:bg-coral-dark">Finish</button>}
         </div>
+        {canPractise && (
+          <button
+            type="button"
+            onClick={() => (s.stopAll(), setPractising(true))}
+            data-testid="go-practice"
+            className="mt-5 flex w-full items-center justify-center gap-3 rounded-2xl bg-coral px-5 py-4 text-white shadow-[0_4px_0_var(--color-coral-dark)] hover:bg-coral-dark"
+          >
+            <span className="text-3xl" aria-hidden>🎤</span>
+            <span className="text-left leading-tight">
+              <span className="block font-display text-xl font-bold">¡Vamos a practicar!</span>
+              <span className="block text-sm font-semibold text-white/85">Let&apos;s practice! · answer out loud</span>
+            </span>
+          </button>
+        )}
       </div>
     );
   }
