@@ -181,7 +181,8 @@ async function gatewayPart(p: TtsPart, rate: number, format: "mp3" | "wav") {
 /** AI Gateway: one request per language run; mixed-language sentences are joined as PCM. */
 async function gateway(r: TtsRequest): Promise<{ data: Buffer; mime: string }> {
   if (r.parts.length === 1) {
-    const a = await gatewayPart(r.parts[0], r.rate, "mp3");
+    // Gemini only returns WAV; ask for it directly instead of an MP3 it would ignore.
+    const a = await gatewayPart(r.parts[0], r.rate, r.parts[0].voice.model?.startsWith("google/") ? "wav" : "mp3");
     return { data: a.data, mime: a.mime };
   }
   const wavs = await Promise.all(r.parts.map((p) => gatewayPart(p, r.rate, "wav")));
