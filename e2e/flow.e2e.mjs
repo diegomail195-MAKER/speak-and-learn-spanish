@@ -76,17 +76,14 @@ try {
   const gameId = editUrl.split("/").at(-2);
   await page.getByLabel("Activity title").fill("Los animales");
 
-  // Question typed with the Spanish character bar (US keyboard): "¿Qué animal es?"
+  // Question typed on a US keyboard: autocorrect adds ¿ and the accent on the question word.
   const q1 = page.locator("li[aria-label='Question 1']");
   const qInput = q1.locator("input[placeholder='¿Qué animal es?']");
   await qInput.click();
-  await page.locator("[role=toolbar] button[aria-label='Insert ¿']").first().click();
-  await qInput.pressSequentially("Qu");
-  await qInput.press("Alt+e"); // keyboard shortcut → é
-  await qInput.pressSequentially(" animal es?");
+  await qInput.pressSequentially("Que animal es?");
   const typed = await qInput.inputValue();
-  if (typed !== "¿Qué animal es?") throw new Error(`Character bar/shortcut produced "${typed}"`);
-  log("typed with char bar + Alt shortcut:", typed);
+  if (typed !== "¿Qué animal es?") throw new Error(`Autocorrect produced "${typed}"`);
+  log("typed with autocorrect:", typed);
   await q1.locator("input[placeholder='Es un perro.']").fill("Es un perro.");
   await addImage(q1, "dog.png");
   await q1.locator("img").waitFor();

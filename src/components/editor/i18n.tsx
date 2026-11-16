@@ -119,6 +119,9 @@ const ES = {
   generating: "Generando…",
   voiceError: "El servicio de voz no respondió.",
   naturalVoice: "Voz natural (se guarda en la tarjeta)",
+  autoTitle: "Corrector automático",
+  autoHelp: "Escribe sin cambiar de teclado: al terminar cada palabra se añaden los acentos, la ñ y los signos ¿ ¡ (y lo propio del inglés y el francés). Pulsa ⌫ justo después para deshacer una corrección.",
+  autoUndo: "⌫ deshacer",
 };
 type Dict = typeof ES;
 const EN: Dict = {
@@ -234,6 +237,9 @@ const EN: Dict = {
   generating: "Generating…",
   voiceError: "The voice service didn't respond.",
   naturalVoice: "Natural voice (saved on the card)",
+  autoTitle: "Autocorrect",
+  autoHelp: "Type without switching keyboards: when you finish a word, accents, ñ and ¿ ¡ are added (and the same for English and French). Press ⌫ right after to undo a correction.",
+  autoUndo: "⌫ undo",
 };
 
 const Ctx = createContext<{ lang: UiLang; t: Dict; setLang: (l: UiLang) => void }>({ lang: "en", t: EN, setLang: () => undefined });

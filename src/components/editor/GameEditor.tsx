@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/Button";
 import { Input, Label, Select } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Panel";
 import { duplicateGame } from "@/lib/actions/games";
-import { ALPHABET } from "@/lib/alphabet";
 import { maxItemsFor, templateOptions, type OptionDef, type TemplateDef } from "@/lib/games/templates";
 import { SPELL_TOKENS, type EditorGame, type EditorItem } from "@/lib/games/types";
 import { LANGUAGES, type AppLanguage } from "@/lib/tts/voices";
@@ -17,7 +16,8 @@ import { DiagramPoints } from "./DiagramPoints";
 import { FaceEditor, FlashcardPreview, RowControls, swapItem } from "./FlashcardParts";
 import { UiLangProvider, useUi } from "./i18n";
 import { ImageField, mediaSrc } from "./ImageField";
-import { SpanishCharBar, SpanishField, SpanishKeyboardProvider } from "./SpanishField";
+import { SpanishField } from "./SpanishField";
+import { CorrectionNote, useAutocorrect } from "./useAutocorrect";
 
 type Category = { id: string; nameEn: string; nameEs: string };
 type SaveState = "saved" | "dirty" | "saving" | "error";
@@ -89,28 +89,6 @@ function blankItem(t: TemplateDef): EditorItem {
     },
   };
 }
-
-/** The Spanish alphabet as ready-made items for the templates where it makes sense. */
-function alphabetItems(t: TemplateDef): EditorItem[] {
-  return ALPHABET.map((L) => {
-    const it = blankItem(t);
-    if (t.key === "SPELL_THE_WORD") {
-      // Spell a word that starts with each letter.
-      it.question.expectedAnswer = L.examples[0];
-      it.question.hint = `${L.upper} de ${L.examples[0]}`;
-      return it;
-    }
-    it.text = `${L.upper} ${L.lower}`;
-    it.question.evaluationMode = "LETTERS"; // accepts any common name of the letter ("be", "be larga"…)
-    it.question.expectedAnswer = L.upper;
-    it.question.prompt = t.key === "FLASHCARDS" ? "¿Cómo se llama esta letra?" : "";
-    it.question.hint = `${L.upper} de ${L.examples[0]}`;
-    it.question.answerLanguage = "es-419";
-    if (t.key === "FLASHCARDS") it.data = { translation: [L.name, ...L.variants].join(" · "), translationLanguage: "es-419" };
-    return it;
-  });
-}
-const ALPHABET_TEMPLATES = ["FLASHCARDS", "LISTEN_AND_SPEAK", "SPELL_THE_WORD"];
 
 type LibrarySlots = { picker: ReactNode; list: ReactNode };
 
@@ -315,6 +293,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
   }, [save]);
 
   const set = <K extends keyof EditorGame>(k: K, v: EditorGame[K]) => setGame((g) => ({ ...g, [k]: v }));
+  const titleAuto = useAutocorrect((v) => set("title", v), game.language, { singleLine: true });
   const setSettings = (patch: Partial<EditorGame["settings"]>) => setGame((g) => ({ ...g, settings: { ...g.settings, ...patch } }));
   const setItem = (i: number, fn: (it: EditorItem) => EditorItem) => setGame((g) => ({ ...g, items: g.items.map((it, k) => (k === i ? fn(it) : it)) }));
   const setQ = (i: number, patch: Partial<EditorItem["question"]>) => setItem(i, (it) => ({ ...it, question: { ...it.question, ...patch } }));
@@ -437,12 +416,6 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
     setBusy("duplicate");
     if (await persist(game)) dupForm.current?.requestSubmit();
     else setBusy("");
-  }
-
-  function addAlphabet() {
-    const empty = game.items.every((it) => !it.question.expectedAnswer.trim() && !it.text.trim() && !it.imageAssetId);
-    if (!empty && !confirm(`Add 27 ${noun}s (A–Z with Ñ) after the ones you already have?`)) return;
-    setGame((g) => ({ ...g, items: [...(empty ? [] : g.items), ...alphabetItems(template)] }));
   }
 
   const questionFields = (it: EditorItem, i: number) => (
@@ -675,7 +648,6 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
 
   return (
     <AudioDefaultsContext.Provider value={audioDefaults}>
-    <SpanishKeyboardProvider>
       <form ref={dupForm} action={duplicateGame} className="hidden">
         <input type="hidden" name="gameId" value={game.id} />
       </form>
@@ -734,21 +706,26 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
           </Button>
           <Button size="sm" variant="voice" onClick={assign} disabled={!!busy}>{busy === "assign" ? "Publishing…" : "Assign"}</Button>
         </div>
-        <div className="w-full">
-          <SpanishCharBar french={game.language === "fr-FR"} />
-        </div>
       </div>
 
       <section className="mb-4 space-y-2">
         <label htmlFor="game-title" className="block text-sm font-bold text-ink-2">{t.title}</label>
-        <input
-          id="game-title"
-          value={game.title}
-          onChange={(e) => set("title", e.target.value)}
-          maxLength={120}
-          placeholder={t.untitled}
-          className="w-full rounded-xl border border-line bg-card px-4 py-3 font-display text-xl font-semibold focus:border-sky focus:outline-none focus:ring-3 focus:ring-sky/20"
-        />
+        <div className="relative">
+          <input
+            id="game-title"
+            value={game.title}
+            {...titleAuto.props}
+            maxLength={120}
+            placeholder={t.untitled}
+            lang={game.language === "es-419" ? "es" : game.language}
+            className="w-full rounded-xl border border-line bg-card px-4 py-3 font-display text-xl font-semibold focus:border-sky focus:outline-none focus:ring-3 focus:ring-sky/20"
+          />
+          <CorrectionNote notice={titleAuto.notice} className="absolute -bottom-3 right-4 z-10" />
+        </div>
+        <p className="flex items-start gap-1.5 text-xs text-muted" data-testid="autocorrect-help">
+          <span aria-hidden>✨</span>
+          <span><strong className="text-ink-2">{t.autoTitle}.</strong> {t.autoHelp}</span>
+        </p>
         {showInstructions ? (
           <div>
             <SpanishField label={t.instructions} hint="spoken at the start" multiline value={game.instructions} language={game.language} onChange={(v) => set("instructions", v)} placeholder="Mira la imagen y responde." maxLength={1000} tags />
@@ -805,17 +782,6 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
             </section>
           )}
 
-          {ALPHABET_TEMPLATES.includes(template.key) && (
-            <div className="flex flex-wrap items-center gap-3 rounded-xl2 bg-teal-soft px-4 py-3 text-sm">
-              <span className="flex-1 text-teal-dark">
-                {template.key === "SPELL_THE_WORD"
-                  ? "Start from the alphabet: one word for each of the 27 letters (árbol, barco, casa…)."
-                  : "Start from the Spanish alphabet: 27 letters with their names. Any common name counts (“be larga”, “i griega”…)."}
-              </span>
-              <Button size="sm" variant="secondary" onClick={addAlphabet}>Add the Spanish alphabet</Button>
-            </div>
-          )}
-
           {flash && (
             <div className="flex flex-wrap items-center gap-3 px-2">
               <div role="radiogroup" aria-label={template.name} className="flex gap-4 text-sm font-bold">
@@ -834,11 +800,10 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
           )}
 
           {flash && twoSided && (
-            <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_13rem] gap-2 px-2 text-sm font-bold text-ink-2 md:grid">
+            <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-3 px-2 text-sm font-bold text-ink-2 md:grid xl:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_auto]">
               <span />
               <span>{t.front}</span>
               <span>{t.back}</span>
-              <span />
             </div>
           )}
 
@@ -872,8 +837,8 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                 const back = it.data.back ?? {};
                 return (
                   <li key={rowKey} {...rowProps} className={`rounded-xl px-2 py-1 hover:bg-card ${dropMark} ${dragFrom === i ? "opacity-50" : ""}`} aria-label={`${t.card[0].toUpperCase()}${t.card.slice(1)} ${i + 1}`}>
-                    <div className={`grid items-center gap-2 ${twoSided ? "md:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_13rem]" : "md:grid-cols-[2.5rem_minmax(0,1fr)_13rem]"} grid-cols-[2.5rem_minmax(0,1fr)]`}>
-                      <span className="self-start pt-2.5 text-right font-display text-base font-semibold text-ink-2">{i + 1}.</span>
+                    <div className={`grid items-start gap-x-3 gap-y-1 ${twoSided ? "md:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_auto]" : "xl:grid-cols-[2.5rem_minmax(0,1fr)_auto]"} grid-cols-[2.5rem_minmax(0,1fr)]`}>
+                      <span className={`self-start text-right font-display text-base font-semibold text-ink-2 ${twoSided ? "pt-8 md:pt-3" : "pt-3"}`}>{i + 1}.</span>
                       <FaceEditor
                         label={t.front}
                         showLabel={twoSided}
@@ -895,7 +860,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                           onChange={(f) => setData(i, { back: f, translation: undefined })}
                         />
                       )}
-                      <div className="col-start-2 flex items-center gap-1 self-start md:col-start-auto md:justify-end md:pt-1.5">
+                      <div className={`col-start-2 flex flex-wrap items-center justify-end gap-1 self-start xl:col-span-1 xl:col-start-auto xl:pt-2 ${twoSided ? "md:col-span-2" : ""}`}>
                         <button
                           type="button"
                           onClick={() => setSpokenOpen((o) => { const n = new Set(o); if (n.has(rowKey)) n.delete(rowKey); else n.add(rowKey); return n; })}
@@ -1012,7 +977,6 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
 
         {!flash && <aside className="space-y-4">{settingsSections}</aside>}
       </div>
-    </SpanishKeyboardProvider>
     </AudioDefaultsContext.Provider>
   );
 }
