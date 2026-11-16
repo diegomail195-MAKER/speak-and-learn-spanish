@@ -3,9 +3,9 @@
 // device has no voice for that language, nothing is spoken (text stays on screen) rather than
 // reading Spanish with an English voice.
 import { speechSegments } from "@/lib/text/segments";
-import { BROWSER_LOCALES, type AppLanguage } from "@/lib/tts/voices";
+import { BROWSER_LOCALES, type AudioLanguage } from "@/lib/tts/voices";
 
-export function pickBrowserVoice(language: AppLanguage): SpeechSynthesisVoice | null {
+export function pickBrowserVoice(language: AudioLanguage): SpeechSynthesisVoice | null {
   if (typeof speechSynthesis === "undefined") return null;
   const voices = speechSynthesis.getVoices();
   for (const tag of BROWSER_LOCALES[language] ?? []) {
@@ -67,7 +67,7 @@ export class Speaker {
   }
 
   /** Resolves when playback ends (or immediately if nothing can be played). */
-  async say(text: string, language: AppLanguage, url?: string | null, rate = 0.95): Promise<SayResult> {
+  async say(text: string, language: AudioLanguage, url?: string | null, rate = 0.95): Promise<SayResult> {
     this.stop();
     if (url) {
       const a = this.el();

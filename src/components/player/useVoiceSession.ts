@@ -16,7 +16,7 @@ import { REASON_TEXT, type Evaluation } from "@/lib/speech/evaluate";
 import { letterName, type LetterNameStyle } from "@/lib/alphabet";
 import { compareLetters, lettersOf, parseSpokenLetters } from "@/lib/speech/letters";
 import { plainText } from "@/lib/text/segments";
-import type { AppLanguage } from "@/lib/tts/voices";
+import type { AppLanguage, AudioLanguage } from "@/lib/tts/voices";
 
 export type Support = "NONE" | "HINT" | "MODEL";
 export type Phase = "start" | "intro" | "speaking" | "listening" | "thinking" | "feedback" | "idle" | "suspended" | "error" | "ready" | "done";
@@ -90,7 +90,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
   const resumeWaiter = useRef<(() => void) | null>(null);
   const skipFlag = useRef(false);
   const repeatFlag = useRef(false);
-  const lastClip = useRef<{ text: string; url?: string | null; language: AppLanguage } | null>(null);
+  const lastClip = useRef<{ text: string; url?: string | null; language: AudioLanguage } | null>(null);
   const phaseRef = useRef<Phase>("start");
   const setPhase = useCallback((p: Phase) => {
     phaseRef.current = p;
@@ -126,7 +126,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
   const spellOut = useCallback((word: string) => lettersOf(word).map((l) => letterName(l, (game.options.letterNames as LetterNameStyle) ?? "rae")).join(", "), [game.options.letterNames]);
 
   const say = useCallback(
-    async (text: string, url?: string | null, language: AppLanguage = lang) => {
+    async (text: string, url?: string | null, language: AudioLanguage = lang) => {
       mic.current?.hold(); // never listen while the app is talking
       lastClip.current = { text, url, language };
       if (mutedRef.current) return; // sound off: nothing is played (answers still work)

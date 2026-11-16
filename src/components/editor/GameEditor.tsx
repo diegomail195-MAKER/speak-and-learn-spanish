@@ -12,7 +12,7 @@ import { maxItemsFor, templateOptions, type OptionDef, type TemplateDef } from "
 import { SPELL_TOKENS, type EditorGame, type EditorItem } from "@/lib/games/types";
 import { LANGUAGES, type AppLanguage } from "@/lib/tts/voices";
 import { AudioControl, type TtsConfig } from "./AudioControl";
-import { AudioField } from "./AudioField";
+import { AudioDefaultsContext, AudioField, type AudioDefaults } from "./AudioField";
 import { DiagramPoints } from "./DiagramPoints";
 import { FaceEditor, FlashcardPreview, RowControls, swapItem } from "./FlashcardParts";
 import { UiLangProvider, useUi } from "./i18n";
@@ -243,6 +243,17 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
   const otherVoices = game.settings.voices ?? {};
   // Voices for every language, so marked runs ("…en español, [en]love[/en]?") use the teacher's choice.
   const voiceMap: Partial<Record<AppLanguage, string>> = { ...otherVoices, ...(game.settings.voice ? { [game.language]: game.settings.voice } : {}) };
+  // The Audio panel starts from these and can save its choice as the activity default.
+  const audioDefaults: AudioDefaults = {
+    voices: voiceMap,
+    rate: game.settings.rate,
+    set: (language, voice, rate) =>
+      setGame((g) => {
+        const main = language === g.language;
+        const voices = voice && !main ? { ...(g.settings.voices ?? {}), [language]: voice } : g.settings.voices;
+        return { ...g, settings: { ...g.settings, rate, voices, ...(voice && main ? { voice } : {}) } };
+      }),
+  };
   const fields = template.fields;
   const noun = template.itemNoun;
   const typedSpelling = template.key === "SPELL_THE_WORD" && options.spellMode === "type";
@@ -533,6 +544,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
   );
 
   return (
+    <AudioDefaultsContext.Provider value={audioDefaults}>
     <SpanishKeyboardProvider>
       <form ref={dupForm} action={duplicateGame} className="hidden">
         <input type="hidden" name="gameId" value={game.id} />
@@ -860,6 +872,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
         {!flash && <aside className="space-y-4">{settingsSections}</aside>}
       </div>
     </SpanishKeyboardProvider>
+    </AudioDefaultsContext.Provider>
   );
 }
 

@@ -7,6 +7,7 @@ import { phrasesFor } from "@/lib/feedback";
 import { mediaUrl } from "@/lib/media/save";
 import { sttLocale, sttProvider } from "@/lib/stt";
 import { ensureAudio } from "@/lib/tts/generate";
+import { AUDIO_LANGUAGE_CODES, type AudioLanguage } from "@/lib/tts/voices";
 import { maxItemsFor, templateByKey, templateOptions } from "./templates";
 import { DEFAULT_SETTINGS, SPELL_TOKENS, type EditorGame, type FaceAudio, type GameSettings, type ItemData, type PlayFace, type PlayGame } from "./types";
 
@@ -85,8 +86,9 @@ const lang = z.enum(["es-419", "en-US", "fr-FR"]);
 const faceAudio = z.object({
   mediaId: z.string().max(40).nullable().optional(),
   text: z.string().max(300),
-  language: lang,
-  voice: z.string().max(60).nullable().optional(),
+  language: z.enum(AUDIO_LANGUAGE_CODES),
+  voice: z.string().max(80).nullable().optional(),
+  rate: z.number().min(0.5).max(1.5).optional(),
   source: z.enum(["record", "upload", "tts", "browser"]),
   name: z.string().max(200).optional(),
 });
@@ -104,7 +106,7 @@ export const saveSchema = z.object({
   settings: z.object({
     acceptShortAnswer: z.boolean(),
     voice: z.string().optional(),
-    voices: z.record(lang, z.string()).optional(),
+    voices: z.record(z.enum(AUDIO_LANGUAGE_CODES), z.string().max(80)).optional(),
     rate: z.number().min(0.5).max(1.5),
     maxTries: z.number().int().min(1).max(5),
     options: z.record(z.string().max(40), z.union([z.string().max(40), z.number(), z.boolean()])).optional(),
@@ -278,7 +280,8 @@ export async function publishGame(schoolId: string, userId: string, id: string) 
   if (problems.length) return { ok: false as const, problems };
   const voice = g.settings.voice;
   const rate = g.settings.rate;
-  const gen = (text: string, language = g.language) => ensureAudio({ schoolId, userId, text, language, voiceId: language === g.language ? voice : undefined, voices: g.settings.voices, rate });
+  const gen = (text: string, language: AudioLanguage = g.language, own?: { voice?: string | null; rate?: number }) =>
+    ensureAudio({ schoolId, userId, text, language, voiceId: own?.voice || (language === g.language ? voice : undefined), voices: g.settings.voices, rate: own?.rate ?? rate });
   let audioGenerated = false;
   try {
     const qs = await db.question.findMany({ where: { item: { gameId: id } } });
@@ -307,7 +310,7 @@ export async function publishGame(schoolId: string, userId: string, id: string) 
       const data = readItemData(it.data);
       const upgrade = async (a: FaceAudio | null | undefined) => {
         if (!a || a.mediaId || !a.text.trim()) return a;
-        const r = await gen(a.text, a.language);
+        const r = await gen(a.text, a.language, { voice: a.voice, rate: a.rate });
         return r ? { ...a, mediaId: r.asset.mediaAssetId, source: "tts" as const } : a;
       };
       const audio = await upgrade(data.audio);
@@ -362,7 +365,7 @@ export async function buildPlayGame(schoolId: string, gameId: string, names: { f
   }
   const url = (a: { mediaAssetId: string } | null) => (a ? mediaUrl(a.mediaAssetId) : null);
   const playAudio = (a: FaceAudio | null | undefined): PlayFace["audio"] =>
-    a && (a.mediaId || a.text.trim()) ? { url: a.mediaId ? mediaUrl(a.mediaId) : null, text: a.text, language: a.language } : null;
+    a && (a.mediaId || a.text.trim()) ? { url: a.mediaId ? mediaUrl(a.mediaId) : null, text: a.text, language: a.language, ...(a.rate ? { rate: a.rate } : {}) } : null;
   const flash = tpl?.board === "flashcards";
   const oneSide = flash && templateOptions(tpl, settings.options).sides === "one";
   const questions = g.items.flatMap((it) =>

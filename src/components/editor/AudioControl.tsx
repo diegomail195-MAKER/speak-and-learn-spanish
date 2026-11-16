@@ -2,9 +2,13 @@
 
 import { useState } from "react";
 import { Speaker } from "@/lib/client/speaker";
-import type { AppLanguage } from "@/lib/tts/voices";
+import type { AppLanguage, AudioLanguage } from "@/lib/tts/voices";
 
-export type TtsConfig = { provider: "azure" | "google" | null; voices: Array<{ id: string; label: string; language: AppLanguage; styles?: string[] }> };
+export type TtsConfig = {
+  provider: "gateway" | "azure" | "google" | null;
+  languages?: AudioLanguage[];
+  voices: Array<{ id: string; label: string; language: AudioLanguage; styles?: string[]; recommended?: boolean; description?: string }>;
+};
 
 const speaker = typeof window !== "undefined" ? new Speaker() : null;
 

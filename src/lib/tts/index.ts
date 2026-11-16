@@ -1,22 +1,25 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { AZURE_VOICES, GOOGLE_VOICES, type Voice } from "./voices";
+import { gatewayAvailable, gatewaySpeech } from "./gateway";
+import { AZURE_VOICES, GATEWAY_VOICES, GOOGLE_VOICES, type Voice } from "./voices";
 
 // Text-to-speech providers. Keys live only on the server (env vars), never in the browser.
-//   TTS_PROVIDER=azure  + AZURE_SPEECH_KEY + AZURE_SPEECH_REGION
-//   TTS_PROVIDER=google + GOOGLE_CLOUD_API_KEY
+//   TTS_PROVIDER=gateway (Vercel AI Gateway: OIDC on Vercel, or AI_GATEWAY_API_KEY elsewhere)
+//   TTS_PROVIDER=azure   + AZURE_SPEECH_KEY + AZURE_SPEECH_REGION
+//   TTS_PROVIDER=google  + GOOGLE_CLOUD_API_KEY
 
-export type TtsProviderName = "azure" | "google";
+export type TtsProviderName = "gateway" | "azure" | "google";
 
 export function ttsProvider(): TtsProviderName | null {
   const p = process.env.TTS_PROVIDER;
+  if (p === "gateway" && gatewayAvailable()) return "gateway";
   if (p === "azure" && process.env.AZURE_SPEECH_KEY && process.env.AZURE_SPEECH_REGION) return "azure";
   if (p === "google" && process.env.GOOGLE_CLOUD_API_KEY) return "google";
   return null;
 }
 
 export function voicesFor(provider: TtsProviderName | null): Voice[] {
-  return provider === "azure" ? AZURE_VOICES : provider === "google" ? GOOGLE_VOICES : [];
+  return provider === "gateway" ? GATEWAY_VOICES : provider === "azure" ? AZURE_VOICES : provider === "google" ? GOOGLE_VOICES : [];
 }
 
 /** One spoken run: text read by one voice (one language). */
@@ -34,7 +37,7 @@ export interface TtsRequest {
 
 export function ttsCacheKey(provider: string, r: TtsRequest) {
   return createHash("sha256")
-    .update(JSON.stringify([provider, r.parts.map((p) => [p.voice.id, p.text.normalize("NFC").trim()]), r.rate.toFixed(2), r.style ?? ""]))
+    .update(JSON.stringify([provider, r.parts.map((p) => [p.voice.id, p.voice.model ?? "", p.voice.instructions ?? "", p.text.normalize("NFC").trim()]), r.rate.toFixed(2), r.style ?? ""]))
     .digest("hex");
 }
 
@@ -148,6 +151,53 @@ export function joinPcm(parts: Int16Array[], sampleRate: number, gapMs = 120): B
   return out;
 }
 
+/** Words for the speed, added to voices that take spoken directions instead of a speed value. */
+function paceInstruction(rate: number, lang: string) {
+  const es = lang.startsWith("es");
+  const fr = lang.startsWith("fr");
+  if (rate <= 0.8) return es ? "Habla despacio, con pausas claras." : fr ? "Parle lentement, avec des pauses claires." : "Speak slowly, with clear pauses.";
+  if (rate < 0.93) return es ? "Habla un poco más despacio de lo normal." : fr ? "Parle un peu plus lentement que d'habitude." : "Speak a little slower than usual.";
+  if (rate >= 1.12) return es ? "Habla con un ritmo algo rápido pero claro." : fr ? "Parle à un rythme un peu rapide mais clair." : "Speak a little faster, but clearly.";
+  return "";
+}
+
+async function gatewayPart(p: TtsPart, rate: number, format: "mp3" | "wav") {
+  const v = p.voice;
+  const instructions = [v.instructions, v.speedVia === "instructions" ? paceInstruction(rate, v.providerLocale) : ""].filter(Boolean).join(" ");
+  return gatewaySpeech({
+    model: v.model!,
+    voice: v.name,
+    text: p.text,
+    instructions: instructions || undefined,
+    language: v.sendLanguage ? v.providerLocale : undefined,
+    speed: v.speedVia === "instructions" ? undefined : rate,
+    outputFormat: format,
+  });
+}
+
+/** AI Gateway: one request per language run; mixed-language sentences are joined as PCM. */
+async function gateway(r: TtsRequest): Promise<{ data: Buffer; mime: string }> {
+  if (r.parts.length === 1) {
+    const a = await gatewayPart(r.parts[0], r.rate, "mp3");
+    return { data: a.data, mime: a.mime };
+  }
+  const wavs = await Promise.all(r.parts.map((p) => gatewayPart(p, r.rate, "wav")));
+  const rate = wavRate(wavs[0].data);
+  return { data: joinPcm(wavs.map((w) => wavSamples(w.data)), rate), mime: "audio/wav" };
+}
+
+/** Sample rate from a WAV "fmt " chunk (24 kHz when it can't be read). */
+export function wavRate(wav: Buffer): number {
+  let o = 12;
+  while (o + 8 <= wav.length) {
+    const id = wav.toString("ascii", o, o + 4);
+    const size = wav.readUInt32LE(o + 4);
+    if (id === "fmt ") return wav.readUInt32LE(o + 12);
+    o += 8 + size + (size & 1);
+  }
+  return 24000;
+}
+
 export async function synthesize(provider: TtsProviderName, r: TtsRequest): Promise<{ data: Buffer; mime: string }> {
-  return provider === "azure" ? azure(r) : google(r);
+  return provider === "gateway" ? gateway(r) : provider === "azure" ? azure(r) : google(r);
 }

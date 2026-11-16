@@ -1,26 +1,39 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Speaker } from "@/lib/client/speaker";
-import type { FaceAudio, Lang } from "@/lib/games/types";
+import type { AudioLanguage, FaceAudio } from "@/lib/games/types";
+import { AUDIO_LANGUAGE_LABELS } from "@/lib/tts/voices";
 import type { TtsConfig } from "./AudioControl";
 import { useUi } from "./i18n";
 import { mediaSrc } from "./ImageField";
 
 const speaker = typeof window !== "undefined" ? new Speaker() : null;
 
-// Latin American Spanish and US English first, then the other languages the voice service supports.
-export const AUDIO_LANGUAGES: Array<{ code: Lang; es: string; en: string }> = [
-  { code: "es-419", es: "Español (Latinoamérica)", en: "Spanish (Latin America)" },
-  { code: "en-US", es: "Inglés (Estados Unidos)", en: "English (US)" },
-  { code: "fr-FR", es: "Francés", en: "French" },
-];
-const SHORT: Record<Lang, string> = { "es-419": "ES", "en-US": "EN", "fr-FR": "FR" };
+const MAIN: AudioLanguage[] = ["es-419", "en-US", "fr-FR"];
+const SHORT = (l: AudioLanguage) => (l === "es-419" ? "ES" : l.slice(0, 2).toUpperCase());
+
+/** Languages offered in the Audio panel: Latin American Spanish, US English and French first. */
+export function audioLanguages(tts: TtsConfig | null): AudioLanguage[] {
+  const extra = (tts?.languages ?? []).filter((l) => !MAIN.includes(l));
+  return [...MAIN, ...extra];
+}
+
+/**
+ * The activity's default language voices and speed. The Audio panel starts from them and can
+ * save its own choice as the new default (a card, face or question may still differ).
+ */
+export interface AudioDefaults {
+  voices: Partial<Record<AudioLanguage, string>>;
+  rate: number;
+  set: (language: AudioLanguage, voice: string | null, rate: number) => void;
+}
+export const AudioDefaultsContext = createContext<AudioDefaults | null>(null);
 
 /** Plays a face's audio: the saved file, or the text with a device voice of its language. */
-export function playFaceAudio(a: { url?: string | null; mediaId?: string | null; text: string; language: Lang } | null | undefined, rate = 0.95) {
+export function playFaceAudio(a: { url?: string | null; mediaId?: string | null; text: string; language: AudioLanguage; rate?: number } | null | undefined, rate = 0.95) {
   if (!a) return Promise.resolve("none" as const);
-  return speaker?.say(a.text, a.language, a.url ?? mediaSrc(a.mediaId), rate) ?? Promise.resolve("none" as const);
+  return speaker?.say(a.text, a.language, a.url ?? mediaSrc(a.mediaId), a.rate ?? rate) ?? Promise.resolve("none" as const);
 }
 export const stopFaceAudio = () => speaker?.stop();
 
@@ -33,10 +46,30 @@ async function uploadAudio(blob: Blob, name: string): Promise<{ id: string; name
   return json;
 }
 
+/** Asks the server for natural speech (reused from the cache when text, voice and speed match). */
+async function requestTts(body: { text: string; language: AudioLanguage; voice?: string; rate: number; regenerate?: boolean }) {
+  const res = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.message ?? json.error ?? `Error ${res.status}`);
+  return json as { mediaId: string; url: string; voice: string; cached: boolean };
+}
+
+const SAMPLE: Partial<Record<AudioLanguage, string>> = {
+  "es-419": "¡Hola! ¿Cuál es tu color favorito?",
+  "en-US": "Hi there! What is your favorite color?",
+  "fr-FR": "Bonjour ! Quelle est ta couleur préférée ?",
+  "pt-BR": "Olá! Qual é a sua cor favorita?",
+  "it-IT": "Ciao! Qual è il tuo colore preferito?",
+  "de-DE": "Hallo! Was ist deine Lieblingsfarbe?",
+  "zh-CN": "你好！你最喜欢什么颜色？",
+  "ja-JP": "こんにちは！好きな色は何ですか？",
+  "ko-KR": "안녕하세요! 가장 좋아하는 색은 무엇인가요?",
+};
+
 /**
- * "Audio" button for a face or item: record with the microphone, upload a file, or generate
- * speech from text (language and voice per face; the words read aloud can differ from the
- * visible text). The microphone is only requested when the teacher chooses to record.
+ * "Audio" button for a card face or an item: generate natural speech from text (its own
+ * language, voice and speed; the words read aloud can differ from the visible text), record
+ * with the microphone, or upload a file. The microphone is only requested to record.
  */
 export function AudioField({
   audio,
@@ -51,11 +84,11 @@ export function AudioField({
   audio: FaceAudio | null | undefined;
   onChange: (a: FaceAudio | null) => void;
   defaultText: string;
-  defaultLanguage: Lang;
+  defaultLanguage: AudioLanguage;
   tts: TtsConfig | null;
   rate?: number;
   label?: string;
-  /** Icon-sized, to sit inside a one-line field. */
+  /** Compact, to sit inside a one-line field. */
   inline?: boolean;
 }) {
   const { t } = useUi();
@@ -66,18 +99,22 @@ export function AudioField({
       {has ? (
         <>
           <button type="button" onClick={() => playFaceAudio(audio, rate)} className="inline-flex h-8 items-center gap-1 rounded-full bg-teal-soft px-2.5 text-xs font-bold text-teal-dark hover:bg-teal hover:text-white" title={audio!.text || audio!.name || t.play} aria-label={`${t.play}${label ? ` (${label})` : ""}`}>
-            ▶ <span className={`${inline ? "max-w-16" : "max-w-28"} truncate`}>{audio!.text || audio!.name || (audio!.source === "record" ? "🎙" : "♪")}</span> <span className="opacity-70">{SHORT[audio!.language]}</span>
+            ▶ <span className={`${inline ? "max-w-16" : "max-w-28"} truncate`}>{audio!.text || audio!.name || (audio!.source === "record" ? "🎙" : "♪")}</span> <span className="opacity-70">{SHORT(audio!.language)}</span>
           </button>
-          <button type="button" onClick={() => setOpen(true)} className="h-8 rounded-full px-2 text-xs font-bold text-muted hover:bg-paper-2 hover:text-ink" aria-label={`${t.replace}: ${t.addAudio}${label ? ` (${label})` : ""}`}>✎</button>
+          <button type="button" onClick={() => setOpen(true)} className="h-8 rounded-full px-2 text-xs font-bold text-muted hover:bg-paper-2 hover:text-ink" aria-label={`${t.replace}: ${t.addAudio}${label ? ` (${label})` : ""}`} title={t.edit}>✎</button>
           <button type="button" onClick={() => onChange(null)} className="h-8 rounded-full px-1.5 text-xs font-bold text-muted hover:text-coral-dark" aria-label={`${t.remove}: ${t.addAudio}${label ? ` (${label})` : ""}`}>×</button>
         </>
-      ) : inline ? (
-        <button type="button" onClick={() => setOpen(true)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-paper-2 hover:text-sky" aria-label={`${t.addAudio}${label ? ` (${label})` : ""}`} title={t.addAudio}>
-          <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" /></svg>
-        </button>
       ) : (
-        <button type="button" onClick={() => setOpen(true)} className="inline-flex h-8 items-center gap-1 rounded-full bg-paper-2 px-2.5 text-xs font-bold text-ink-2 hover:bg-line" aria-label={`${t.addAudio}${label ? ` (${label})` : ""}`}>
-          🎙 {t.addAudio}
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={`inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-paper-2 text-xs font-bold text-ink-2 hover:bg-sky-soft hover:text-sky ${inline ? "px-2" : "px-2.5"}`}
+          aria-label={`${t.addAudio}${label ? ` (${label})` : ""}`}
+          title={t.addAudio}
+          data-testid="audio-button"
+        >
+          <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5 6 9H3v6h3l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" /></svg>
+          {t.addAudio}
         </button>
       )}
       {open && <AudioPanel audio={audio} defaultText={defaultText} defaultLanguage={defaultLanguage} tts={tts} rate={rate} onClose={() => setOpen(false)} onSave={(a) => (onChange(a), setOpen(false))} />}
@@ -85,21 +122,41 @@ export function AudioField({
   );
 }
 
-function AudioPanel({ audio, defaultText, defaultLanguage, tts, rate, onClose, onSave }: { audio: FaceAudio | null | undefined; defaultText: string; defaultLanguage: Lang; tts: TtsConfig | null; rate: number; onClose: () => void; onSave: (a: FaceAudio) => void }) {
+const RATE_STEPS = [0.8, 0.9, 1, 1.1];
+
+function AudioPanel({ audio, defaultText, defaultLanguage, tts, rate: activityRate, onClose, onSave }: { audio: FaceAudio | null | undefined; defaultText: string; defaultLanguage: AudioLanguage; tts: TtsConfig | null; rate: number; onClose: () => void; onSave: (a: FaceAudio) => void }) {
   const { t, lang: ui } = useUi();
+  const defaults = useContext(AudioDefaultsContext);
+  const natural = !!tts?.provider;
   const [tab, setTab] = useState<"record" | "upload" | "tts">(audio?.source === "record" ? "record" : audio?.source === "upload" ? "upload" : "tts");
-  const [language, setLanguage] = useState<Lang>(audio?.language ?? defaultLanguage);
+  const [language, setLanguage] = useState<AudioLanguage>(audio?.language ?? defaultLanguage);
   const [text, setText] = useState(audio?.text || defaultText);
-  const [voice, setVoice] = useState<string>(audio?.voice ?? "");
+  const allVoices = tts?.voices ?? [];
+  const voicesOf = (l: AudioLanguage) => {
+    const v = allVoices.filter((x) => x.language === l);
+    return [...v.filter((x) => x.recommended), ...v.filter((x) => !x.recommended)];
+  };
+  const defaultVoiceFor = (l: AudioLanguage) => {
+    const list = voicesOf(l);
+    const d = defaults?.voices[l];
+    return list.find((v) => v.id === d)?.id ?? list[0]?.id ?? "";
+  };
+  const [voice, setVoice] = useState<string>(() => (audio?.voice && voicesOf(audio.language).some((v) => v.id === audio.voice) ? audio.voice : defaultVoiceFor(audio?.language ?? defaultLanguage)));
+  const [rate, setRate] = useState<number>(audio?.rate ?? defaults?.rate ?? activityRate);
+  const [makeDefault, setMakeDefault] = useState(false);
   const [clip, setClip] = useState<{ blob: Blob; url: string; name: string; source: "record" | "upload" } | null>(null);
   const [generated, setGenerated] = useState<{ mediaId: string; url: string; key: string } | null>(null);
+  const [sampling, setSampling] = useState<string | null>(null);
   const [rec, setRec] = useState<MediaRecorder | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [micBlocked, setMicBlocked] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const voices = (tts?.voices ?? []).filter((v) => v.language === language);
-  const ttsKey = `${text.trim()}|${language}|${voice}`;
+  const voices = voicesOf(language);
+  const ttsKey = `${text.trim()}|${language}|${voice}|${rate.toFixed(2)}`;
+  const savedKey = audio?.source === "tts" && audio.mediaId ? `${audio.text.trim()}|${audio.language}|${audio.voice ?? ""}|${(audio.rate ?? activityRate).toFixed(2)}` : null;
+  const changed = !!savedKey && savedKey !== ttsKey;
+  const languages = audioLanguages(tts);
 
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -107,6 +164,7 @@ function AudioPanel({ audio, defaultText, defaultLanguage, tts, rate, onClose, o
     return () => {
       window.removeEventListener("keydown", esc);
       rec?.stream.getTracks().forEach((tr) => tr.stop());
+      speaker?.stop();
     };
   }, [onClose, rec]);
 
@@ -132,22 +190,46 @@ function AudioPanel({ audio, defaultText, defaultLanguage, tts, rate, onClose, o
     }
   }
 
-  async function previewTts() {
+  /** Generates (or reuses) the audio for the current text, language, voice and speed. */
+  async function ensureGenerated(regenerate = false) {
+    if (!regenerate && generated?.key === ttsKey) return generated;
+    if (!regenerate && savedKey === ttsKey && audio?.mediaId) return { mediaId: audio.mediaId, url: mediaSrc(audio.mediaId)!, key: ttsKey };
+    const json = await requestTts({ text: text.trim(), language, voice: voice || undefined, rate, regenerate });
+    const g = { mediaId: json.mediaId, url: json.url, key: ttsKey };
+    setGenerated(g);
+    return g;
+  }
+
+  async function previewTts(regenerate = false) {
     setError("");
+    speaker?.unlock();
     if (!text.trim()) return;
-    if (!tts?.provider) return playFaceAudio({ text, language }, rate);
-    if (generated?.key === ttsKey) return playFaceAudio({ url: generated.url, text, language }, rate);
+    if (!natural) return playFaceAudio({ text, language, rate });
     setBusy(true);
     try {
-      const res = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, language, voice: voice || undefined, rate }) });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message ?? json.error);
-      setGenerated({ mediaId: json.mediaId, url: json.url, key: ttsKey });
-      await playFaceAudio({ url: json.url, text, language }, rate);
+      const g = await ensureGenerated(regenerate);
+      await playFaceAudio({ url: g.url, text, language });
     } catch (e) {
-      setError((e as Error).message);
+      setError((e as Error).message || t.voiceError);
     } finally {
       setBusy(false);
+    }
+  }
+
+  /** ▶ next to a voice: this voice reading the text (or a short sample sentence). */
+  async function sampleVoice(id: string) {
+    setError("");
+    speaker?.unlock();
+    setSampling(id);
+    try {
+      const sampleText = text.trim() || SAMPLE[language] || "";
+      const json = await requestTts({ text: sampleText, language, voice: id, rate });
+      if (sampleText === text.trim() && id === voice) setGenerated({ mediaId: json.mediaId, url: json.url, key: ttsKey });
+      await playFaceAudio({ url: json.url, text: sampleText, language });
+    } catch (e) {
+      setError((e as Error).message || t.voiceError);
+    } finally {
+      setSampling(null);
     }
   }
 
@@ -157,38 +239,34 @@ function AudioPanel({ audio, defaultText, defaultLanguage, tts, rate, onClose, o
     try {
       if (tab === "tts") {
         if (!text.trim()) throw new Error(t.ttsText);
-        if (tts?.provider) {
-          let g = generated?.key === ttsKey ? generated : null;
-          if (!g) {
-            const res = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, language, voice: voice || undefined, rate }) });
-            const json = await res.json();
-            if (!res.ok) throw new Error(json.message ?? json.error);
-            g = { mediaId: json.mediaId, url: json.url, key: ttsKey };
-          }
-          onSave({ mediaId: g.mediaId, text: text.trim(), language, voice: voice || null, source: "tts" });
+        if (natural) {
+          const g = await ensureGenerated();
+          onSave({ mediaId: g.mediaId, text: text.trim(), language, voice: voice || null, rate, source: "tts" });
         } else {
-          onSave({ mediaId: null, text: text.trim(), language, voice: null, source: "browser" });
+          onSave({ mediaId: null, text: text.trim(), language, voice: null, rate, source: "browser" });
         }
+        if (makeDefault) defaults?.set(language, natural ? voice || null : null, rate);
       } else {
         if (!clip) throw new Error(tab === "record" ? t.record : t.uploadAudio);
         const up = await uploadAudio(clip.blob, clip.name);
         onSave({ mediaId: up.id, text: "", language, source: clip.source, name: clip.source === "upload" ? clip.name : undefined });
       }
     } catch (e) {
-      setError((e as Error).message);
+      setError((e as Error).message || t.voiceError);
     } finally {
       setBusy(false);
     }
   }
 
   const tabs = [
+    ["tts", `🗣 ${t.tts}`],
     ["record", `🎙 ${t.record}`],
     ["upload", `⬆ ${t.uploadAudio}`],
-    ["tts", `🗣 ${t.tts}`],
   ] as const;
+  const rateLabel = (r: number) => (r <= 0.8 ? t.slow : r >= 1.1 ? t.fast : r === 1 ? t.normal : `${r.toFixed(1)}×`);
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-ink/40 p-3 sm:p-10" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" aria-label={t.addAudio} className="w-full max-w-lg overflow-hidden rounded-xl2 bg-card shadow-soft">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/40 p-3 sm:p-10" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div role="dialog" aria-modal="true" aria-label={t.addAudio} className="w-full max-w-lg overflow-hidden rounded-xl2 bg-card shadow-soft" data-testid="audio-panel">
         <div className="flex items-center border-b border-line px-4 py-3">
           <h2 className="font-display text-lg font-semibold">{t.addAudio}</h2>
           <button type="button" onClick={onClose} className="ml-auto rounded-full px-2 text-2xl leading-none text-muted hover:text-ink" aria-label={t.close}>×</button>
@@ -201,10 +279,16 @@ function AudioPanel({ audio, defaultText, defaultLanguage, tts, rate, onClose, o
           ))}
         </div>
         <div className="space-y-3 p-4 text-sm">
+          {tab === "tts" && (
+            <label className="block">
+              <span className="mb-1 block text-xs font-bold text-ink-2">{t.ttsText} <span className="font-normal text-muted">— {t.ttsHint}</span></span>
+              <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={300} rows={2} placeholder={language === "en-US" ? "red" : language === "fr-FR" ? "rouge" : "rojo"} className="w-full resize-y rounded-lg border border-line px-3 py-2" lang={language} data-testid="tts-text" />
+            </label>
+          )}
           <label className="block">
             <span className="mb-1 block text-xs font-bold text-ink-2">{t.language}</span>
-            <select value={language} onChange={(e) => (setLanguage(e.target.value as Lang), setVoice(""))} className="h-9 w-full rounded-lg border border-line bg-card px-2">
-              {AUDIO_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{ui === "es" ? l.es : l.en}</option>)}
+            <select value={language} onChange={(e) => { const l = e.target.value as AudioLanguage; setLanguage(l); setVoice(defaultVoiceFor(l)); }} className="h-9 w-full rounded-lg border border-line bg-card px-2" data-testid="tts-language">
+              {languages.map((l) => <option key={l} value={l}>{ui === "es" ? AUDIO_LANGUAGE_LABELS[l].es : AUDIO_LANGUAGE_LABELS[l].en}</option>)}
             </select>
           </label>
           {tab === "record" && (
@@ -237,29 +321,71 @@ function AudioPanel({ audio, defaultText, defaultLanguage, tts, rate, onClose, o
           {(tab === "record" || tab === "upload") && clip && <audio controls src={clip.url} className="w-full" />}
           {tab === "tts" && (
             <>
-              <label className="block">
-                <span className="mb-1 block text-xs font-bold text-ink-2">{t.ttsText} <span className="font-normal text-muted">— {t.ttsHint}</span></span>
-                <input value={text} onChange={(e) => setText(e.target.value)} maxLength={300} placeholder={language === "en-US" ? "red" : "rojo"} className="h-10 w-full rounded-lg border border-line px-3" />
-              </label>
-              {tts?.provider ? (
-                <label className="block">
-                  <span className="mb-1 block text-xs font-bold text-ink-2">{t.voice}</span>
-                  <select value={voice} onChange={(e) => setVoice(e.target.value)} className="h-9 w-full rounded-lg border border-line bg-card px-2">
-                    <option value="">{voices[0]?.label ?? "—"}</option>
-                    {voices.slice(1).map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
-                  </select>
-                </label>
+              {natural ? (
+                <fieldset>
+                  <legend className="mb-1 block text-xs font-bold text-ink-2">{t.voice}</legend>
+                  <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-line p-1" role="radiogroup" aria-label={t.voice}>
+                    {voices.map((v) => (
+                      <div key={v.id} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${voice === v.id ? "bg-teal-soft" : "hover:bg-paper-2"}`}>
+                        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+                          <input type="radio" name="tts-voice" value={v.id} checked={voice === v.id} onChange={() => setVoice(v.id)} className="accent-teal" />
+                          <span className="min-w-0">
+                            <span className="font-bold">{v.label}</span>
+                            {v.recommended && <span className="ml-1.5 rounded-full bg-sun-soft px-1.5 text-[10px] font-bold uppercase text-[#7a5200]">{t.recommended}</span>}
+                            {defaults?.voices[language] === v.id && <span className="ml-1.5 rounded-full bg-sky-soft px-1.5 text-[10px] font-bold uppercase text-sky">{t.defaultSet}</span>}
+                            {v.description && <span className="block truncate text-xs text-muted">{v.description}</span>}
+                          </span>
+                        </label>
+                        <button type="button" onClick={() => sampleVoice(v.id)} disabled={!!sampling} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-card text-teal-dark ring-1 ring-line hover:bg-teal hover:text-white disabled:opacity-50" aria-label={`${t.sample}: ${v.label}`} title={t.sample}>
+                          {sampling === v.id ? "…" : "▶"}
+                        </button>
+                      </div>
+                    ))}
+                    {!voices.length && <p className="p-2 text-xs text-muted">—</p>}
+                  </div>
+                </fieldset>
               ) : (
                 <p className="rounded-lg bg-paper-2 p-2 text-xs text-ink-2">{t.ttsDevice}</p>
               )}
-              <button type="button" onClick={previewTts} disabled={busy || !text.trim()} className="rounded-full bg-paper-2 px-4 py-2 font-bold text-ink-2 hover:bg-line disabled:opacity-50">▶ {t.listen}</button>
+              <div>
+                <span className="mb-1 block text-xs font-bold text-ink-2">{t.speed}</span>
+                <div className="flex gap-1" role="radiogroup" aria-label={t.speed}>
+                  {RATE_STEPS.map((r) => (
+                    <button key={r} type="button" role="radio" aria-checked={Math.abs(rate - r) < 0.001} onClick={() => setRate(r)} className={`h-9 flex-1 rounded-full text-xs font-bold ring-1 ${Math.abs(rate - r) < 0.001 ? "bg-teal text-white ring-teal" : "bg-card text-ink-2 ring-line hover:bg-paper-2"}`}>
+                      {rateLabel(r)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => previewTts(false)} disabled={busy || !text.trim()} className="rounded-full bg-paper-2 px-4 py-2 font-bold text-ink-2 hover:bg-line disabled:opacity-50" data-testid="tts-listen">
+                  {busy ? t.generating : `▶ ${t.listen}`}
+                </button>
+                {natural && (savedKey === ttsKey || generated?.key === ttsKey) && (
+                  <button type="button" onClick={() => previewTts(true)} disabled={busy} className="rounded-full px-3 py-2 text-xs font-bold text-muted hover:bg-paper-2 hover:text-ink disabled:opacity-50">↻ {t.regenerate}</button>
+                )}
+              </div>
+              {changed && <p className="rounded-lg bg-sun-soft px-2 py-1.5 text-xs font-semibold text-[#7a5200]">{t.changedRegen}</p>}
+              {defaults && (
+                <label className="flex items-start gap-2 text-xs text-ink-2">
+                  <input type="checkbox" className="mt-0.5 accent-teal" checked={makeDefault} onChange={(e) => setMakeDefault(e.target.checked)} />
+                  {t.makeDefault}
+                </label>
+              )}
             </>
           )}
-          {error && <p className="font-semibold text-coral-dark">{error}</p>}
+          {error && (
+            <p className="flex flex-wrap items-center gap-2 font-semibold text-coral-dark" role="alert">
+              {error}
+              {tab === "tts" && (
+                <button type="button" onClick={() => previewTts(false)} className="rounded-full bg-coral-soft px-3 py-1 text-xs font-bold text-coral-dark hover:bg-coral hover:text-white">{t.retry}</button>
+              )}
+            </p>
+          )}
         </div>
         <div className="flex justify-end gap-2 border-t border-line px-4 py-3">
           <button type="button" onClick={onClose} className="rounded-full px-4 py-2 text-sm font-bold text-ink-2 hover:bg-paper-2">{t.cancel}</button>
-          <button type="button" onClick={save} disabled={busy || !!rec || (tab !== "tts" && !clip) || (tab === "tts" && !text.trim())} className="rounded-full bg-coral px-5 py-2 text-sm font-bold text-white hover:bg-coral-dark disabled:opacity-50">
+          <button type="button" onClick={save} disabled={busy || !!rec || (tab !== "tts" && !clip) || (tab === "tts" && !text.trim())} className="rounded-full bg-coral px-5 py-2 text-sm font-bold text-white hover:bg-coral-dark disabled:opacity-50" data-testid="audio-save">
             {busy ? "…" : t.save}
           </button>
         </div>

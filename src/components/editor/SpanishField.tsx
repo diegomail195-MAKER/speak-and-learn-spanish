@@ -277,8 +277,8 @@ function LanguageTools({ value, onChange, base, field }: { value: string; onChan
           {parseSegments(value, base)
             .filter((s) => s.text.trim())
             .map((s, i) => (
-              <span key={i} className={`rounded-md px-1.5 py-0.5 ${LANG_TONE[s.language]}`}>
-                <span className="mr-1 text-[10px] font-bold opacity-70">{SHORT[s.language]}</span>
+              <span key={i} className={`rounded-md px-1.5 py-0.5 ${LANG_TONE[s.language as AppLanguage]}`}>
+                <span className="mr-1 text-[10px] font-bold opacity-70">{SHORT[s.language as AppLanguage]}</span>
                 {s.text.trim()}
               </span>
             ))}
