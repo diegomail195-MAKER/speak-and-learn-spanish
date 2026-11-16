@@ -208,10 +208,11 @@ export function quizItems(cards: PrintCard[], seed: number, filled: Record<strin
   });
 }
 
-export const quizHasPictures = (it: QuizItem) => !!it.question.imageUrl || it.options.some((o) => o.face?.imageUrl);
+/** True when the choices themselves have pictures (they then need taller rows). */
+export const quizHasPictures = (it: QuizItem) => it.options.some((o) => o.face?.imageUrl);
 
 /** Height a question takes in a quiz column (question line, 2×2 choices, gap). */
-export const quizItemHeight = (it: QuizItem) => (it.question.imageUrl ? 80 : 30) + 8 + 2 * (quizHasPictures(it) ? 56 : 28) + 6 + 20;
+export const quizItemHeight = (it: QuizItem) => (it.question.imageUrl ? 80 : 30) + 8 + 2 * (quizHasPictures(it) ? 56 : 30) + 6 + 20;
 
 export const QUIZ_COLS = 2;
 
@@ -273,4 +274,53 @@ export function sectorPath(cx: number, cy: number, r: number, a0: number, a1: nu
   const [x0, y0] = p(a0);
   const [x1, y1] = p(a1);
   return `M ${cx} ${cy} L ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z`;
+}
+
+// ---------------------------------------------------------------- Thinking like a teacher
+
+const norm = (s: string) => s.toLowerCase().replace(/[¿?¡!.,;:"“”]/g, "").replace(/\s+/g, " ").trim();
+
+/**
+ * The question most cards share ("¿Qué color es este?" on every front), or null. It is said
+ * once at the top of the worksheet instead of on every line.
+ */
+export function sharedPrompt(cards: PrintCard[]): string | null {
+  if (cards.length < 2) return null;
+  const count = new Map<string, { text: string; n: number }>();
+  for (const c of cards) {
+    const k = norm(c.front.text);
+    if (!k) continue;
+    const e = count.get(k) ?? { text: c.front.text.trim(), n: 0 };
+    e.n++;
+    count.set(k, e);
+  }
+  const best = [...count.values()].sort((a, b) => b.n - a.n)[0];
+  return best && best.n >= 2 && best.n >= 0.6 * cards.length ? best.text : null;
+}
+
+/**
+ * The cards as a worksheet uses them: the front is what the student looks at (the question),
+ * the back is what they answer. So:
+ * - the shared question is lifted out (see sharedPrompt) when the front has a picture to show;
+ * - a front with no picture borrows the back's picture, so there is something to ask about;
+ * - the answer is the word: its picture is dropped when it has text and the front already
+ *   shows a picture (the same picture twice adds nothing, and a picture next to the word
+ *   gives the answer away);
+ * - a front that just repeats the answer's word keeps only its picture.
+ */
+export function teacherCards(cards: PrintCard[]): { prompt: string | null; cards: PrintCard[] } {
+  const prompt = sharedPrompt(cards);
+  const pk = prompt ? norm(prompt) : null;
+  return {
+    prompt,
+    cards: cards.map((c) => {
+      let q: PrintFace = { ...c.front };
+      let a: PrintFace | null = c.back ? { ...c.back } : null;
+      const qText = norm(q.text);
+      if (!q.imageUrl && a?.imageUrl && a.text.trim() && (!qText || qText === pk)) q = { ...q, imageUrl: a.imageUrl, imageAlt: a.imageAlt };
+      if (a?.imageUrl && a.text.trim() && q.imageUrl) a = { ...a, imageUrl: null, imageAlt: "" };
+      if (q.imageUrl && qText && (qText === pk || (a && qText === norm(a.text)))) q = { ...q, text: "" };
+      return { ...c, front: q, back: a };
+    }),
+  };
 }

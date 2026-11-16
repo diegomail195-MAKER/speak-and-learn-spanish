@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backSlot, flashcardSheets, matchPages, quizItems, quizItemHeight, quizPages, wheelGroups, type PrintCard } from "./layout";
+import { backSlot, flashcardSheets, matchPages, quizItems, quizItemHeight, quizPages, teacherCards, wheelGroups, type PrintCard } from "./layout";
 
 const face = (text: string, imageUrl: string | null = null) => ({ text, imageUrl, imageAlt: "" });
 const deck = (n: number, back = true): PrintCard[] =>
@@ -76,5 +76,35 @@ describe("spin the wheel", () => {
     const big = wheelGroups(deck(100));
     expect(big.every((g) => g.length <= 12)).toBe(true);
     expect(big.flat()).toHaveLength(100);
+  });
+});
+
+describe("teacherCards", () => {
+  const card = (id: string, ft: string, fi: string | null, bt: string, bi: string | null): PrintCard => ({
+    id,
+    front: { text: ft, imageUrl: fi, imageAlt: "" },
+    back: { text: bt, imageUrl: bi, imageAlt: "" },
+  });
+  const colours = ["rojo", "azul", "verde", "amarillo"].map((c) => card(c, "¿Qué color es este?", `/m/${c}`, c, `/m/${c}`));
+
+  it("says the shared question once and keeps the picture on the front, the word on the back", () => {
+    const t = teacherCards(colours);
+    expect(t.prompt).toBe("¿Qué color es este?");
+    expect(t.cards[0].front).toEqual({ text: "", imageUrl: "/m/rojo", imageAlt: "" });
+    expect(t.cards[0].back).toEqual({ text: "rojo", imageUrl: null, imageAlt: "" });
+  });
+
+  it("moves the back's picture to a front that has none", () => {
+    const t = teacherCards(["rojo", "azul"].map((c) => card(c, "¿Qué color es?", null, c, `/m/${c}`)));
+    expect(t.cards[1].front.imageUrl).toBe("/m/azul");
+    expect(t.cards[1].front.text).toBe("");
+    expect(t.cards[1].back?.imageUrl).toBeNull();
+  });
+
+  it("leaves different questions and word-to-word cards alone", () => {
+    const t = teacherCards([card("1", "red", null, "rojo", null), card("2", "blue", null, "azul", null)]);
+    expect(t.prompt).toBeNull();
+    expect(t.cards[0].front.text).toBe("red");
+    expect(t.cards[0].back?.text).toBe("rojo");
   });
 });

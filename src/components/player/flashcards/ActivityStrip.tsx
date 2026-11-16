@@ -39,7 +39,7 @@ export function ActivityStrip({ game, role, typeName, status, author }: { game: 
           )}
         </div>
       )}
-      {printing && <PrintablesViewer title={game.title} cards={cards} onClose={() => setPrinting(false)} />}
+      {printing && <PrintablesViewer title={game.title} cards={cards} lang={game.language?.startsWith("fr") ? "fr" : game.language?.startsWith("en") ? "en" : "es"} onClose={() => setPrinting(false)} />}
     </section>
   );
 }

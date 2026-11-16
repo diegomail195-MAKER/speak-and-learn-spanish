@@ -14,6 +14,7 @@ import {
   matchPages,
   quizItems,
   quizPages,
+  teacherCards,
   wheelGroups,
   type FlipEdge,
   type Orientation,
@@ -22,7 +23,7 @@ import {
   type PrintTemplate,
   type ShowParts,
 } from "@/lib/printables/layout";
-import { AnswerKeyPage, CardSheetPage, CardTablePage, MatchPageView, QuizPageView, WheelPage } from "./PrintPages";
+import { AnswerKeyPage, CardSheetPage, CardTablePage, MatchPageView, QuizPageView, WheelPage, type PrintLang } from "./PrintPages";
 
 const TEMPLATES: Array<{ key: PrintTemplate; label: string; help: string }> = [
   { key: "flashcards", label: "Flash cards", help: "Front and back side by side, or cut-out cards" },
@@ -80,7 +81,7 @@ function Scaled({ width, height, avail, children }: { width: number; height: num
   );
 }
 
-export function PrintablesViewer({ title, cards, onClose }: { title: string; cards: PrintCard[]; onClose: () => void }) {
+export function PrintablesViewer({ title, cards, onClose, lang = "en" }: { title: string; cards: PrintCard[]; onClose: () => void; lang?: PrintLang }) {
   const [tpl, setTpl] = useState<PrintTemplate>("flashcards");
   const [size, setSize] = useState<PaperSize>("letter");
   const [sides, setSides] = useState<"one" | "two">(() => (cards.some((c) => !isEmptyFace(c.back)) ? "two" : "one"));
@@ -124,8 +125,10 @@ export function PrintablesViewer({ title, cards, onClose }: { title: string; car
   }, [onClose, showOptions]);
 
   const chosen = useMemo(() => cards.filter((c) => picked.has(c.id)), [cards, picked]);
+  // What the student looks at and what they answer, without repeating the same question or picture.
+  const smart = useMemo(() => teacherCards(chosen), [chosen]);
   const withBacks = chosen.filter((c) => !isEmptyFace(c.back));
-  const quiz = useMemo(() => quizItems(chosen, seed, filled), [chosen, seed, filled]);
+  const quiz = useMemo(() => quizItems(smart.cards, seed, filled), [smart, seed, filled]);
   const missing = quiz.filter((q) => q.options.some((o) => o.missing));
   const cutout = tpl === "flashcards" && layout === "cutout";
   const paper = useMemo(() => pageSize(size, cutout ? "portrait" : orientation), [size, cutout, orientation]);
@@ -134,25 +137,27 @@ export function PrintablesViewer({ title, cards, onClose }: { title: string; car
   const pages: ReactNode[] = useMemo(() => {
     if (!chosen.length) return [];
     const ins = instruction[tpl];
-    const common = { paper, title, show, instruction: ins };
+    const lead = smart.prompt;
+    const common = { paper, title, show, instruction: ins, lead, lang };
     const fallbackIns = tpl === "match" || tpl === "quiz";
-    const contentH = contentHeight(paper, show, !!ins.trim() || fallbackIns);
+    const contentH = contentHeight(paper, show, !!ins.trim() || fallbackIns || !!lead);
+    const cs = smart.cards;
     if (tpl === "flashcards") {
-      if (layout === "cutout") return flashcardSheets(chosen, { sides, flip }).map((s, i) => <CardSheetPage key={`c${i}`} sheet={s} paper={paper} index={i} />);
-      return flashcardTable(chosen, perPage.flashcards).map((g, i) => (
+      if (layout === "cutout") return flashcardSheets(cs, { sides, flip }).map((s, i) => <CardSheetPage key={`c${i}`} sheet={s} paper={paper} index={i} />);
+      return flashcardTable(cs, perPage.flashcards).map((g, i) => (
         <CardTablePage key={`t${i}`} {...common} cards={g} rows={perPage.flashcards} contentH={contentH} index={i} oneSide={sides === "one"} />
       ));
     }
-    if (tpl === "match") return matchPages(chosen, seed, perPage.match).map((p, i) => <MatchPageView key={`m${i}`} {...common} page={p} index={i} contentH={contentH} />);
+    if (tpl === "match") return matchPages(cs, seed, perPage.match).map((p, i) => <MatchPageView key={`m${i}`} {...common} page={p} index={i} contentH={contentH} />);
     if (tpl === "quiz") {
       const qp = quizPages(quiz, contentH, perPage.quiz || undefined).map((cols, i) => (
         <QuizPageView key={`q${i}`} {...common} columns={cols} index={i} first={i === 0} answers={quizAnswers} letters={quizLetters} />
       ));
       return answerKey ? [...qp, <AnswerKeyPage key="key" items={quiz} paper={paper} title={title} footer={show.footer} />] : qp;
     }
-    const groups = wheelGroups(chosen.map((c) => ({ cardId: c.id, face: c.front })));
+    const groups = wheelGroups(cs.map((c) => ({ cardId: c.id, face: c.front })));
     return groups.map((g, i) => <WheelPage key={`w${i}`} {...common} faces={g} index={i} total={groups.length} cutOut={cutOut} contentH={contentH} />);
-  }, [chosen, tpl, layout, sides, flip, seed, paper, title, quiz, answerKey, instruction, show, perPage, quizAnswers, quizLetters, cutOut]);
+  }, [chosen, smart, lang, tpl, layout, sides, flip, seed, paper, title, quiz, answerKey, instruction, show, perPage, quizAnswers, quizLetters, cutOut]);
 
   const emptyNote =
     !chosen.length ? "Choose at least one card in Options." : tpl === "match" && !withBacks.length ? "Match up needs cards with a back." : "";
