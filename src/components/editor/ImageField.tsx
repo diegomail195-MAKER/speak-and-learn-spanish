@@ -181,7 +181,8 @@ export function ImageField({
 
 function AddImagePanel({ initialTab, suggest, onClose, onPicked, onLocalFile }: { initialTab: "search" | "upload"; suggest?: string; onClose: () => void; onPicked: (a: { id: string; url: string }) => void; onLocalFile: (f: File) => void }) {
   const { t } = useUi();
-  const [tab, setTab] = useState<"search" | "upload">(initialTab);
+  const [tab, setTab] = useState<"search" | "upload" | "mine">(initialTab);
+  const [mine, setMine] = useState<Array<{ id: string; url: string; name: string }> | null>(null);
   const [q, setQ] = useState((suggest ?? "").trim().slice(0, 100));
   const [size, setSize] = useState("all");
   const [results, setResults] = useState<WebResult[] | null>(null);
@@ -248,15 +249,44 @@ function AddImagePanel({ initialTab, suggest, onClose, onPicked, onLocalFile }: 
         <div className="flex items-center gap-2 border-b border-line px-4 py-3">
           <h2 className="font-display text-lg font-semibold">{t.addImage}</h2>
           <div className="ml-4 flex gap-1 rounded-full bg-paper-2 p-1 text-sm font-bold" role="tablist">
-            {(["search", "upload"] as const).map((k) => (
-              <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`rounded-full px-3 py-1 ${tab === k ? "bg-card text-ink shadow-sm" : "text-muted"}`}>
-                {k === "search" ? t.searchWeb : t.uploadImage}
+            {(["search", "upload", "mine"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={tab === k}
+                onClick={() => {
+                  setTab(k);
+                  // Images already uploaded to this school, newest first, so they can be reused.
+                  if (k === "mine" && !mine) fetch("/api/media").then((r) => r.json()).then((j) => setMine(j.assets ?? [])).catch(() => setMine([]));
+                }}
+                className={`rounded-full px-3 py-1 ${tab === k ? "bg-card text-ink shadow-sm" : "text-muted"}`}
+              >
+                {k === "search" ? t.searchWeb : k === "upload" ? t.uploadImage : t.myImages}
               </button>
             ))}
           </div>
           <button type="button" onClick={onClose} className="ml-auto rounded-full px-2 text-2xl leading-none text-muted hover:text-ink" aria-label={t.close}>×</button>
         </div>
-        {tab === "search" ? (
+        {tab === "mine" ? (
+          <div className="min-h-48 flex-1 overflow-y-auto p-4">
+            {mine === null ? (
+              <p className="p-4 text-center text-sm text-muted">…</p>
+            ) : mine.length === 0 ? (
+              <p className="p-4 text-center text-sm text-muted">{t.myImagesEmpty}</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+                {mine.map((a) => (
+                  <button key={a.id} type="button" onClick={() => onPicked({ id: a.id, url: a.url })} className="relative aspect-square overflow-hidden rounded-lg border border-line bg-card hover:border-sky" title={a.name}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={a.url} alt={a.name} loading="lazy" className="h-full w-full object-contain" />
+                    <span className="absolute inset-x-0 bottom-0 truncate bg-ink/60 px-1 text-[10px] text-white">{a.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : tab === "search" ? (
           <div className="flex min-h-0 flex-1 flex-col p-4">
             {state === "off" ? (
               <div className="rounded-xl bg-sun-soft p-4 text-sm text-[#7a5200]">

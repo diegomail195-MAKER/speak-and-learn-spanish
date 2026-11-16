@@ -34,6 +34,7 @@ export async function setGameStatus(form: FormData) {
   await db.game.update({ where: { id: g.id }, data: { status } });
   await audit(user.schoolId, user.id, `game.${status === "DRAFT" ? "unpublish" : "archive"}`, "Game", g.id);
   revalidatePath("/teacher/games");
+  revalidatePath("/teacher/my-activities");
 }
 
 export async function duplicateGame(form: FormData) {
@@ -96,4 +97,5 @@ export async function deleteGame(form: FormData) {
   await db.game.delete({ where: { id: g.id } });
   await audit(user.schoolId, user.id, "game.delete", "Game", g.id, { title: g.title });
   revalidatePath("/teacher/games");
+  revalidatePath("/teacher/my-activities");
 }
