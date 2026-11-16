@@ -238,6 +238,7 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
     const q = byId(ord[i]);
     if (!speaks(q)) {
       setAsking(false);
+      if (s.autoplay && q.audio) void s.sayAudio(q.audio); // the front's own audio, as the card appears
       return; // look, flip and check yourself
     }
     setAsking(true);
@@ -295,6 +296,10 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
   const flip = useCallback(() => {
     if (!q || oneSide || overlay || paused) return;
     if (!flipped && speaks(q) && asking) s.raiseSupport("MODEL"); // seeing the answer first means it's not independent
+    s.unlock(); // a click, tap or Space
+    // Each face has its own audio: the back says its words when it turns over, the front its own.
+    const face = flipped ? q.audio : q.back?.audio;
+    if (s.autoplay && face && !(speaks(q) && asking && s.phase === "listening")) void s.sayAudio(face);
     setFlipped((f) => !f);
   }, [q, oneSide, overlay, paused, flipped, asking, s]);
 
@@ -395,6 +400,7 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
   const front: PlayFace = { text: q.displayText, imageUrl: q.imageUrl, imageAlt: q.imageAlt, audio: q.audio };
   const visibleAudio = flipped ? q.back?.audio : q.audio;
   const listen = () => {
+    s.unlock();
     if (visibleAudio) return s.say(visibleAudio.text, visibleAudio.url, visibleAudio.language);
     if (flipped || s.repeat()) return null;
     if (q.prompt || q.displayText) return s.say(q.prompt || q.displayText, q.prompt ? q.promptAudioUrl : null);
@@ -486,9 +492,15 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
 
       {s.showHint && q.hint && <p className="mt-3 rounded-full bg-sun-soft px-4 py-1.5 font-semibold text-[#7a5200]">💡 {plainText(q.hint)}</p>}
 
-      <button type="button" onClick={listen} disabled={!canListen || paused} className="mt-3 grid h-10 w-12 place-items-center rounded-xl bg-white/15 text-white hover:bg-white/25 disabled:opacity-30" aria-label="Listen" title="Listen">
-        <IconSound />
-      </button>
+      {s.audioBlocked && !speaks(q) ? (
+        <button type="button" onClick={() => (s.unlock(), listen())} data-testid="audio-blocked" className="animate-pop-in mt-3 inline-flex h-12 items-center gap-2 rounded-full bg-sun px-5 font-display text-lg font-semibold text-ink shadow-[0_3px_0_rgba(0,0,0,.25)]" aria-label="Listen" title="Escuchar">
+          <IconSound /> Escuchar
+        </button>
+      ) : (
+        <button type="button" onClick={listen} disabled={!canListen || paused} className="mt-3 grid h-10 w-12 place-items-center rounded-xl bg-white/15 text-white hover:bg-white/25 disabled:opacity-30" aria-label="Listen" title="Escuchar">
+          <IconSound />
+        </button>
+      )}
 
       {speaks(q) && (
         <div className="mt-3 w-full max-w-2xl rounded-[1.25rem] bg-paper px-3 pb-3 text-ink">

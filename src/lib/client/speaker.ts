@@ -25,24 +25,67 @@ export function loadBrowserVoices(): Promise<void> {
   });
 }
 
+export type SayResult = "audio" | "browser" | "none" | "blocked";
+
+/**
+ * One reusable <audio> element per speaker. Browsers (iOS Safari above all) only allow audio
+ * that starts from a tap; once this element has played inside a tap (unlock), later clips can
+ * play by themselves on the same element. When the browser still refuses, say() returns
+ * "blocked" so the board can show its "Escuchar" button. A blocked clip never falls back to the
+ * device voice (that would sound robotic and is usually blocked too).
+ */
 export class Speaker {
   private audio: HTMLAudioElement | null = null;
   private cancelFn: (() => void) | null = null;
+  private unlocked = false;
+
+  private el(): HTMLAudioElement | null {
+    if (typeof Audio === "undefined") return null;
+    if (!this.audio) {
+      this.audio = new Audio();
+      this.audio.preload = "auto";
+    }
+    return this.audio;
+  }
+
+  /** Call from a click/tap handler (Start, Listen): allows later automatic playback. */
+  unlock() {
+    if (this.unlocked) return;
+    const a = this.el();
+    if (!a) return;
+    this.unlocked = true;
+    // 0.1 s of silence: enough for the browser to mark the element as allowed.
+    a.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+    a.play().catch(() => (this.unlocked = false));
+    if (typeof speechSynthesis !== "undefined") {
+      try {
+        speechSynthesis.speak(new SpeechSynthesisUtterance(""));
+      } catch {
+        /* ignore */
+      }
+    }
+  }
 
   /** Resolves when playback ends (or immediately if nothing can be played). */
-  async say(text: string, language: AppLanguage, url?: string | null, rate = 0.95): Promise<"audio" | "browser" | "none"> {
+  async say(text: string, language: AppLanguage, url?: string | null, rate = 0.95): Promise<SayResult> {
     this.stop();
     if (url) {
-      const ok = await new Promise<boolean>((resolve) => {
-        const a = new Audio(url);
-        this.audio = a;
-        this.cancelFn = () => resolve(true);
-        a.onended = () => resolve(true);
-        a.onerror = () => resolve(false);
-        a.play().catch(() => resolve(false));
-      });
-      if (ok) return "audio";
+      const a = this.el();
+      if (a) {
+        const r = await new Promise<"ok" | "error" | "blocked" | "cancelled">((resolve) => {
+          this.cancelFn = () => resolve("cancelled");
+          a.onended = () => resolve("ok");
+          a.onerror = () => resolve("error");
+          a.src = url;
+          a.currentTime = 0;
+          a.play().catch((e: unknown) => resolve((e as { name?: string })?.name === "NotAllowedError" ? "blocked" : "error"));
+        });
+        a.onended = a.onerror = null;
+        if (r === "ok" || r === "cancelled") return "audio";
+        if (r === "blocked") return "blocked";
+      }
     }
+    if (!text.trim()) return "none";
     // Browser voices: each language run ("…en español, [en]love[/en]?") gets a voice of its
     // own language. A run with no matching voice on this device is skipped, not mispronounced.
     const runs = speechSegments(text, language);
@@ -69,12 +112,10 @@ export class Speaker {
   }
 
   stop() {
-    if (this.audio) {
-      this.audio.pause();
-      this.audio = null;
-    }
+    if (this.audio && !this.audio.paused) this.audio.pause();
     if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
-    this.cancelFn?.();
+    const c = this.cancelFn;
     this.cancelFn = null;
+    c?.();
   }
 }

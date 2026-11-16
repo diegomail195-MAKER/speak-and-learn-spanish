@@ -39,7 +39,8 @@ export function SpellBoard({ s, questions, exitHref }: { s: VoiceSession; questi
         const qq = questions[i];
         if (qq.id in s.results) continue;
         setIndex(i);
-        const r = await s.ask(qq, { prompt: () => sayWord(qq) });
+        // Automatic reading off: the word plays only when the student taps "Escuchar".
+        const r = await s.ask(qq, { prompt: async (x) => (s.autoplay || x?.withAudio ? sayWord(qq) : undefined) });
         if (r === "aborted" || !live) return;
         s.record(qq.id, r === "skipped" ? null : r);
         await sleep(600);
@@ -59,7 +60,7 @@ export function SpellBoard({ s, questions, exitHref }: { s: VoiceSession; questi
     setTyped("");
     setRevealed(false);
     s.setFeedback(null);
-    sayWord(q);
+    if (s.autoplay) sayWord(q);
     inputRef.current?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [typeMode, index]);
@@ -97,7 +98,7 @@ export function SpellBoard({ s, questions, exitHref }: { s: VoiceSession; questi
       )}
       {q.prompt && <p className="mt-3 text-center font-display text-3xl font-semibold">{plainText(q.prompt)}</p>}
       {(showWord || revealed) && <p className="mt-2 font-display text-4xl font-semibold tracking-wide">{plainText(q.expected)}</p>}
-      <Button variant="secondary" className="mt-3" onClick={() => sayWord(q)}>🔊 Hear the word</Button>
+      <Button variant="secondary" className="mt-3" onClick={() => (s.unlock(), (typeMode || !s.repeat()) && sayWord(q))}>🔊 Hear the word</Button>
 
       {typeMode ? (
         <form

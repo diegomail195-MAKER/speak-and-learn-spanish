@@ -11,7 +11,7 @@ import { MicSession, type MicState } from "@/lib/client/mic-session";
 import { Speaker } from "@/lib/client/speaker";
 import { ServerEngine, WebSpeechEngine, webSpeechAvailable, type EngineResult, type SpeechEngine } from "@/lib/client/speech-engine";
 import { scoreTurn } from "@/lib/games/turn";
-import type { PlayGame, PlayQuestion } from "@/lib/games/types";
+import type { PlayFace, PlayGame, PlayQuestion } from "@/lib/games/types";
 import { REASON_TEXT, type Evaluation } from "@/lib/speech/evaluate";
 import { letterName, type LetterNameStyle } from "@/lib/alphabet";
 import { compareLetters, lettersOf, parseSpokenLetters } from "@/lib/speech/letters";
@@ -65,7 +65,7 @@ export interface SessionOptions {
 export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
   const optsRef = useRef(sessionOpts);
   optsRef.current = sessionOpts;
-  const [phase, setPhase] = useState<Phase>("start");
+  const [phase, setPhaseState] = useState<Phase>("start");
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [micState, setMicState] = useState<MicState>("idle");
   const [level, setLevel] = useState(0);
@@ -77,6 +77,10 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
   const [supportLevel, setSupportLevel] = useState<Support>("NONE");
   const [usesMic, setUsesMic] = useState(false);
   const [muted, setMutedState] = useState(false);
+  /** The browser refused to start a clip by itself: boards show their "Escuchar" button. */
+  const [audioBlocked, setAudioBlocked] = useState(false);
+  /** Activity setting: item/card audio plays by itself when it appears (default on). */
+  const autoplay = game.options.autoplayAudio !== false;
   const mutedRef = useRef(false);
 
   const mic = useRef<MicSession | null>(null);
@@ -86,6 +90,12 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
   const resumeWaiter = useRef<(() => void) | null>(null);
   const skipFlag = useRef(false);
   const repeatFlag = useRef(false);
+  const lastClip = useRef<{ text: string; url?: string | null; language: AppLanguage } | null>(null);
+  const phaseRef = useRef<Phase>("start");
+  const setPhase = useCallback((p: Phase) => {
+    phaseRef.current = p;
+    setPhaseState(p);
+  }, []);
   const supportRef = useRef<Support>("NONE");
   const startedAt = useRef(0);
   const presented = useRef(new Set<string>());
@@ -118,12 +128,38 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
   const say = useCallback(
     async (text: string, url?: string | null, language: AppLanguage = lang) => {
       mic.current?.hold(); // never listen while the app is talking
+      lastClip.current = { text, url, language };
       if (mutedRef.current) return; // sound off: nothing is played (answers still work)
-      await speaker.current?.say(text, language, url, game.settings.rate);
-      await new Promise((r) => setTimeout(r, 180)); // let room echo die down
+      const r = await speaker.current?.say(text, language, url, game.settings.rate);
+      setAudioBlocked(r === "blocked");
+      if (r === "blocked") return;
+      await new Promise((r2) => setTimeout(r2, 180)); // let room echo die down
     },
     [lang, game.settings.rate],
   );
+
+  /** Plays a card face's / item's own audio (saved file, or its text with a device voice). */
+  const sayAudio = useCallback((a: PlayFace["audio"] | null | undefined) => (a ? say(a.text, a.url, a.language) : Promise.resolve()), [say]);
+
+  /** From a click or tap: lets the browser play later clips by themselves. */
+  const unlock = useCallback(() => speaker.current?.unlock(), []);
+
+  /**
+   * "Escuchar" after the browser blocked a clip: from the tap, unlock and play it again. While
+   * waiting for an answer, the question is presented again instead (the mic re-arms after it).
+   */
+  const replay = useCallback(() => {
+    speaker.current?.unlock();
+    setAudioBlocked(false);
+    if (phaseRef.current === "listening") {
+      repeatFlag.current = true;
+      engine.current?.cancel();
+      mic.current?.hold();
+      return;
+    }
+    const c = lastClip.current;
+    if (c) void speaker.current?.say(c.text, c.language, c.url, game.settings.rate);
+  }, [game.settings.rate]);
 
   /** Shows and says one feedback phrase (the same text on screen and in the audio). */
   const sayPhrase = useCallback(
@@ -139,16 +175,21 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
   const waitForResume = () => new Promise<void>((r) => (resumeWaiter.current = r));
 
   const present = useCallback(
-    async (q: PlayQuestion, extra?: { repeatModel?: boolean }) => {
+    async (q: PlayQuestion, extra?: { repeatModel?: boolean; withAudio?: boolean }) => {
       setPhase("speaking");
+      // The item's own audio (what the box, slice or card says) comes first, when it appears.
+      const itemAudio = !!q.audio && (autoplay || !!extra?.withAudio);
+      if (itemAudio) await sayAudio(q.audio);
       if (q.supportText) await say(q.supportText, q.supportAudioUrl, q.supportLanguage);
       if (q.prompt) await say(q.prompt, q.promptAudioUrl);
-      else if (game.settings.showAnswerText || extra?.repeatModel) {
+      else if (itemAudio && !extra?.repeatModel) {
+        /* the item audio already said it */
+      } else if (game.settings.showAnswerText || extra?.repeatModel) {
         if (q.mode === "LETTERS") await say(spellOut(q.expected), null, "es-419"); // letter names, not the word
         else await say(q.expected, q.modelAudioUrl, q.answerLanguage);
       }
     },
-    [say, spellOut, game.settings.showAnswerText],
+    [say, sayAudio, spellOut, autoplay, game.settings.showAnswerText],
   );
 
   const addDiag = useCallback((d: Diagnostic) => setDiag((x) => [d, ...x].slice(0, 30)), []);
@@ -189,6 +230,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
   /** Starts the activity. Voice activities open the microphone once, here, from a click. */
   const start = useCallback(
     async (withMic: boolean) => {
+      speaker.current?.unlock(); // Start is a click: later clips may play by themselves (before any await)
       setError("");
       setUsesMic(withMic);
       if (withMic) {
@@ -224,7 +266,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
    * spelling without pressing anything, and only a finished or wrong spelling is checked.
    */
   const ask = useCallback(
-    async (q: PlayQuestion, o?: { skipPresent?: boolean; initialSupport?: Support; prompt?: () => Promise<void> }): Promise<Support | null | "skipped" | "aborted"> => {
+    async (q: PlayQuestion, o?: { skipPresent?: boolean; initialSupport?: Support; prompt?: (x?: { withAudio?: boolean }) => Promise<void> }): Promise<Support | null | "skipped" | "aborted"> => {
       const myRun = runId.current;
       const alive = () => runId.current === myRun;
       current.current = q;
@@ -238,7 +280,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
       let timeouts = 0;
       let spelled = ""; // letters heard so far (LETTERS mode)
       const expectedLetters = q.mode === "LETTERS" ? lettersOf(q.expected) : [];
-      const presentIt = o?.prompt ?? (() => present(q));
+      const presentIt = o?.prompt ?? ((x?: { withAudio?: boolean }) => present(q, x));
       if (!o?.skipPresent) await presentIt();
 
       while (alive()) {
@@ -258,7 +300,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
         if (skipFlag.current) continue;
         if (repeatFlag.current) {
           repeatFlag.current = false;
-          await presentIt();
+          await presentIt({ withAudio: true }); // "Escuchar": always includes the item's audio
           continue;
         }
         if (r.kind === "cancelled") continue;
@@ -526,6 +568,11 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
     engineName: engine.current?.name ?? "—",
     start,
     say,
+    sayAudio,
+    unlock,
+    replay,
+    autoplay,
+    audioBlocked,
     sayPhrase,
     spellOut,
     present,
