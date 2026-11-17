@@ -86,4 +86,17 @@ describe("internet image search", () => {
     expect(r.map((x) => x.id)).not.toContain("commons:File:Dog cartoon.png");
     expect(calls[calls.length - 1]).toContain("commons.wikimedia.org");
   });
+
+  it("accepts Commons thumbnails served from thumb.wikimedia.org, rejects other hosts", async () => {
+    delete process.env.PIXABAY_API_KEY;
+    const info = (thumb: string) => ({ url: "https://upload.wikimedia.org/c.jpg", thumburl: thumb, width: 2400, height: 1800, mime: "image/jpeg", descriptionurl: "https://commons.wikimedia.org/wiki/File:C.jpg" });
+    const pages = [
+      { title: "File:Capybara 1.jpg", index: 1, imageinfo: [info("https://thumb.wikimedia.org/c_360.jpg")] },
+      { title: "File:Capybara 2.jpg", index: 2, imageinfo: [info("https://evil.example/c_360.jpg")] },
+    ];
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ query: { pages } }), { status: 200 })));
+    const { searchImages } = await import("./search");
+    const r = await searchImages("capybara", "all");
+    expect(r.map((x) => x.id)).toEqual(["commons:File:Capybara 1.jpg"]);
+  });
 });

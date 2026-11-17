@@ -16,7 +16,7 @@ const securityHeaders = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' blob: https://www.youtube.com https://s.ytimg.com" + (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""),
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://i.ytimg.com https://cdn.pixabay.com https://pixabay.com https://upload.wikimedia.org https://*.gstatic.com https://serpapi.com" + (process.env.COMMONS_API_URL ? ` ${new URL(process.env.COMMONS_API_URL).origin}` : "") + (process.env.GOOGLE_IMAGES_TEST_ENDPOINT ? ` ${new URL(process.env.GOOGLE_IMAGES_TEST_ENDPOINT).origin}` : "") + storageOrigin,
+      "img-src 'self' data: blob: https://i.ytimg.com https://cdn.pixabay.com https://pixabay.com https://upload.wikimedia.org https://thumb.wikimedia.org https://*.gstatic.com https://serpapi.com" + (process.env.COMMONS_API_URL ? ` ${new URL(process.env.COMMONS_API_URL).origin}` : "") + (process.env.GOOGLE_IMAGES_TEST_ENDPOINT ? ` ${new URL(process.env.GOOGLE_IMAGES_TEST_ENDPOINT).origin}` : "") + storageOrigin,
       "media-src 'self' blob:" + storageOrigin,
       "font-src 'self'",
       "connect-src 'self'" + storageOrigin,
