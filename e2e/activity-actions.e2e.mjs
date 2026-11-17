@@ -48,32 +48,68 @@ try {
   await c2.getByRole("textbox", { name: "Reverso: Texto" }).fill("blue");
   await saved();
 
+  // Editor: no Settings panel any more (it moved to Activity settings); Let's practice can be edited.
+  assert((await page.getByRole("button", { name: /^⚙ Settings$/ }).count()) === 0, "the editor still has Settings");
+  await page.getByTestId("open-activity-settings").waitFor();
+  await page.getByTestId("create-practice").click();
+  await page.getByTestId("practice-edit").click();
+  const prow = page.getByTestId("practice-row").first();
+  await prow.getByTestId("practice-question").fill("¿Qué color es?");
+  await prow.getByTestId("practice-accepted").fill("colorado");
+  await prow.getByTestId("practice-accepted").blur();
+  await saved();
+  if (SHOTS) await page.getByTestId("practice-editor").screenshot({ path: path.join(SHOTS, "aa0-practice-edit.png") });
+  await page.reload();
+  await page.getByTestId("practice-edit").click();
+  assert((await page.getByTestId("practice-row").first().getByTestId("practice-question").inputValue()) === "¿Qué color es?", "practice question saved");
+  assert((await page.getByTestId("practice-row").first().getByTestId("practice-accepted").inputValue()) === "colorado", "practice answers saved");
+  log("editor: Settings moved out; «Práctica creada» → Editar: question and other answers saved");
+
   // Preview: the bar with the four actions and an empty Assignments list.
   await page.goto(`${BASE}/play/preview/${gameId}`);
   const bar = page.getByTestId("activity-actions");
   for (const t of ["action-edit", "action-print", "action-assign", "action-rename"]) await bar.getByTestId(t).waitFor();
-  // Activity settings → Font: saved per activity, previewed, and used by the game.
-  await page.getByTestId("tab-settings").click();
-  await page.getByTestId("font-select").selectOption("montessori");
-  await page.getByTestId("font-status").filter({ hasText: "Saved" }).waitFor();
+  // Activity settings sit right under the actions, open, in short sections.
+  const settings = page.getByTestId("activity-settings");
+  await settings.waitFor();
+  const [barBox, setBox] = [await bar.boundingBox(), await settings.boundingBox()];
+  assert(setBox.y > barBox.y, "Activity settings is under the actions");
+  for (const t of ["settings-look", "settings-options", "settings-voice", "settings-about"]) await page.getByTestId(t).waitFor();
+  // Font: saved per activity, previewed, and used by the game and the printables.
+  await page.locator("#opt-font").selectOption("montessori");
+  await page.getByTestId("settings-status").filter({ hasText: "Saved" }).waitFor();
   const previewFont = await page.getByTestId("font-preview").locator(".font-display").evaluate((el) => getComputedStyle(el).fontFamily);
   assert(/montessori|Playwrite/i.test(previewFont), `preview uses the cursive: ${previewFont}`);
   assert((await page.getByTestId("font-preview").textContent()).includes("¿Cómo estás? Ñandú"), "sample has Ñ, accents and ¿¡");
   await page.reload();
-  assert((await page.getByTestId("font-select").inputValue()) === "montessori", "font saved after reload");
+  assert((await page.locator("#opt-font").inputValue()) === "montessori", "font saved after reload");
   assert((await page.getByTestId("flashcards-stage").getAttribute("data-practice-font")) === "montessori", "the game uses the font");
   await page.waitForFunction(() => document.fonts.check('32px "Playwrite MX"') || [...document.fonts].some((f) => /montessori|Playwrite/i.test(f.family) && f.status === "loaded"), null, { timeout: 15000 });
-  await page.getByTestId("flashcards-stage").screenshot({ path: SHOTS ? path.join(SHOTS, "aa0-font-stage.png") : "/dev/null" });
-  await page.getByTestId("activity-settings").screenshot({ path: SHOTS ? path.join(SHOTS, "aa0-font-settings.png") : "/dev/null" });
-  log("Activity settings → Font: Montessori Cursive saved, previewed and applied to the game");
-  await page.getByTestId("tab-assignments").click();
-  await page.getByTestId("activity-assignments").getByText("You haven't set any assignments yet.").waitFor();
+  if (SHOTS) await page.getByTestId("flashcards-stage").screenshot({ path: path.join(SHOTS, "aa0-font-stage.png") });
+  if (SHOTS) await page.getByTestId("activity-settings").screenshot({ path: path.join(SHOTS, "aa0-font-settings.png") });
+  log("Activity settings under the actions → Font: Montessori Cursive saved, previewed and applied to the game");
+  // Options and Voice & answers: a setting saves by itself; possible answers per card.
+  await page.getByTestId("settings-options").click();
+  await page.getByLabel("Shuffle cards").check();
+  await page.getByTestId("settings-status").filter({ hasText: "Saved" }).waitFor();
+  await page.getByTestId("settings-voice").click();
+  const row = page.getByTestId("answer-row").filter({ hasText: "red" });
+  await row.getByTestId("answer-input").fill("colorado, rojizo");
+  await row.getByTestId("answer-input").press("Enter");
+  await row.getByText("✓").waitFor();
+  if (SHOTS) await page.getByTestId("activity-settings").screenshot({ path: path.join(SHOTS, "aa0-voice-answers.png") });
+  await page.reload();
+  await page.getByTestId("settings-voice").click();
+  assert((await page.getByTestId("answer-row").filter({ hasText: "red" }).getByTestId("answer-input").inputValue()) === "colorado, rojizo", "possible answers saved");
+  log("Options and Voice & answers save by themselves; «colorado, rojizo» saved as other answers for a card");
   await shot(page, "aa1-bar-empty");
   log("flashcards: Edit Content, Print Worksheet, Set Assignment, Rename; no assignments yet");
 
   // Print Worksheet opens the printable view.
   await bar.getByTestId("action-print").click();
   await page.getByRole("dialog").first().waitFor({ timeout: 10000 });
+  const printFont = await page.locator("[data-testid=printable-preview] [data-print-page]").first().evaluate((el) => getComputedStyle(el).fontFamily);
+  assert(/montessori|Playwrite/i.test(printFont), `the worksheet uses the activity font: ${printFont}`);
   await shot(page, "aa2-print");
   await page.keyboard.press("Escape");
   await page.getByRole("dialog").first().waitFor({ state: "detached", timeout: 10000 }).catch(() => page.getByRole("button", { name: /close|cerrar|✕/i }).first().click());
@@ -112,7 +148,6 @@ try {
 
   // Back on the activity: its assignment is listed; renaming again keeps it.
   await page.goto(`${BASE}/play/preview/${gameId}`);
-  await page.getByTestId("tab-assignments").click();
   await page.getByTestId("activity-assignments").getByText("Segundo B").waitFor();
   await page.getByTestId("action-rename").click();
   await page.getByTestId("rename-input").fill("Colores");

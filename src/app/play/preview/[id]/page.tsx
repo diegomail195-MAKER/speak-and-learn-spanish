@@ -3,7 +3,8 @@ import { GamePlayer } from "@/components/player/GamePlayer";
 import { ActivityStrip, type StripAssignment } from "@/components/player/flashcards/ActivityStrip";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { buildPlayGame } from "@/lib/games/service";
+import { buildPlayGame, readSettings } from "@/lib/games/service";
+import type { SettingsData } from "@/components/player/flashcards/ActivitySettings";
 import { templateByKey } from "@/lib/games/templates";
 
 export const metadata = { title: "Preview" };
@@ -26,7 +27,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   if (!game) notFound();
   if (game.board === "flashcards") game.practiceAudioUrl = `/api/games/${id}/practice-audio`;
   const [row, list] = await Promise.all([
-    db.game.findFirst({ where: { id, schoolId: user.schoolId }, select: { status: true } }),
+    db.game.findFirst({ where: { id, schoolId: user.schoolId }, select: { status: true, templateKey: true, description: true, categoryId: true, topic: true, level: true, objective: true, difficulty: true, estimatedMinutes: true, language: true, settings: true } }),
     db.assignment.findMany({
       where: { gameId: id, teacherId: teacher.id },
       include: {
@@ -36,6 +37,25 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
       orderBy: { createdAt: "desc" },
     }),
   ]);
+  const categories = await db.category.findMany({ where: { schoolId: user.schoolId }, orderBy: [{ sortOrder: "asc" }, { nameEn: "asc" }], select: { id: true, nameEn: true, nameEs: true } });
+  const st = readSettings(row?.settings ?? null);
+  const settings: SettingsData | undefined = row
+    ? {
+        templateKey: row.templateKey,
+        categories,
+        values: {
+          description: row.description,
+          categoryId: row.categoryId,
+          topic: row.topic,
+          level: row.level,
+          objective: row.objective,
+          difficulty: row.difficulty,
+          estimatedMinutes: row.estimatedMinutes,
+          language: row.language as SettingsData["values"]["language"],
+          settings: { acceptShortAnswer: st.acceptShortAnswer, voice: st.voice, voices: st.voices, rate: st.rate, maxTries: st.maxTries, options: st.options },
+        },
+      }
+    : undefined;
   const assignments: StripAssignment[] = list.map((a) => ({
     id: a.id,
     who: a.recipients.map(recipientLabel).join(", "),
@@ -51,6 +71,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
       typeName={templateByKey(game.templateKey)?.name ?? "Activity"}
       status={row?.status as "DRAFT" | "PUBLISHED" | "ARCHIVED" | undefined}
       assignments={assignments}
+      settings={settings}
     />
   );
   return <GamePlayer game={game} mode="preview" diagnostics exitHref={`/teacher/games/${id}/edit`} below={below} />;

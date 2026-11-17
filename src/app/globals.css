@@ -158,3 +158,12 @@ body {
   letter-spacing: 0;
   line-height: 1.6;
 }
+
+/* Activity settings → Font = Montessori Cursive: the printable worksheets use it too. */
+[data-print-font="montessori"] [data-print-page],
+[data-print-font="montessori"] [data-print-page] * {
+  font-family: var(--font-montessori), "Playwrite MX", cursive !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important; /* capitals in joined cursive are hard to read */
+}

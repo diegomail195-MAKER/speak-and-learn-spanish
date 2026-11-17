@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { PrintablesViewer } from "@/components/printables/PrintablesViewer";
-import { FontPreview } from "@/components/editor/FontPreview";
-import { renameGame, setGameFont } from "@/lib/actions/games";
+import { renameGame } from "@/lib/actions/games";
 import type { PlayGame } from "@/lib/games/types";
 import { printCardsFrom } from "@/lib/printables/fromGame";
+import { ActivitySettings, type SettingsData } from "./ActivitySettings";
 
 export type StripRole = "ADMIN" | "TEACHER" | "STUDENT";
 
@@ -26,7 +26,7 @@ export interface StripAssignment {
  * sheet), Set Assignment and Rename, plus the list of this activity's assignments. Students only
  * see the title.
  */
-export function ActivityStrip({ game, role, typeName, status, author, assignments }: { game: PlayGame; role: StripRole; typeName: string; status?: "DRAFT" | "PUBLISHED" | "ARCHIVED"; author?: string; assignments?: StripAssignment[] }) {
+export function ActivityStrip({ game, role, typeName, status, author, assignments, settings }: { game: PlayGame; role: StripRole; typeName: string; status?: "DRAFT" | "PUBLISHED" | "ARCHIVED"; author?: string; assignments?: StripAssignment[]; settings?: SettingsData }) {
   const router = useRouter();
   const [printing, setPrinting] = useState(false);
   const [title, setTitle] = useState(game.title);
@@ -37,9 +37,6 @@ export function ActivityStrip({ game, role, typeName, status, author, assignment
   const [assigning, setAssigning] = useState(false);
   const [problems, setProblems] = useState<string[]>([]);
   const input = useRef<HTMLInputElement>(null);
-  const [tab, setTab] = useState<"settings" | "assignments">("settings");
-  const [font, setFont] = useState(String(game.options.font ?? "default"));
-  const [fontStatus, setFontStatus] = useState("");
   const cards = useMemo(() => printCardsFrom(game), [game]);
   const staff = role === "ADMIN" || role === "TEACHER";
   const isCards = game.board === "flashcards";
@@ -64,22 +61,6 @@ export function ActivityStrip({ game, role, typeName, status, author, assignment
       setRenaming(false);
       router.refresh();
     });
-  }
-
-  async function saveFont(value: string) {
-    const before = font;
-    setFont(value);
-    setFontStatus("Saving…");
-    const r = await setGameFont(game.gameId, value).catch(() => ({
-      ok: false as const,
-      error: "Couldn't save. Try again.",
-    }));
-    if (!r.ok) {
-      setFont(before);
-      return setFontStatus(r.error);
-    }
-    setFontStatus("Saved. The game uses this font.");
-    router.refresh();
   }
 
   // A draft is published first (as the editor's Assign does), then the assign flow opens.
@@ -183,71 +164,47 @@ export function ActivityStrip({ game, role, typeName, status, author, assignment
         )}
       </div>
 
+      {staff && settings && (
+        <details open className="group mt-3 rounded-xl2 border border-line bg-card px-4 py-2" id="activity-settings">
+          <summary className="flex cursor-pointer list-none items-center gap-2 py-1 font-display text-base font-bold" data-testid="settings-toggle">
+            <span aria-hidden>⚙️</span> Activity settings
+            <span className="ml-auto text-sm text-muted transition group-open:rotate-180" aria-hidden>▾</span>
+          </summary>
+          <ActivitySettings game={game} data={settings} />
+        </details>
+      )}
+
       {staff && assignments && (
-        <div className="mt-3 rounded-xl2 border border-line bg-card px-4 py-3">
-          <div role="tablist" aria-label="Activity details" className="flex gap-1 border-b border-line">
-            {(["settings", "assignments"] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                id={`tab-${k}`}
-                aria-selected={tab === k}
-                aria-controls={`panel-${k}`}
-                onClick={() => setTab(k)}
-                data-testid={`tab-${k}`}
-                className={`-mb-px border-b-2 px-3 py-2 text-sm font-bold ${tab === k ? "border-teal text-ink" : "border-transparent text-muted hover:text-ink"}`}
-              >
-                {k === "settings" ? "Activity settings" : <>Assignments {assignments.length > 0 && <span className="text-muted">({assignments.length})</span>}</>}
-              </button>
-            ))}
-          </div>
-          {tab === "settings" ? (
-            <div id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" className="space-y-3 py-4" data-testid="activity-settings">
-              <div className="max-w-sm">
-                <label htmlFor="activity-font" className="mb-1 block text-sm font-bold text-ink-2">
-                  Font
-                </label>
-                <select id="activity-font" data-testid="font-select" value={font} onChange={(e) => saveFont(e.target.value)} className="h-10 w-full rounded-xl border border-line bg-paper px-3 font-semibold">
-                  <option value="default">LextroSpeak (default)</option>
-                  <option value="montessori">Montessori Cursive</option>
-                </select>
-                <p className="mt-1 text-xs text-muted" aria-live="polite" data-testid="font-status">
-                  {fontStatus}
-                </p>
-              </div>
-              <FontPreview font={font} />
-            </div>
-          ) : (
-            <div id="panel-assignments" role="tabpanel" aria-labelledby="tab-assignments" data-testid="activity-assignments">
-              {assignments.length === 0 ? (
-                <div className="flex flex-col items-center gap-3 py-6 text-center">
-                  <p className="text-ink-2">You haven&apos;t set any assignments yet.</p>
-                  {status !== "ARCHIVED" && (
-                    <button type="button" className={primary} onClick={setAssignment} disabled={assigning}>
-                      📌 Set Assignment
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <ul className="mt-2 divide-y divide-line">
-                  {assignments.map((a) => (
-                    <li key={a.id}>
-                      <Link href={`/teacher/assignments/${a.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm hover:text-coral">
-                        <span className="font-bold">👥 {a.who || "—"}</span>
-                        <span className="text-muted">{a.due}</span>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${a.active ? "bg-leaf/20 text-ink" : "bg-paper-2 text-ink-2"}`}>{a.active ? "open" : "closed"}</span>
-                        <span className="ml-auto font-bold text-teal-dark">{a.completed} completed · See results →</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+        <div className="mt-3 rounded-xl2 border border-line bg-card px-4 py-3" data-testid="activity-assignments">
+          <h3 className="font-display text-base font-bold">
+            Assignments {assignments.length > 0 && <span className="text-muted">({assignments.length})</span>}
+          </h3>
+          {assignments.length === 0 ? (
+            <div className="flex flex-wrap items-center gap-3 py-3">
+              <p className="text-ink-2">You haven&apos;t set any assignments yet.</p>
+              {status !== "ARCHIVED" && (
+                <button type="button" className={primary} onClick={setAssignment} disabled={assigning}>
+                  📌 Set Assignment
+                </button>
               )}
             </div>
+          ) : (
+            <ul className="mt-2 divide-y divide-line">
+              {assignments.map((a) => (
+                <li key={a.id}>
+                  <Link href={`/teacher/assignments/${a.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm hover:text-coral">
+                    <span className="font-bold">👥 {a.who || "—"}</span>
+                    <span className="text-muted">{a.due}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${a.active ? "bg-leaf/20 text-ink" : "bg-paper-2 text-ink-2"}`}>{a.active ? "open" : "closed"}</span>
+                    <span className="ml-auto font-bold text-teal-dark">{a.completed} completed · See results →</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       )}
-      {printing && <PrintablesViewer title={title} cards={cards} lang={game.language?.startsWith("fr") ? "fr" : game.language?.startsWith("en") ? "en" : "es"} onClose={() => setPrinting(false)} />}
+      {printing && <PrintablesViewer title={title} cards={cards} lang={game.language?.startsWith("fr") ? "fr" : game.language?.startsWith("en") ? "en" : "es"} onClose={() => setPrinting(false)} font={String(game.options.font ?? "default")} />}
     </section>
   );
 }

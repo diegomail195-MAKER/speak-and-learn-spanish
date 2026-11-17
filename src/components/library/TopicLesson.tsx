@@ -6,6 +6,7 @@ import { GamePlayer } from "@/components/player/GamePlayer";
 import { StudentPlay } from "@/components/player/StudentPlay";
 import { Art, Pinita } from "@/components/ui/Art";
 import { recordActivityProgress } from "@/lib/actions/tasks";
+import { libraryFileUrl, youtubeIdFrom } from "@/lib/library/types";
 import { LESSON, lessonClipKey, spokenTitle, stepLine, type Line } from "@/lib/library/lesson";
 import type { LessonStep } from "@/lib/library/lessonData";
 import { ResourcePlayer, speak } from "./Players";
@@ -57,6 +58,38 @@ function KindIcon({ kind, size = "h-24 w-24" }: { kind: string; size?: string })
     <img src={ICON[kind]} alt="" width={160} height={160} className={`${size} object-contain`} />
   ) : (
     <span className={`grid ${size} place-items-center rounded-3xl bg-[#FFF3CC] text-5xl`} aria-hidden>🖨️</span>
+  );
+}
+
+/** Videos and music videos: the video's picture (YouTube thumbnail or a frame of the file) and its title, as on the Topic page. */
+function MediaThumb({ step, kindLabel }: { step: LessonStep; kindLabel: string }) {
+  const c = (step.content ?? {}) as { file?: { fileId?: string; mime?: string } | null; youtubeId?: string | null; link?: { url?: string } | null };
+  const yt = c.youtubeId || (c.link?.url ? youtubeIdFrom(c.link.url) : null);
+  const file = step.kind === "VIDEO" && c.file?.fileId ? libraryFileUrl(c.file.fileId) : null;
+  return (
+    <figure className="w-full max-w-md overflow-hidden rounded-[22px] border-[6px] shadow-[0_14px_30px_-16px_rgba(98,13,120,.7)]" style={{ borderColor: PURPLE, background: PURPLE }} data-testid="lesson-thumb">
+      <div className="relative aspect-video w-full overflow-hidden rounded-[14px] bg-[#FFF3CC]">
+        {yt ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={`https://i.ytimg.com/vi/${yt}/hqdefault.jpg`} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        ) : file ? (
+          <video src={`${file}#t=1`} muted playsInline preload="metadata" tabIndex={-1} aria-hidden className="pointer-events-none absolute inset-0 h-full w-full bg-[#2a0634] object-cover" />
+        ) : (
+          <span className="absolute inset-0 grid place-items-center">
+            <KindIcon kind={step.kind} size="h-28 w-28" />
+          </span>
+        )}
+        <span className="absolute inset-0 grid place-items-center" aria-hidden>
+          <span className="grid h-16 w-16 place-items-center rounded-full border-4 border-white text-white shadow-lg" style={{ background: PURPLE }}>
+            <svg viewBox="0 0 24 24" className="ml-1 h-7 w-7 fill-current"><path d="M8 5v14l11-7z" /></svg>
+          </span>
+        </span>
+      </div>
+      <figcaption className="px-4 pb-2 pt-3 text-center text-white">
+        <h1 className="font-display text-2xl font-extrabold leading-tight sm:text-3xl" data-testid="lesson-step-title">{step.title}</h1>
+        <span className="text-sm font-semibold text-white/80">{kindLabel}</span>
+      </figcaption>
+    </figure>
   );
 }
 
@@ -271,9 +304,15 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
           <span className="rounded-full bg-white/80 px-3 py-1 text-sm font-extrabold" style={{ color: PURPLE }} data-testid="lesson-step-count">
             Paso {phase.i + 1} de {total} · Step {phase.i + 1} of {total}
           </span>
-          <KindIcon kind={s.kind} />
-          <span className="text-sm font-bold uppercase tracking-[0.14em] text-ink/70">{label.es === label.en ? label.es : `${label.es} · ${label.en}`}</span>
-          <h1 className="font-display text-3xl font-extrabold leading-tight text-ink sm:text-4xl" data-testid="lesson-step-title">{s.title}</h1>
+          {s.kind === "VIDEO" || s.kind === "SONG" ? (
+            <MediaThumb step={s} kindLabel={label.es === label.en ? label.es : `${label.es} · ${label.en}`} />
+          ) : (
+            <>
+              <KindIcon kind={s.kind} />
+              <span className="text-sm font-bold uppercase tracking-[0.14em] text-ink/70">{label.es === label.en ? label.es : `${label.es} · ${label.en}`}</span>
+              <h1 className="font-display text-3xl font-extrabold leading-tight text-ink sm:text-4xl" data-testid="lesson-step-title">{s.title}</h1>
+            </>
+          )}
           <div className="w-full rounded-2xl bg-white/85 px-5 py-4" data-testid="lesson-line" aria-live="polite">
             {lines.map((l) => (
               <p key={l.es} className="mb-1 last:mb-0">

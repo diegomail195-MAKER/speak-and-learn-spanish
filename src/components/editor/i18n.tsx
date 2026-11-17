@@ -128,6 +128,13 @@ const ES = {
   practiceCreate: "Crear práctica",
   practiceOn: "Práctica creada: al terminar, los estudiantes responden hablando",
   practiceRemove: "Quitar",
+  practiceEdit: "Editar",
+  practiceEditTitle: "Editar la práctica",
+  practiceEditHelp: "Lo que el estudiante ve, la pregunta que escucha y las respuestas que cuentan. Deja la pregunta vacía para usar «¿Qué es esto?» (o «¿Qué color es este?»).",
+  practiceAnswer: "Respuesta",
+  practiceQuestion: "Pregunta (opcional)",
+  practiceAccepted: "Otras respuestas que cuentan (separadas por comas)",
+  activitySettings: "Activity settings",
   practiceHelp: "Después de las tarjetas, ¡Vamos a practicar! muestra las mismas tarjetas como preguntas y el estudiante responde con el micrófono.",
 };
 type Dict = typeof ES;
@@ -253,6 +260,13 @@ const EN: Dict = {
   practiceCreate: "Create practice",
   practiceOn: "Practice created: after the cards, students answer out loud",
   practiceRemove: "Remove",
+  practiceEdit: "Edit",
+  practiceEditTitle: "Edit the practice",
+  practiceEditHelp: "What the student sees, the question they hear and the answers that count. Leave the question empty to use «¿Qué es esto?» (or «¿Qué color es este?»).",
+  practiceAnswer: "Answer",
+  practiceQuestion: "Question (optional)",
+  practiceAccepted: "Other answers that count (separated by commas)",
+  activitySettings: "Activity settings",
   practiceHelp: "After the cards, Let's practice! shows the same cards as questions and the student answers with the microphone.",
 };
 
