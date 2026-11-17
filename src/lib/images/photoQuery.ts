@@ -43,7 +43,7 @@ export function googleImagesUrl(term: string, context: string): string {
   return `https://www.google.com/search?${new URLSearchParams({ tbm: "isch", safe: "active", q })}`;
 }
 
-const NOT_PHOTO = /\b(drawing|draw|cartoon|clip ?art|clipart|illustration|illustrated|icon|logo|emblem|coat of arms|flag|diagram|map|chart|sketch|painting|engraving|lithograph|poster|sticker|emoji|vector|svg|symbol|silhouette|pictogram|stamp|banknote|coin|text|screenshot|plate \d+)\b/i;
+const NOT_PHOTO = /\b(drawing|draw|cartoon|clip ?art|clipart|illustration|illustrated|icon|logo|emblem|coat of arms|flag|diagram|map|chart|sketch|painting|paintings|drawings|illustrations|engraving|engravings|lithograph|skeleton|fossil|museum specimen|poster|sticker|emoji|vector|svg|symbol|silhouette|pictogram|stamp|banknote|coin|text|screenshot|plate \d+)\b/i;
 
 /** True when a file name says it is a drawing, icon, logo, map… (not a photograph). */
 export const looksDrawn = (title: string) => NOT_PHOTO.test(title);

@@ -29,3 +29,15 @@ describe("flashcard photo picker", () => {
     expect(r.map((x) => x.title)).toEqual(["File:Wild turkey in a field.jpg"]);
   });
 });
+
+describe("paintings and skeletons sink below real photos", () => {
+  it("ranks a photo above a painting category and a skeleton", async () => {
+    const { rankPhotos } = await import("./photoQuery");
+    const list = [
+      { title: "Het aards paradijs", mime: "image/jpeg", width: 3000, height: 2000, categories: "Paintings by Jan Brueghel the Elder" },
+      { title: "Capybara skeleton", mime: "image/jpeg", width: 3000, height: 2000 },
+      { title: "Wild Turkey", mime: "image/jpeg", width: 3000, height: 2000, categories: "Meleagris gallopavo|Pages with maps" },
+    ];
+    expect(rankPhotos(list).map((c) => c.title)).toEqual(["Wild Turkey"]);
+  });
+});
