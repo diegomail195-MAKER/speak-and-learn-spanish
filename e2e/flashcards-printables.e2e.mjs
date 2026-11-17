@@ -112,7 +112,7 @@ try {
   assert(!(await page.getByText("Voice & answers").isVisible()), "settings are folded away");
   // The settings live in Activity settings (under the activity's actions); the editor links there.
   assert((await page.getByTestId("add-from-library").count()) === 0, "the editor bar is clean");
-  await page.getByRole("heading", { name: "Library resources" }).waitFor();
+  assert((await page.getByRole("heading", { name: "Library resources" }).count()) === 0, "no empty Library resources box");
   const tableWidth = await page.locator("ol").evaluate((el) => el.getBoundingClientRect().width);
   assert(tableWidth > 1000, `the card table takes the main width (${Math.round(tableWidth)}px)`);
   await page.getByText("+ Add an item").waitFor();
