@@ -9,6 +9,7 @@ import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { templateByKey, templateOptions } from "@/lib/games/templates";
 import { DEFAULT_SETTINGS } from "@/lib/games/types";
+import { AUDIO_LANGUAGE_CODES } from "@/lib/tts/voices";
 
 export async function createGame(form: FormData) {
   const { user, teacher } = await requireTeacher();
@@ -133,4 +134,71 @@ export async function setGameFont(gameId: string, font: string): Promise<{ ok: t
   await audit(user.schoolId, user.id, "game.font", "Game", g.id, { font: value.data });
   revalidatePath(`/play/preview/${g.id}`);
   return { ok: true };
+}
+
+const langCode = z.enum(AUDIO_LANGUAGE_CODES);
+const settingsInput = z.object({
+  description: z.string().max(1000).optional(),
+  categoryId: z.string().max(40).nullable().optional(),
+  topic: z.string().max(120).optional(),
+  objective: z.string().max(500).optional(),
+  level: z.string().max(60).optional(),
+  language: z.enum(["es-419", "en-US", "fr-FR"]).optional(),
+  difficulty: z.number().int().min(1).max(3).optional(),
+  estimatedMinutes: z.number().int().min(1).max(120).nullable().optional(),
+  settings: z
+    .object({
+      acceptShortAnswer: z.boolean().optional(),
+      voice: z.string().max(80).nullable().optional(),
+      voices: z.record(langCode, z.string().max(80)).optional(),
+      rate: z.number().min(0.5).max(1.5).optional(),
+      maxTries: z.number().int().min(1).max(5).optional(),
+      options: z.record(z.string().max(40), z.union([z.string().max(40), z.number(), z.boolean()])).optional(),
+    })
+    .optional(),
+});
+
+/**
+ * Activity settings (under the activity's actions): information, options, font, voices and how
+ * answers are checked. Only the fields sent change; template options are checked against the template.
+ */
+export async function saveActivitySettings(gameId: string, input: z.input<typeof settingsInput>): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { user } = await requireTeacher();
+  const g = await schoolGame(user.schoolId, gameId);
+  const parsed = settingsInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Some settings aren't valid." };
+  const d = parsed.data;
+  if (d.categoryId && !(await db.category.findFirst({ where: { id: d.categoryId, schoolId: user.schoolId }, select: { id: true } }))) return { ok: false, error: "Unknown category." };
+  const t = templateByKey(g.templateKey);
+  const prev = { ...DEFAULT_SETTINGS, ...((g.settings ?? {}) as Record<string, unknown>) } as Record<string, unknown>;
+  let settings = prev;
+  if (d.settings) {
+    const { options, voice, ...rest } = d.settings;
+    settings = { ...prev, ...rest };
+    if (voice !== undefined) settings.voice = voice ?? undefined;
+    if (options && t) settings.options = templateOptions(t, { ...((prev.options as Record<string, string | number | boolean>) ?? {}), ...options });
+  }
+  if (d.language && d.language !== g.language) settings.voice = undefined; // the main voice belongs to the old language
+  const { settings: _s, ...fields } = d;
+  void _s;
+  await db.game.update({ where: { id: g.id }, data: { ...fields, settings: settings as object } });
+  await audit(user.schoolId, user.id, "game.settings", "Game", g.id, { fields: Object.keys(fields), settings: Object.keys(d.settings ?? {}) });
+  revalidatePath(`/play/preview/${g.id}`);
+  return { ok: true };
+}
+
+/** Other accepted answers of each card or question ("púrpura" for "morado"). */
+export async function saveAcceptedAnswers(gameId: string, questionId: string, answers: string[]): Promise<{ ok: true; answers: string[] } | { ok: false; error: string }> {
+  const { user } = await requireTeacher();
+  const g = await schoolGame(user.schoolId, gameId);
+  const list = z.array(z.string().max(200)).max(20).safeParse(answers);
+  if (!list.success) return { ok: false, error: "Up to 20 answers of 200 characters." };
+  const clean = [...new Set(list.data.map((a) => a.trim()).filter(Boolean))];
+  const q = await db.question.findFirst({ where: { id: questionId, item: { gameId: g.id } }, select: { id: true } });
+  if (!q) return { ok: false, error: "Unknown card." };
+  await db.$transaction([db.acceptedAnswer.deleteMany({ where: { questionId: q.id } }), db.acceptedAnswer.createMany({ data: clean.map((text) => ({ questionId: q.id, text })) })]);
+  await db.game.update({ where: { id: g.id }, data: { updatedAt: new Date() } });
+  await audit(user.schoolId, user.id, "game.accepted", "Game", g.id, { questionId: q.id, count: clean.length });
+  revalidatePath(`/play/preview/${g.id}`);
+  return { ok: true, answers: clean };
 }

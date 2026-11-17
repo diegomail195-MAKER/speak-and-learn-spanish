@@ -1,6 +1,6 @@
 // End-to-end test of the redesigned Flashcards in real Chromium:
 // a deck of 11 colour circles ("¿Cuál es tu color favorito?") built in the compact editor
-// (Settings panel, Add from Library in the bar, Double/Single sided, Swap Columns, Done), then the
+// (Activity settings link, Add from Library in the bar, Double/Single sided, Swap Columns, Done), then the
 // game (start screen, one large card, turn with click and Space, I knew it / Practice again,
 // round results, practise the missed cards), the activity strip (Edit Content + Printables) and
 // the four printables (preview, options, A4/Letter, card selection, quiz fill-in, PDF download).
@@ -110,18 +110,15 @@ try {
   assert((await page.locator("ol > li").count()) === 1, "a new activity starts with one editable row");
   assert(await page.locator("ol > li").first().getByRole("textbox", { name: "Front: Text" }).isVisible(), "first row editable");
   assert(!(await page.getByText("Voice & answers").isVisible()), "settings are folded away");
-  await page.getByRole("button", { name: /Settings/ }).click();
-  await page.getByText("Voice & answers").waitFor();
-  await page.getByLabel("Shuffle cards").waitFor();
-  await page.getByRole("button", { name: /Settings/ }).click();
-  assert(!(await page.getByText("Voice & answers").isVisible()), "settings fold back");
+  // The settings live in Activity settings (under the activity's actions); the editor links there.
+  await page.getByTestId("open-activity-settings").waitFor();
   assert(await page.getByTestId("add-from-library").isVisible(), "Add from Library in the editor bar");
   await page.getByRole("heading", { name: "Library resources" }).waitFor();
   const tableWidth = await page.locator("ol").evaluate((el) => el.getBoundingClientRect().width);
   assert(tableWidth > 1000, `the card table takes the main width (${Math.round(tableWidth)}px)`);
   await page.getByText("+ Add an item").waitFor();
   await page.getByText("1 of 100").first().waitFor();
-  log("compact editor: one row, Settings panel folds, Add from Library in the bar, table", Math.round(tableWidth), "px wide");
+  log("compact editor: one row, Activity settings link, Add from Library in the bar, table", Math.round(tableWidth), "px wide");
 
   await page.getByLabel("Activity Title").fill("¿Cuál es tu color favorito?");
   await page.click("text=+ Add Instruction");
@@ -184,7 +181,7 @@ try {
   await stage.getByRole("button", { name: "Full screen" }).waitFor();
   const strip = page.getByTestId("activity-strip");
   await strip.getByRole("link", { name: /Edit Content/ }).waitFor();
-  await strip.getByRole("button", { name: /Printables/ }).waitFor();
+  await strip.getByRole("button", { name: /Print Worksheet/ }).waitFor();
   await shot(page, "p03-start");
   await stage.getByRole("button", { name: "Start" }).click();
   const at = (t) => page.getByTestId("card-counter").filter({ hasText: new RegExp(`^${t}$`) }).waitFor();
@@ -247,7 +244,7 @@ try {
   await stage.getByRole("button", { name: /Sound off/ }).waitFor();
 
   // ── 4. Printables from the same activity ──
-  await strip.getByRole("button", { name: /Printables/ }).click();
+  await strip.getByRole("button", { name: /Print Worksheet/ }).click();
   const viewer = page.getByRole("dialog", { name: "Printables" });
   await viewer.getByRole("button", { name: /Print worksheet/ }).waitFor();
   await viewer.getByRole("button", { name: /Download PDF/ }).waitFor();
@@ -360,7 +357,7 @@ try {
   assert((await page.getByTestId("turn-card").count()) === 0, "no Flip button in single sided");
   await page.getByTestId("mark-knew").click();
   await page.getByTestId("card-counter").filter({ hasText: /^2 of 11$/ }).waitFor();
-  await strip.getByRole("button", { name: /Printables/ }).click();
+  await strip.getByRole("button", { name: /Print Worksheet/ }).click();
   assert((await pageCount()) === 2, `single sided flash cards: fronts only (${await pageCount()})`);
   await viewer.getByRole("button", { name: "Close" }).click();
   log("single sided: advances without the back, printables print fronts only");
@@ -385,7 +382,7 @@ try {
   await page.goto(`${BASE}/play/preview/${gameId}`);
   await stage.getByRole("button", { name: "Start" }).click();
   await page.getByTestId("card-counter").filter({ hasText: /^1 of 100$/ }).waitFor();
-  await strip.getByRole("button", { name: /Printables/ }).click();
+  await strip.getByRole("button", { name: /Print Worksheet/ }).click();
   assert((await pageCount()) === 13, `100 cards → 13 table pages (${await pageCount()})`);
   await viewer.getByRole("button", { name: /Options/ }).click();
   await viewer.getByRole("region", { name: "Print options" }).getByLabel("Cut-out cards").check();
@@ -421,7 +418,7 @@ try {
   overflow = await m.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert(overflow <= 1, `game: no sideways scroll (${overflow}px)`);
   await shot(m, "p14-phone-game");
-  await m.getByTestId("activity-strip").getByRole("button", { name: /Printables/ }).tap();
+  await m.getByTestId("activity-strip").getByRole("button", { name: /Print Worksheet/ }).tap();
   const nav = await m.getByRole("navigation", { name: "Printable templates" }).boundingBox();
   const pv = await m.getByTestId("printable-preview").boundingBox();
   assert(nav.y + nav.height <= pv.y + 1, "template picker above the preview on a phone");

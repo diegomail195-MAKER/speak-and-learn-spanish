@@ -173,6 +173,7 @@ try {
   assert(JSON.parse((await voiceReq).postData()).title === "Los saludos", "the voice gets the spoken title");
   await page.getByTestId("student-view-banner").waitFor();
   assert((await lineText(page)).includes("Vamos a aprender sobre Los saludos.") && (await lineText(page)).includes("Let's learn about Los saludos."), "opening line");
+  await page.getByTestId("lesson-thumb").locator("video, img").first().waitFor();
   await shot(page, "tl04-student-view-intro");
   const kinds = ["video", "flashcards", "match", "speaking", "video"];
   const lines = [null, "Ahora vamos a practicar con las tarjetas.", "Ahora vamos a jugar.", "Ahora vamos a practicar hablando.", "Ahora vamos a nuestra siguiente actividad."];

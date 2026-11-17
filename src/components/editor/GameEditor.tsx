@@ -1,6 +1,7 @@
 "use client";
 
 import { FontPreview } from "./FontPreview";
+import { OptionInput } from "./OptionInput";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -116,7 +117,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
   const [tts, setTts] = useState<TtsConfig | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
   const [busy, setBusy] = useState<"" | "publish" | "assign" | "preview" | "duplicate" | "done">("");
-  const [showSettings, setShowSettings] = useState(false);
+  const [editPractice, setEditPractice] = useState(false);
   const [restore, setRestore] = useState<EditorGame | null>(null);
   const [activePoint, setActivePoint] = useState(0);
   const first = useRef(true);
@@ -378,9 +379,9 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
   }
 
   /** Done: save, then open the activity (play it, Edit Content, Printables). */
-  async function finishEditing() {
+  async function finishEditing(hash = "") {
     setBusy("done");
-    if (await persist(game)) router.push(`/play/preview/${game.id}`);
+    if (await persist(game)) router.push(`/play/preview/${game.id}${hash}`);
     else setBusy("");
   }
 
@@ -696,8 +697,8 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
             ))}
           </div>
           {flash && (
-            <Button size="sm" variant="secondary" onClick={() => setShowSettings((v) => !v)} aria-expanded={showSettings} aria-controls="editor-settings">
-              ⚙ {t.settings}
+            <Button size="sm" variant="secondary" onClick={() => finishEditing("#activity-settings")} disabled={!!busy} data-testid="open-activity-settings">
+              ⚙ {t.activitySettings}
             </Button>
           )}
           {flash && library?.picker}
@@ -751,12 +752,6 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
         <div role="alert" className="mb-6 rounded-xl2 bg-coral-soft p-4 text-sm text-coral-dark">
           <p className="font-bold">Before publishing:</p>
           <ul className="mt-1 list-disc pl-5">{problems.map((p) => <li key={p}>{p}</li>)}</ul>
-        </div>
-      )}
-
-      {flash && showSettings && (
-        <div id="editor-settings" role="region" aria-label={t.settings} className="mb-5 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {settingsSections}
         </div>
       )}
 
@@ -959,6 +954,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
               options.letsPractice ? (
                 <span className="ml-auto inline-flex flex-wrap items-center gap-2 rounded-full bg-teal-soft px-4 py-2 text-sm font-bold text-teal-dark" data-testid="practice-created">
                   🎤 {t.practiceOn}
+                  <button type="button" onClick={() => setEditPractice((v) => !v)} aria-expanded={editPractice} aria-controls="practice-editor" data-testid="practice-edit" className="rounded-full bg-white px-3 py-0.5 text-xs font-bold text-teal-dark hover:bg-teal hover:text-white">✏️ {t.practiceEdit}</button>
                   <button type="button" onClick={() => setOption("letsPractice", false)} className="rounded-full px-2 text-xs font-bold text-muted hover:bg-white hover:text-coral-dark">{t.practiceRemove}</button>
                 </span>
               ) : (
@@ -979,11 +975,55 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
             )}
           </div>
 
+          {flash && options.letsPractice && editPractice && (
+            <section id="practice-editor" aria-label={t.practiceEditTitle} className="rounded-xl2 border-2 border-teal/30 bg-card p-4" data-testid="practice-editor">
+              <h2 className="font-display text-lg font-semibold">🎤 {t.practiceEditTitle}</h2>
+              <p className="mb-3 text-sm text-muted">{t.practiceEditHelp}</p>
+              <ol className="space-y-3">
+                {game.items.map((it, i) => {
+                  const front = it.text.trim();
+                  const back = (it.data.back?.text ?? "").trim();
+                  const answer = it.question.expectedAnswer.trim() || back || front;
+                  if (!answer) return null;
+                  return (
+                    <li key={it.key ?? it.id ?? i} className="grid gap-3 rounded-xl bg-paper p-3 md:grid-cols-[160px_1fr_1fr]" data-testid="practice-row">
+                      <div className="flex items-center gap-2">
+                        {it.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={it.imageUrl} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                        ) : null}
+                        <span className="min-w-0 text-sm">
+                          <span className="block text-xs font-bold text-muted">{t.practiceAnswer}</span>
+                          <strong className="break-words">{answer.replace(/\[\/?[a-z-]+\]/gi, "")}</strong>
+                        </span>
+                      </div>
+                      <label className="text-sm">
+                        <span className="mb-1 block text-xs font-bold text-ink-2">{t.practiceQuestion}</span>
+                        <input value={it.question.prompt} onChange={(e) => setQ(i, { prompt: e.target.value })} maxLength={400} placeholder="¿Qué es esto?" className="h-10 w-full rounded-xl border border-line bg-card px-3" data-testid="practice-question" lang="es" />
+                      </label>
+                      <label className="text-sm">
+                        <span className="mb-1 block text-xs font-bold text-ink-2">{t.practiceAccepted}</span>
+                        <input
+                          defaultValue={it.question.accepted.join(", ")}
+                          onBlur={(e) => setQ(i, { accepted: e.target.value.split(/[,\n]/).map((x) => x.trim()).filter(Boolean).slice(0, 20) })}
+                          placeholder="púrpura, violeta"
+                          className="h-10 w-full rounded-xl border border-line bg-card px-3"
+                          data-testid="practice-accepted"
+                          lang="es"
+                        />
+                      </label>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          )}
+
           {flash && library?.list}
 
           {flash && (
             <div className="sticky bottom-0 z-20 -mx-5 mt-6 flex items-center justify-end gap-3 border-t border-line bg-paper/95 px-5 py-3 backdrop-blur">
-              <Button onClick={finishEditing} disabled={!!busy} className="min-w-36" data-testid="editor-done">
+              <Button onClick={() => finishEditing()} disabled={!!busy} className="min-w-36" data-testid="editor-done">
                 {busy === "done" ? t.saving : t.done}
               </Button>
             </div>
@@ -996,35 +1036,3 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
   );
 }
 
-function OptionInput({ o, value, onChange, disabled }: { o: OptionDef; value: string | number | boolean; onChange: (v: string | number | boolean) => void; disabled?: boolean }) {
-  const id = `opt-${o.key}`;
-  if (o.type === "boolean") {
-    return (
-      <label className="flex items-start gap-2 text-sm">
-        <input id={id} type="checkbox" className="mt-1" checked={value === true} onChange={(e) => onChange(e.target.checked)} />
-        <span>
-          <strong>{o.label}</strong>
-          {o.help && <span className="block text-xs text-muted">{o.help}</span>}
-        </span>
-      </label>
-    );
-  }
-  if (o.type === "choice") {
-    return (
-      <div>
-        <Label htmlFor={id}>{o.label}</Label>
-        <Select id={id} value={String(value)} onChange={(e) => onChange(e.target.value)}>
-          {o.choices.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-        </Select>
-        {o.help && <p className="mt-1 text-xs text-muted">{o.help}</p>}
-      </div>
-    );
-  }
-  return (
-    <div className={disabled ? "opacity-50" : ""}>
-      <Label htmlFor={id}>{o.label}</Label>
-      <Input id={id} type="number" min={o.min} max={o.max} disabled={disabled} value={Number(value)} onChange={(e) => onChange(Math.min(o.max, Math.max(o.min, Number(e.target.value) || o.min)))} />
-      {o.help && <p className="mt-1 text-xs text-muted">{o.help}</p>}
-    </div>
-  );
-}

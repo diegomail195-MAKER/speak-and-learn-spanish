@@ -81,7 +81,8 @@ function Scaled({ width, height, avail, children }: { width: number; height: num
   );
 }
 
-export function PrintablesViewer({ title, cards, onClose, lang = "en" }: { title: string; cards: PrintCard[]; onClose: () => void; lang?: PrintLang }) {
+/** `font`: the activity's font (Activity settings); "montessori" prints the words in school cursive. */
+export function PrintablesViewer({ title, cards, onClose, lang = "en", font = "default" }: { title: string; cards: PrintCard[]; onClose: () => void; lang?: PrintLang; font?: string }) {
   const [tpl, setTpl] = useState<PrintTemplate>("flashcards");
   const [size, setSize] = useState<PaperSize>("letter");
   const [sides, setSides] = useState<"one" | "two">(() => (cards.some((c) => !isEmptyFace(c.back)) ? "two" : "one"));
@@ -162,7 +163,11 @@ export function PrintablesViewer({ title, cards, onClose, lang = "en" }: { title
   const emptyNote =
     !chosen.length ? "Choose at least one card in Options." : tpl === "match" && !withBacks.length ? "Match up needs cards with a back." : "";
 
-  function print() {
+  // The cursive is loaded on demand: wait for it before printing or making the PDF.
+  const fontReady = () => (font === "montessori" ? document.fonts.ready.then(() => undefined) : Promise.resolve());
+
+  async function print() {
+    await fontReady();
     const style = document.createElement("style");
     style.textContent = `@page { size: ${size === "a4" ? "A4" : "letter"} ${w > h ? "landscape" : "portrait"}; margin: 0 }`;
     document.head.appendChild(style);
@@ -181,6 +186,7 @@ export function PrintablesViewer({ title, cards, onClose, lang = "en" }: { title
     setBusy("pdf");
     setError("");
     try {
+      await fontReady();
       const [{ jsPDF }, { toPng }] = await Promise.all([import("jspdf"), import("html-to-image")]);
       const nodes = Array.from(printRoot.current?.querySelectorAll<HTMLElement>("[data-print-page]") ?? []);
       await Promise.all(
@@ -352,7 +358,7 @@ export function PrintablesViewer({ title, cards, onClose, lang = "en" }: { title
             </section>
           )}
 
-          <div ref={previewRef} className="h-full overflow-auto bg-paper-2 p-4" data-testid="printable-preview">
+          <div ref={previewRef} className="h-full overflow-auto bg-paper-2 p-4" data-testid="printable-preview" data-print-font={font}>
             {error && <p role="alert" className="mx-auto mb-3 max-w-xl rounded-xl bg-coral-soft p-3 text-sm text-coral-dark">{error}</p>}
             {tpl === "quiz" && missing.length > 0 && (
               <section aria-label="Complete the quiz options" className="mx-auto mb-4 max-w-2xl rounded-xl2 border border-sun bg-sun-soft p-4 text-sm">
@@ -395,7 +401,7 @@ export function PrintablesViewer({ title, cards, onClose, lang = "en" }: { title
 
       {mounted &&
         createPortal(
-          <div id="ls-print-root" ref={printRoot} aria-hidden>
+          <div id="ls-print-root" ref={printRoot} aria-hidden data-print-font={font}>
             {emptyNote ? null : pages}
           </div>,
           document.body,
