@@ -2,7 +2,7 @@ import "server-only";
 import { HttpError } from "@/lib/auth/guards";
 import { IMAGE_MAX_BYTES, sniffImage } from "@/lib/media/validate";
 import { looksDrawn, photoScore, rankPhotos, type CommonsCandidate } from "./photoQuery";
-import { hasBlockedWords } from "./safety";
+import { blockedWord, hasBlockedWords } from "./safety";
 
 // Wikimedia Commons: free, openly licensed photographs, no API key. Teachers see thumbnails; a
 // chosen photo is re-read by its title on the server (never a URL from the browser), downloaded
@@ -81,7 +81,22 @@ function toPhoto(p: Page): (CommonsPhoto & CommonsCandidate) | null {
   };
 }
 
-export type CommonsStats = { found: number; usable: number; shown: number };
+export type CommonsStats = { found: number; usable: number; shown: number; dropped?: Record<string, number> };
+
+/** Why a search result was left out (diagnostics only: counts, never shown to students). */
+function dropReason(p: Page): string {
+  const i = p.imageinfo?.[0];
+  if (!i) return "no imageinfo";
+  if (!fileUrl(i.thumburl)) {
+    try {
+      const u = new URL(i.thumburl ?? "");
+      return `thumb ${u.protocol}//${u.host}`;
+    } catch {
+      return "no thumb";
+    }
+  }
+  return `word "${blockedWord(`${p.title} ${meta(i, "ImageDescription")} ${meta(i, "Categories")}`) ?? "?"}"`;
+}
 
 /** Up to `max` photos for a search, best photographs first, plus how many were found and dropped. */
 export async function searchCommonsDetailed(query: string, max = 6): Promise<{ photos: CommonsPhoto[]; stats: CommonsStats }> {
@@ -114,7 +129,9 @@ export async function searchCommonsDetailed(query: string, max = 6): Promise<{ p
     best.push(...rest.slice(0, max - best.length));
   }
   const photos = best.map(({ id, title, thumb, width, height, author, license, pageUrl }) => ({ id, title, thumb, width, height, author, license, pageUrl }));
-  const stats = { found: pages.length, usable: list.length, shown: photos.length };
+  const dropped: Record<string, number> = {};
+  for (const pg of pages) if (!toPhoto(pg)) dropped[dropReason(pg)] = (dropped[dropReason(pg)] ?? 0) + 1;
+  const stats = { found: pages.length, usable: list.length, shown: photos.length, dropped };
   console.info("commons search", JSON.stringify({ q, ...stats }));
   return { photos, stats };
 }
