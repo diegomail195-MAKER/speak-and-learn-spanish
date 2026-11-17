@@ -111,14 +111,13 @@ try {
   assert(await page.locator("ol > li").first().getByRole("textbox", { name: "Front: Text" }).isVisible(), "first row editable");
   assert(!(await page.getByText("Voice & answers").isVisible()), "settings are folded away");
   // The settings live in Activity settings (under the activity's actions); the editor links there.
-  await page.getByTestId("open-activity-settings").waitFor();
-  assert(await page.getByTestId("add-from-library").isVisible(), "Add from Library in the editor bar");
+  assert((await page.getByTestId("add-from-library").count()) === 0, "the editor bar is clean");
   await page.getByRole("heading", { name: "Library resources" }).waitFor();
   const tableWidth = await page.locator("ol").evaluate((el) => el.getBoundingClientRect().width);
   assert(tableWidth > 1000, `the card table takes the main width (${Math.round(tableWidth)}px)`);
   await page.getByText("+ Add an item").waitFor();
   await page.getByText("1 of 100").first().waitFor();
-  log("compact editor: one row, Activity settings link, Add from Library in the bar, table", Math.round(tableWidth), "px wide");
+  log("compact editor: one row, clean bar, table", Math.round(tableWidth), "px wide");
 
   await page.getByLabel("Activity Title").fill("¿Cuál es tu color favorito?");
   await page.click("text=+ Add Instruction");

@@ -74,8 +74,11 @@ try {
   log("editor: no 🎤 per card, paste hint, Let's practice created");
 
   // Assign it, then My Assignments shows it under Flashcards.
-  await page.getByRole("button", { name: "Assign", exact: true }).click();
-  await page.waitForURL(/assignments\/new/, { timeout: 20000 });
+  // Done → the activity page → Set Assignment (publishes, then the assign form).
+  await page.getByTestId("editor-done").click();
+  await page.waitForURL(/\/play\/preview\//, { timeout: 20000 });
+  await page.getByTestId("action-assign").click();
+  await page.waitForURL(/assignments\/new/, { timeout: 30000 });
   await page.check("label:has-text('Whole class') input");
   await page.click("text=Assign activity");
   await page.waitForURL(/\?new=1$/, { timeout: 20000 });

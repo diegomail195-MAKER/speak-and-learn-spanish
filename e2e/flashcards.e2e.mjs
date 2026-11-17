@@ -128,20 +128,11 @@ try {
   await waitSaved();
   log("swapped: front now says rojo");
 
-  // Student preview (editor): front audio, flip, back audio
-  await page.getByRole("button", { name: /Vista previa/ }).click();
-  await page.getByTestId("preview-play").click();
-  await page.getByRole("button", { name: /Voltear/ }).last().click();
-  await page.getByTestId("preview-play").click();
-  const heard = await spoken();
-  assert(heard[0]?.text === "rojo" && heard[0].lang.startsWith("es") && heard[1]?.text === "red" && heard[1].lang.startsWith("en"), `preview spoke ${JSON.stringify(heard)}`);
-  await shot(page, "f02-preview");
-  await page.getByRole("button", { name: "Cerrar" }).click();
-  log("preview: front → rojo (es), back → red (en)");
+  // The editor bar is clean: no settings, library, duplicate, preview, play, publish or assign buttons.
+  for (const name of [/Activity settings/, /Añadir de la biblioteca|Add from Library/, /^Duplicate$/, /Vista previa|^👁/, /^Play$/, /^Publish$|Update published/, /^Assign$/]) assert((await page.getByRole("button", { name }).count()) === 0, `editor bar still shows ${name}`);
+  log("editor bar: only title, status and save state");
 
   // Publish and play as a student would (no spoken answer → no microphone needed)
-  await page.getByRole("button", { name: "Publish" }).click();
-  await page.waitForSelector("text=Update published", { timeout: 20000 });
   const play = await ctx.newPage();
   await play.goto(`${BASE}/play/preview/${gameId}`);
   await play.getByRole("button", { name: /Start|Empezar|Comenzar/ }).first().click();

@@ -81,7 +81,7 @@ export function FaceEditor({
   return (
     <div className={`min-w-0 ${className}`}>
       {showLabel && <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted md:hidden">{label}</span>}
-      <div onPaste={onPaste} className="relative flex min-h-12 items-start gap-1.5 rounded-xl border border-line bg-card p-1.5 focus-within:border-sky focus-within:ring-2 focus-within:ring-sky/20">
+      <div onPaste={onPaste} className="relative flex min-h-14 items-center gap-1.5 rounded-xl border border-line bg-card p-1.5 focus-within:border-sky focus-within:ring-2 focus-within:ring-sky/20">
         {face.imageAssetId && (
           <ImageField compact inline label={label} assetId={face.imageAssetId} alt={face.imageAlt} suggest={face.text} onChange={(a) => onChange({ ...face, imageAssetId: a?.id ?? null })} />
         )}
@@ -94,7 +94,7 @@ export function FaceEditor({
           placeholder={t.text}
           aria-label={`${label}: ${t.text}`}
           lang={language === "es-419" ? "es" : language}
-          className="block min-h-8 min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-2 py-1 text-base leading-6 focus:outline-none"
+          className="block min-h-10 min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-2 py-1.5 text-xl leading-8 focus:outline-none"
         />
         <AudioField
           inline

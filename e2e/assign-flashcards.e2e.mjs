@@ -46,8 +46,11 @@ try {
   await f.getByRole("textbox", { name: "Reverso: Texto" }).fill("red");
   await page.waitForFunction(() => /Guardado|Saved/.test(document.querySelector("[data-testid=save-status]")?.textContent ?? ""), null, { timeout: 15000 });
   await shot(page, "as0-editor");
-  await page.getByRole("button", { name: "Assign", exact: true }).click();
-  await page.waitForURL(/assignments\/new/, { timeout: 20000 });
+  // Done → the activity page → Set Assignment (publishes, then the assign form).
+  await page.getByTestId("editor-done").click();
+  await page.waitForURL(/\/play\/preview\//, { timeout: 20000 });
+  await page.getByTestId("action-assign").click();
+  await page.waitForURL(/assignments\/new/, { timeout: 30000 });
   await shot(page, "as1-assign-form");
   await page.check("label:has-text('Whole class') input");
   await page.click("text=Assign activity");

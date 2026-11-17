@@ -381,7 +381,9 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
   /** Done: save, then open the activity (play it, Edit Content, Printables). */
   async function finishEditing(hash = "") {
     setBusy("done");
-    if (await persist(game)) router.push(`/play/preview/${game.id}${hash}`);
+    // Flashcards have no Publish button: Done also updates a published deck for the students.
+    const ok = flash && game.status === "PUBLISHED" ? await publish() : await persist(game);
+    if (ok) router.push(`/play/preview/${game.id}${hash}`);
     else setBusy("");
   }
 
@@ -538,6 +540,14 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                 </div>
   );
 
+  const langToggle = (
+    <div className="flex rounded-full bg-paper-2 p-0.5 text-sm font-bold" role="group" aria-label="Language / Idioma" data-testid="ui-lang">
+      {(["es", "en"] as const).map((l) => (
+        <button key={l} type="button" onClick={() => setUiLang(l)} aria-pressed={uiLang === l} className={`rounded-full px-3 py-1 ${uiLang === l ? "bg-card text-ink shadow-sm" : "text-muted"}`}>{l.toUpperCase()}</button>
+      ))}
+    </div>
+  );
+
   const settingsSections = (
     <>
           <section className="space-y-4 rounded-xl2 border border-line bg-card p-5">
@@ -690,30 +700,22 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
             <button type="button" onClick={saveDraft} className="underline">{t.retry}</button>
           )}
         </span>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <div className="flex rounded-full bg-paper-2 p-0.5 text-xs font-bold" role="group" aria-label="Language / Idioma">
-            {(["es", "en"] as const).map((l) => (
-              <button key={l} type="button" onClick={() => setUiLang(l)} aria-pressed={uiLang === l} className={`rounded-full px-2 py-1 ${uiLang === l ? "bg-card text-ink shadow-sm" : "text-muted"}`}>{l.toUpperCase()}</button>
-            ))}
-          </div>
-          {flash && (
-            <Button size="sm" variant="secondary" onClick={() => finishEditing("#activity-settings")} disabled={!!busy} data-testid="open-activity-settings">
-              ⚙ {t.activitySettings}
+        {/* Flashcards keep the bar clean: the settings, Set Assignment and publishing are on the activity page (Done). */}
+        {!flash && (
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {langToggle}
+            <Button size="sm" variant="ghost" onClick={duplicate} disabled={!!busy}>{busy === "duplicate" ? "Duplicating…" : "Duplicate"}</Button>
+            <Button size="sm" variant="secondary" onClick={preview} disabled={!!busy}>Preview</Button>
+            <Button size="sm" onClick={doPublish} disabled={!!busy}>
+              {busy === "publish" ? "Publishing…" : game.status === "PUBLISHED" ? "Update published" : "Publish"}
             </Button>
-          )}
-          {flash && library?.picker}
-          <Button size="sm" variant="ghost" onClick={duplicate} disabled={!!busy}>{busy === "duplicate" ? "Duplicating…" : "Duplicate"}</Button>
-          {flash && <Button size="sm" variant="secondary" onClick={() => setShowPreview(true)}>👁 {t.preview}</Button>}
-          <Button size="sm" variant="secondary" onClick={preview} disabled={!!busy}>{flash ? "Play" : "Preview"}</Button>
-          <Button size="sm" onClick={doPublish} disabled={!!busy}>
-            {busy === "publish" ? "Publishing…" : game.status === "PUBLISHED" ? "Update published" : "Publish"}
-          </Button>
-          <Button size="sm" variant="voice" onClick={assign} disabled={!!busy}>{busy === "assign" ? "Publishing…" : "Assign"}</Button>
-        </div>
+            <Button size="sm" variant="voice" onClick={assign} disabled={!!busy}>{busy === "assign" ? "Publishing…" : "Assign"}</Button>
+          </div>
+        )}
       </div>
 
       <section className="mb-4 space-y-2">
-        <label htmlFor="game-title" className="block text-sm font-bold text-ink-2">{t.title}</label>
+        <label htmlFor="game-title" className="block text-base font-bold text-ink-2">{t.title}</label>
         <div className="relative">
           <input
             id="game-title"
@@ -726,12 +728,12 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
           />
           <CorrectionNote notice={titleAuto.notice} className="absolute -bottom-3 right-4 z-10" />
         </div>
-        <p className="flex items-start gap-1.5 text-xs text-muted" data-testid="autocorrect-help">
+        <p className="flex items-start gap-1.5 text-sm text-muted" data-testid="autocorrect-help">
           <span aria-hidden>✨</span>
           <span><strong className="text-ink-2">{t.autoTitle}.</strong> {t.autoHelp}</span>
         </p>
         {flash && (
-          <p className="flex items-start gap-1.5 text-xs text-muted" data-testid="paste-help">
+          <p className="flex items-start gap-1.5 text-sm text-muted" data-testid="paste-help">
             <span aria-hidden>📋</span>
             <span>{t.pasteHint}</span>
           </p>
@@ -742,7 +744,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
             <button type="button" onClick={() => (set("instructions", ""), setShowInstructions(false))} className="mt-1 text-xs font-bold text-muted hover:text-coral-dark">{t.hideInstructions}</button>
           </div>
         ) : (
-          <button type="button" onClick={() => setShowInstructions(true)} className="text-sm font-bold text-ink-2 hover:text-coral">+ {t.addInstructions}</button>
+          <button type="button" onClick={() => setShowInstructions(true)} className="text-base font-bold text-ink-2 hover:text-coral">+ {t.addInstructions}</button>
         )}
       </section>
 
@@ -788,7 +790,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
 
           {flash && (
             <div className="flex flex-wrap items-center gap-3 px-2">
-              <div role="radiogroup" aria-label={template.name} className="flex gap-4 text-sm font-bold">
+              <div role="radiogroup" aria-label={template.name} className="flex gap-5 text-base font-bold">
                 {(["two", "one"] as const).map((v) => (
                   <label key={v} className="flex cursor-pointer items-center gap-1.5">
                     <input type="radio" name="sides" checked={(options.sides ?? "two") === v} onChange={() => setOption("sides", v)} />
@@ -796,15 +798,16 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                   </label>
                 ))}
               </div>
-              {twoSided && (
-                <Button size="sm" variant="secondary" onClick={swapAll} className="ml-auto">⇄ {t.swap}</Button>
-              )}
+              <div className="ml-auto flex flex-col items-end gap-2">
+                {langToggle}
+                {twoSided && <Button size="sm" variant="secondary" onClick={swapAll}>⇄ {t.swap}</Button>}
+              </div>
               {!twoSided && <p className="w-full text-xs text-muted">{t.backHiddenOne}</p>}
             </div>
           )}
 
           {flash && twoSided && (
-            <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-3 px-2 text-sm font-bold text-ink-2 md:grid xl:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-3 px-2 text-lg font-bold text-ink-2 md:grid xl:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_auto]">
               <span />
               <span>{t.front}</span>
               <span>{t.back}</span>
@@ -842,7 +845,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                 return (
                   <li key={rowKey} {...rowProps} className={`rounded-xl px-2 py-1 hover:bg-card ${dropMark} ${dragFrom === i ? "opacity-50" : ""}`} aria-label={`${t.card[0].toUpperCase()}${t.card.slice(1)} ${i + 1}`}>
                     <div className={`grid items-start gap-x-3 gap-y-1 ${twoSided ? "md:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_auto]" : "xl:grid-cols-[2.5rem_minmax(0,1fr)_auto]"} grid-cols-[2.5rem_minmax(0,1fr)]`}>
-                      <span className={`self-start text-right font-display text-base font-semibold text-ink-2 ${twoSided ? "pt-8 md:pt-3" : "pt-3"}`}>{i + 1}.</span>
+                      <span className={`self-start text-right font-display text-lg font-semibold text-ink-2 ${twoSided ? "pt-8 md:pt-3.5" : "pt-3.5"}`}>{i + 1}.</span>
                       <FaceEditor
                         label={t.front}
                         showLabel={twoSided}
