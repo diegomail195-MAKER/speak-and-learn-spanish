@@ -239,3 +239,21 @@ body {
 .tool-3d-sky { --face: #c3e2fb; --base: #5b97c9; --ink: #0b3d66; }
 .tool-3d-grape { --face: #5b14b0; --base: #34086b; --ink: #ffffff; }
 .tool-3d-coral { --face: #f8aaa5; --base: #c9615b; --ink: #8a0f0f; }
+
+/* Flashcard photo form ("Añadir vocabulario / Add words"): white form, Century Gothic, thin
+   borders, gold focus outline, rounded buttons. */
+.lx-form { font-family: "Century Gothic", CenturyGothic, AppleGothic, "URW Gothic", "Didact Gothic", sans-serif; color: #1f2a2e; }
+.lx-input { display: block; width: 100%; height: 46px; padding: 0 0.85rem; border: 1px solid #6b7f86; border-radius: 10px; background: #fff; font-size: 1rem; }
+.lx-input:focus, .lx-input:focus-visible { outline: 3px solid #d9a521; outline-offset: 0; border-color: #d9a521; border-radius: 10px; }
+.lx-fieldset { border: 1px solid #9aa8ad; border-radius: 4px; padding: 0.75rem 1rem 1.1rem; }
+.lx-file { display: block; width: 100%; padding: 0.55rem 0.7rem; border: 1px solid #6b7f86; border-radius: 10px; font-weight: 700; font-size: 0.95rem; }
+.lx-file:focus-visible { outline: 3px solid #d9a521; outline-offset: 0; }
+.lx-btn { display: inline-flex; min-height: 44px; align-items: center; padding: 0 1.1rem; border-radius: 10px; font-weight: 700; font-size: 1rem; }
+.lx-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.lx-btn:focus-visible { outline: 3px solid #d9a521; outline-offset: 2px; border-radius: 10px; }
+.lx-btn-save { background: #1d6b52; color: #fff; }
+.lx-btn-save:hover:not(:disabled) { background: #155540; }
+.lx-btn-cancel { background: #44606b; color: #fff; }
+.lx-btn-cancel:hover { background: #364d56; }
+.lx-btn-light { background: #fff; border: 1px solid #9aa8ad; color: #1f2a2e; font-size: 0.9rem; }
+.lx-btn-light:hover { background: #f4f6f7; }
