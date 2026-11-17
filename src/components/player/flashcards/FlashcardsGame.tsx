@@ -52,6 +52,7 @@ export function FlashcardsGame({ game, mode, diagnostics, submitTurn, onFinish, 
       <main
         ref={stage}
         data-testid="flashcards-stage"
+        data-practice-font={String(game.options.font ?? "default")}
         className={`relative flex flex-col overflow-hidden bg-ink text-white ${full ? "h-dvh w-full" : "min-h-[calc(100dvh-1rem)] rounded-[1.75rem] shadow-soft sm:min-h-[calc(100dvh-1.5rem)]"}`}
       >
         <StageDecor />
@@ -123,7 +124,7 @@ function StartPanel({ s, withMic, onStart }: { s: VoiceSession; withMic: boolean
           type="button"
           onClick={onStart}
           disabled={micState === "requesting"}
-          className="relative flex h-32 w-32 flex-col items-center justify-center gap-1 rounded-[1.5rem] bg-coral font-display text-xl font-bold text-white shadow-[0_6px_0_var(--color-coral-dark)] transition-transform hover:-translate-y-0.5 active:translate-y-1 active:shadow-[0_2px_0_var(--color-coral-dark)] disabled:opacity-70 sm:h-36 sm:w-36"
+          className="ui-font relative flex h-32 w-32 flex-col items-center justify-center gap-1 rounded-[1.5rem] bg-coral font-display text-xl font-bold text-white shadow-[0_6px_0_var(--color-coral-dark)] transition-transform hover:-translate-y-0.5 active:translate-y-1 active:shadow-[0_2px_0_var(--color-coral-dark)] disabled:opacity-70 sm:h-36 sm:w-36"
         >
           <svg viewBox="0 0 24 24" className="h-12 w-12" fill="currentColor" aria-hidden>
             <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" />
@@ -522,7 +523,7 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
       {s.showHint && q.hint && <p className="mt-3 rounded-full bg-sun-soft px-4 py-1.5 font-semibold text-[#7a5200]">💡 {plainText(q.hint)}</p>}
 
       {s.audioBlocked && !speaks(q) ? (
-        <button type="button" onClick={() => (s.unlock(), listen())} data-testid="audio-blocked" className="animate-pop-in mt-3 inline-flex h-12 items-center gap-2 rounded-full bg-sun px-5 font-display text-lg font-semibold text-ink shadow-[0_3px_0_rgba(0,0,0,.25)]" aria-label="Listen" title="Escuchar">
+        <button type="button" onClick={() => (s.unlock(), listen())} data-testid="audio-blocked" className="ui-font animate-pop-in mt-3 inline-flex h-12 items-center gap-2 rounded-full bg-sun px-5 font-display text-lg font-semibold text-ink shadow-[0_3px_0_rgba(0,0,0,.25)]" aria-label="Listen" title="Escuchar">
           <IconSound /> Escuchar
         </button>
       ) : (
@@ -558,7 +559,7 @@ function CardsBoard({ s, questions, exitHref, onRestart }: { s: VoiceSession; qu
           type="button"
           onClick={flip}
           disabled={paused || !!overlay}
-          className="mt-4 h-12 min-w-40 rounded-xl bg-white px-8 font-display text-lg font-bold text-ink shadow-[0_4px_0_rgba(0,0,0,.25)] hover:bg-paper disabled:opacity-60"
+          className="ui-font mt-4 h-12 min-w-40 rounded-xl bg-white px-8 font-display text-lg font-bold text-ink shadow-[0_4px_0_rgba(0,0,0,.25)] hover:bg-paper disabled:opacity-60"
           data-testid="turn-card"
         >
           Flip

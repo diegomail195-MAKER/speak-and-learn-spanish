@@ -148,3 +148,13 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .ls-flip-card { transition-duration: 600ms !important; animation: none !important; }
 }
+
+/* Activity settings → Font: "Montessori Cursive" for the practice content of a game (card words,
+   prompts, answers), not for the buttons around it. */
+[data-practice-font="montessori"] .font-display:not(.ui-font, .ui-font *),
+.font-montessori {
+  font-family: var(--font-montessori), "Playwrite MX", cursive;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.6;
+}

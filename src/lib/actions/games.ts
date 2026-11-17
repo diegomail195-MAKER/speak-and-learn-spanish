@@ -120,3 +120,17 @@ export async function renameGame(gameId: string, title: string): Promise<{ ok: t
   revalidatePath(`/play/preview/${g.id}`);
   return { ok: true, title: next };
 }
+
+/** Activity settings → Font: saved per activity in its options ("default" or "montessori"). */
+export async function setGameFont(gameId: string, font: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { user } = await requireTeacher();
+  const g = await schoolGame(user.schoolId, gameId);
+  const value = z.enum(["default", "montessori"]).safeParse(font);
+  if (!value.success) return { ok: false, error: "Unknown font." };
+  const settings = (g.settings ?? {}) as Record<string, unknown>;
+  const options = { ...((settings.options as Record<string, unknown> | undefined) ?? {}), font: value.data };
+  await db.game.update({ where: { id: g.id }, data: { settings: { ...settings, options } as object } });
+  await audit(user.schoolId, user.id, "game.font", "Game", g.id, { font: value.data });
+  revalidatePath(`/play/preview/${g.id}`);
+  return { ok: true };
+}

@@ -24,7 +24,7 @@ export function PlayerFrame({ s, exitHref, rootRef, children, order, diagnostics
     else rootRef.current?.requestFullscreen?.().catch(() => undefined);
   }
   return (
-    <div ref={rootRef} className="flex min-h-dvh flex-col bg-paper">
+    <div ref={rootRef} className="flex min-h-dvh flex-col bg-paper" data-practice-font={String(s.game.options.font ?? "default")}>
       <header className="flex items-center gap-3 px-4 py-3 sm:px-6">
         <a href={exitHref} className="rounded-full px-3 py-2 text-sm font-bold text-muted hover:bg-paper-2 hover:text-ink" onClick={() => s.stopMic()}>
           ✕ <span className="sr-only sm:not-sr-only">Exit</span>

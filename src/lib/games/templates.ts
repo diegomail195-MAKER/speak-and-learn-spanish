@@ -385,6 +385,20 @@ for (const t of TEMPLATES) {
   });
 }
 
+/** Activity settings → Font: the typeface of the practice content (saved per activity). */
+export const FONT_OPTION: OptionDef = {
+  key: "font",
+  label: "Font",
+  help: "Montessori Cursive shows the words, prompts and answers in joined school cursive.",
+  type: "choice",
+  default: "default",
+  choices: [
+    { value: "default", label: "LextroSpeak (default)" },
+    { value: "montessori", label: "Montessori Cursive" },
+  ],
+};
+for (const t of TEMPLATES) if (t.available && !t.options.some((o) => o.key === FONT_OPTION.key)) t.options.push(FONT_OPTION);
+
 /** Shared by every template: the audio of each card, box, slice or word plays when it appears. */
 export const AUTOPLAY_OPTION: OptionDef = {
   key: "autoplayAudio",
