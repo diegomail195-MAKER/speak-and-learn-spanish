@@ -68,10 +68,22 @@ describe("internet image search", () => {
     await expect(fetchSafeImage("https://evil.example/x.png")).rejects.toThrow();
   });
 
-  it("explains when the key is missing", async () => {
+  it("uses Wikimedia Commons photographs when there is no Pixabay key", async () => {
     delete process.env.PIXABAY_API_KEY;
-    mockFetch([]);
-    const { searchImages } = await import("./search");
-    await expect(searchImages("perro", "all")).rejects.toThrow(/PIXABAY_API_KEY/);
+    const info = (w: number, mime = "image/jpeg") => ({ url: "https://upload.wikimedia.org/a.jpg", thumburl: "https://upload.wikimedia.org/a_360.jpg", width: w, height: w * 0.75, mime, descriptionurl: "https://commons.wikimedia.org/wiki/File:A.jpg", extmetadata: { Artist: { value: "<a>Ana</a>" }, LicenseShortName: { value: "CC BY-SA 4.0" } } });
+    const pages = [
+      { title: "File:Dog cartoon.png", index: 1, imageinfo: [info(2000, "image/png")] },
+      { title: "File:Dog in the park.jpg", index: 2, imageinfo: [info(2400)] },
+    ];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      calls.push(url);
+      return new Response(JSON.stringify({ query: { pages } }), { status: 200 });
+    }));
+    const { searchImages, imageSearchEnabled } = await import("./search");
+    expect(imageSearchEnabled()).toBe(true);
+    const r = await searchImages("perro", "all");
+    expect(r[0]).toMatchObject({ id: "commons:File:Dog in the park.jpg", author: "Ana", license: "CC BY-SA 4.0" });
+    expect(r.map((x) => x.id)).not.toContain("commons:File:Dog cartoon.png");
+    expect(calls[calls.length - 1]).toContain("commons.wikimedia.org");
   });
 });
