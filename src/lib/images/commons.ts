@@ -9,7 +9,7 @@ import { blockedWord, hasBlockedWords } from "./safety";
 // and kept in our own storage with its author, license and source page.
 
 const API = () => process.env.COMMONS_API_URL || "https://commons.wikimedia.org/w/api.php";
-const FILE_HOSTS = () => new Set(["upload.wikimedia.org", ...(process.env.COMMONS_API_URL ? [new URL(process.env.COMMONS_API_URL).host] : [])]);
+const FILE_HOSTS = () => new Set(["upload.wikimedia.org", "thumb.wikimedia.org", ...(process.env.COMMONS_API_URL ? [new URL(process.env.COMMONS_API_URL).host] : [])]);
 // Wikimedia asks API clients for a descriptive User-Agent with a way to reach the operator.
 const UA = `LextroSpeak/1.0 (${process.env.APP_URL || "https://speak-and-learn-spanish.vercel.app"}; classroom flashcards image search) node-fetch`;
 const HEADERS = { "User-Agent": UA, "Api-User-Agent": UA, Accept: "application/json" };
