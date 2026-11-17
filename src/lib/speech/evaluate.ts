@@ -3,7 +3,7 @@
 // is a separate, provider-dependent signal and is reported separately when available.
 import { compareLetters, lettersOf, parseSpokenLetters } from "./letters";
 import { plainText } from "@/lib/text/segments";
-import { foldAccents, normalizeText, phoneticKey, similarity, tokens } from "./normalize";
+import { accentKey, foldAccents, normalizeText, phoneticKey, similarity, tokens } from "./normalize";
 
 export type Outcome = "CORRECT" | "INCORRECT" | "UNCERTAIN";
 
@@ -21,6 +21,11 @@ export interface AnswerSpec {
   acceptShortAnswer?: boolean;
   /** Language the answer must be in (default Spanish). */
   language?: "es-419" | "en-US" | "fr-FR";
+  /**
+   * "communication" (default): an understandable answer with an accent counts (English-style
+   * j/h, r/rr, vowels the transcriber spells differently). "pronunciation": closer to the model.
+   */
+  speakingMode?: "communication" | "pronunciation";
 }
 
 export interface Evaluation {
@@ -73,6 +78,8 @@ export const REASON_TEXT: Record<EvaluationReason, string> = {
 };
 
 const CORRECT_AT = 0.86;
+/** Pronunciation practice asks for a closer match to the model. */
+const STRICT_CORRECT_AT = 0.93;
 const MAYBE_AT = 0.65;
 const MIN_CONFIDENCE = 0.3;
 const CLEAR_AUDIO_CONFIDENCE = 0.75;
@@ -90,8 +97,8 @@ const ENGLISH = new Set([
 ]);
 const SPANISH_HINT = new Set(["es", "un", "una", "el", "la", "yo", "mi", "me", "si", "sí", "de", "y", "que", "con"]);
 
-function phraseKey(s: string): string[] {
-  return tokens(s).map(phoneticKey).filter(Boolean);
+function phraseKey(s: string, accent = false): string[] {
+  return tokens(s).map((w) => (accent ? accentKey(w) : phoneticKey(w))).filter(Boolean);
 }
 
 function shortForm(s: string): string | null {
@@ -142,12 +149,15 @@ export function evaluateAnswer(alternatives: RecognitionAlternative[], rawSpec: 
     }
   }
 
+  const strict = spec.speakingMode === "pronunciation";
   let best: Evaluation | null = null;
   for (const alt of alts) {
     const said = phraseKey(alt.text);
+    const saidAccent = phraseKey(alt.text, true);
     for (const target of targets) {
       const exact = tokens(alt.text).join(" ") === tokens(target).join(" ");
-      const score = exact ? 1 : windowSimilarity(said, phraseKey(target));
+      // Communication mode also compares with the accent-tolerant key; never in pronunciation practice.
+      const score = exact ? 1 : Math.max(windowSimilarity(said, phraseKey(target)), strict ? 0 : windowSimilarity(saidAccent, phraseKey(target, true)));
       if (!best || score > best.score) {
         best = {
           outcome: "INCORRECT",
@@ -164,7 +174,7 @@ export function evaluateAnswer(alternatives: RecognitionAlternative[], rawSpec: 
   const conf = b.confidence;
   const top = alts[0];
 
-  if (b.score >= CORRECT_AT) {
+  if (b.score >= (strict ? STRICT_CORRECT_AT : CORRECT_AT)) {
     if (conf != null && conf < MIN_CONFIDENCE) return { ...b, outcome: "UNCERTAIN", reason: "low_confidence" };
     return { ...b, outcome: "CORRECT", reason: b.score === 1 ? "match" : "close_match" };
   }

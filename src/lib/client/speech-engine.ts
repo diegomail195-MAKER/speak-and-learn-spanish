@@ -19,6 +19,8 @@ export interface ListenOptions {
   mode: "PHRASE" | "LETTERS";
   reference?: string;
   timeoutMs?: number;
+  /** The activity's vocabulary (all its answers): helps the recognizer with accents, never forces one answer. */
+  hints?: string[];
 }
 
 export interface SpeechEngine {
@@ -36,6 +38,7 @@ export class ServerEngine implements SpeechEngine {
     this.ctrl = new AbortController();
     const q = new URLSearchParams({ language: opts.language, mode: opts.mode });
     if (opts.reference) q.set("reference", opts.reference);
+    if (opts.hints?.length) q.set("hints", opts.hints.join("|"));
     try {
       const res = await fetch(`/api/stt?${q}`, { method: "POST", body: heard.utterance.wav, headers: { "Content-Type": "audio/wav" }, signal: this.ctrl.signal });
       if (!res.ok) return { kind: "error", message: `Recognition service error (${res.status})` };

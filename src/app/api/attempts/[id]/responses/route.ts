@@ -55,6 +55,7 @@ export const POST = handle(async (req: Request, ctx: { params: Promise<{ id: str
     input: body.input,
     language: (question.answerLanguage ?? attempt.game.language) as "es-419" | "en-US" | "fr-FR",
     caseSensitive: templateOptions(templateByKey(attempt.game.templateKey), settings.options).caseSensitive === true,
+    speakingMode: templateOptions(templateByKey(attempt.game.templateKey), settings.options).speakingMode === "pronunciation" ? "pronunciation" : "communication",
   });
   await db.studentResponse.create({
     data: {

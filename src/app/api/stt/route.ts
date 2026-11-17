@@ -21,11 +21,12 @@ export const POST = handle(async (req: Request) => {
   const language = url.searchParams.get("language") ?? "es-419";
   const mode = url.searchParams.get("mode") === "LETTERS" ? "LETTERS" : "PHRASE";
   const reference = url.searchParams.get("reference")?.slice(0, 200) || undefined;
+  const hints = (url.searchParams.get("hints") ?? "").split("|").map((h) => h.trim().slice(0, 40)).filter(Boolean).slice(0, 40);
 
   const buf = Buffer.from(await req.arrayBuffer());
   if (buf.length < 44 || buf.length > MAX_WAV_BYTES) throw new HttpError(413, "Audio too long or empty");
   if (buf.toString("ascii", 0, 4) !== "RIFF" || buf.toString("ascii", 8, 12) !== "WAVE") throw new HttpError(415, "Expected WAV audio");
 
-  const result = await recognize(provider, buf, { locale: sttLocale(language), mode, reference });
+  const result = await recognize(provider, buf, { locale: sttLocale(language), mode, reference, hints });
   return NextResponse.json(result);
 });

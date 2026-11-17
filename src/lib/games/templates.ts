@@ -365,6 +365,26 @@ export const TEMPLATES: TemplateDef[] = [
   ),
 ];
 
+/**
+ * How spoken answers are checked, for every activity with speech (not letter-by-letter spelling):
+ * Communication (default) accepts an understandable answer with an accent; Pronunciation
+ * practice asks for a closer match to the model.
+ */
+for (const t of TEMPLATES) {
+  if (t.board === "spell") continue;
+  t.options.push({
+    key: "speakingMode",
+    label: "Speaking check",
+    help: "Communication: understandable answers with an accent count. Pronunciation practice: closer to the model.",
+    type: "choice",
+    default: "communication",
+    choices: [
+      { value: "communication", label: "Communication (recommended)" },
+      { value: "pronunciation", label: "Pronunciation practice" },
+    ],
+  });
+}
+
 /** Shared by every template: the audio of each card, box, slice or word plays when it appears. */
 export const AUTOPLAY_OPTION: OptionDef = {
   key: "autoplayAudio",

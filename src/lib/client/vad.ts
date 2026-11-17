@@ -1,6 +1,9 @@
 // Energy-based voice activity detector with an adaptive noise floor.
 // Works on 20 ms frames. Tuned for children in a classroom: quick onset, generous hangover
 // (kids pause mid-answer), and a minimum speech length so a cough or desk bump is ignored.
+// The noise floor is a low percentile of the last few seconds, so the app's own voice (heard
+// through the speakers while the question is read) can't raise it: before, the floor learned
+// that voice and students had to shout right after each question.
 
 export interface VadConfig {
   frameMs: number;
@@ -15,14 +18,18 @@ export interface VadConfig {
 
 export const DEFAULT_VAD: VadConfig = {
   frameMs: 20,
-  onsetFrames: 3,
-  hangoverMs: 850,
-  minSpeechMs: 220,
+  onsetFrames: 2,
+  hangoverMs: 900,
+  minSpeechMs: 160,
   maxUtteranceMs: 8000,
-  preRollMs: 350,
-  marginDb: 11,
-  absoluteMinDb: -52,
+  preRollMs: 500,
+  marginDb: 9,
+  absoluteMinDb: -56,
 };
+
+/** Frames of history for the noise floor (4 s) and the percentile used. */
+const FLOOR_FRAMES = 200;
+const FLOOR_PERCENTILE = 0.15;
 
 export type VadEvent =
   | { type: "speech-start" }
@@ -44,6 +51,7 @@ export class Vad {
   private peakDb = -100;
   private pre: Float32Array[] = [];
   private cur: Float32Array[] = [];
+  private history: number[] = [];
 
   constructor(private cfg: VadConfig = DEFAULT_VAD) {}
 
@@ -65,12 +73,13 @@ export class Vad {
   push(frame: Float32Array, armed: boolean): VadEvent | null {
     const db = rmsDb(frame);
     const loud = db > this.threshold;
-    if (!this.speaking) {
-      // Disarmed frames (app audio playing / calibration) adapt fast. While armed the floor falls
-      // quickly but rises very slowly, so steady classroom noise is absorbed over a few seconds
-      // while a child's 1–2 s answer barely moves it.
-      const a = !armed ? 0.15 : db < this.noiseDb ? 0.2 : loud ? 0.004 : 0.03;
-      this.noiseDb = Math.min(-25, this.noiseDb + a * (db - this.noiseDb));
+    this.history.push(db);
+    if (this.history.length > FLOOR_FRAMES) this.history.shift();
+    if (this.history.length >= 10) {
+      // A low percentile follows the quiet moments between words: steady room noise is learned in
+      // a few seconds, while speech (the student's or the app's) barely moves it.
+      const sorted = [...this.history].sort((a, b) => a - b);
+      this.noiseDb = Math.min(-25, sorted[Math.floor(sorted.length * FLOOR_PERCENTILE)]);
     }
     if (!armed) {
       this.reset();

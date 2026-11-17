@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DeleteAssignmentButton } from "@/components/teacher/DeleteAssignmentButton";
 import { ButtonLink } from "@/components/ui/Button";
 import { Badge, EmptyState, PageHeader } from "@/components/ui/Panel";
 import { requireTeacherPage } from "@/lib/auth/guards";
@@ -98,7 +99,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams: 
               {shown.map((r) => {
                 const main = r.kinds[0] ?? "GAME";
                 return (
-                  <li key={r.id} data-testid="assignment-card">
+                  <li key={r.id} data-testid="assignment-card" className="relative">
                     <Link href={r.href} className="group flex h-full flex-col overflow-hidden rounded-xl2 border border-line bg-card transition hover:-translate-y-0.5 hover:shadow-soft">
                       <span className="relative grid aspect-[16/9] place-items-center" style={{ background: `${KIND_LABEL[main].color}22` }}>
                         {r.thumb ? (
@@ -121,12 +122,15 @@ export default async function AssignmentsPage({ searchParams }: { searchParams: 
                       <span className="flex flex-1 flex-col gap-1 p-4">
                         <span className="font-display text-lg font-semibold leading-snug group-hover:text-coral">{r.title}</span>
                         {r.detail && <span className="line-clamp-2 text-sm text-ink-2">{r.detail}</span>}
-                        <span className="mt-auto pt-2 text-sm text-muted">
+                        <span className="mt-auto pr-12 pt-2 text-sm text-muted">
                           👥 {r.who || "—"} · {r.due}
                         </span>
-                        {r.completed !== null && <span className="text-sm font-bold text-teal-dark">{r.completed} completed · See results →</span>}
+                        {r.completed !== null && <span className="pr-12 text-sm font-bold text-teal-dark">{r.completed} completed · See results →</span>}
                       </span>
                     </Link>
+                    <span className="absolute bottom-3 right-3">
+                      <DeleteAssignmentButton id={r.id} title={r.title} />
+                    </span>
                   </li>
                 );
               })}

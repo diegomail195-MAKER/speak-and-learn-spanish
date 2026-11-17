@@ -248,7 +248,7 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
           <ul className={`grid gap-4 ${grid}`}>
             {shownActivities.map((a) => (
               <li key={a.id} {...dragProps({ kind: "game", id: a.id })} data-testid="activity" className="flex flex-col rounded-xl border border-line bg-card shadow-soft transition-shadow hover:shadow-md">
-                <Link href={bin ? "#" : `/teacher/games/${a.id}/edit`} className={`relative block ${view === "small" ? "aspect-[4/3]" : "aspect-[16/11]"} overflow-hidden rounded-t-xl`} style={{ background: PREVIEW_BG[a.templateKey] ?? "#fff1de" }} tabIndex={bin ? -1 : undefined} aria-hidden={bin || undefined} draggable={false}>
+                <Link href={bin ? "#" : openHref(a)} data-testid="activity-open" className={`relative block ${view === "small" ? "aspect-[4/3]" : "aspect-[16/11]"} overflow-hidden rounded-t-xl`} style={{ background: PREVIEW_BG[a.templateKey] ?? "#fff1de" }} tabIndex={bin ? -1 : undefined} aria-hidden={bin || undefined} draggable={false}>
                   {a.thumb ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={a.thumb} alt="" className="h-full w-full object-contain p-2" draggable={false} loading="lazy" />
@@ -268,7 +268,7 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
                     {bin ? (
                       <span className="block truncate font-display font-semibold">{a.title || "Untitled activity"}</span>
                     ) : (
-                      <Link href={`/teacher/games/${a.id}/edit`} className="block truncate font-display font-semibold hover:text-coral" draggable={false}>{a.title || "Untitled activity"}</Link>
+                      <Link href={openHref(a)} className="block truncate font-display font-semibold hover:text-coral" draggable={false}>{a.title || "Untitled activity"}</Link>
                     )}
                     <span className="block truncate text-xs text-muted">{a.template}{view === "large" ? ` · ${a.items} ${a.items === 1 ? "card" : "cards"}` : ""}</span>
                     {a.folderName && <span className="block truncate text-xs text-muted">📁 {a.folderName}</span>}
@@ -396,6 +396,9 @@ function Menu({ label, className = "", children }: { label: string; className?: 
 function MenuItem({ danger, className = "", ...props }: React.ComponentProps<"button"> & { danger?: boolean }) {
   return <button type="button" role="menuitem" className={`block w-full rounded-lg px-3 py-2 text-left font-semibold ${danger ? "text-coral-dark hover:bg-coral-soft" : "hover:bg-paper-2"} ${className}`} {...props} />;
 }
+
+/** Clicking an activity plays it; an activity with nothing in it yet opens the editor. */
+const openHref = (a: { id: string; items: number }) => (a.items > 0 ? `/play/preview/${a.id}` : `/teacher/games/${a.id}/edit`);
 
 function MenuLink({ href: to, hint, children }: { href: string; hint?: string; children: ReactNode }) {
   return (

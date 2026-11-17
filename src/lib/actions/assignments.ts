@@ -90,3 +90,14 @@ export async function setAssignmentActive(form: FormData) {
   revalidatePath(`/teacher/assignments/${a.id}`);
   revalidatePath("/teacher/assignments");
 }
+
+/** Removes an assignment: students stop seeing it. Their past attempts stay in their progress. */
+export async function deleteAssignment(form: FormData) {
+  const { user, teacher } = await requireTeacher();
+  const a = await db.assignment.findFirst({ where: { id: String(form.get("assignmentId")), teacherId: teacher.id } });
+  if (!a) return;
+  await db.assignment.delete({ where: { id: a.id } });
+  await audit(user.schoolId, user.id, "assignment.delete", "Assignment", a.id);
+  revalidatePath("/teacher/assignments");
+  revalidatePath("/teacher/my-activities");
+}
