@@ -36,6 +36,15 @@ export function normalize(text: string): string {
 
 const NORMALIZED = BLOCKED_WORDS.map((w) => normalize(w));
 
+/** The first blocked word or phrase found in the text, or null (for diagnostics). */
+export function blockedWord(text: string): string | null {
+  const t = normalize(text);
+  const m = /porn|xxx|nsfw|hentai/.exec(t);
+  if (m) return m[0];
+  const i = NORMALIZED.findIndex((w) => t.includes(w));
+  return i < 0 ? null : BLOCKED_WORDS[i];
+}
+
 /** True when the text contains a blocked word or phrase (whole words, so "class" never matches "ass"). */
 export function hasBlockedWords(text: string): boolean {
   const t = normalize(text);
