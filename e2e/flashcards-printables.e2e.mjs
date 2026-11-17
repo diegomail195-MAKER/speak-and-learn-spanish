@@ -421,6 +421,10 @@ try {
   const nav = await m.getByRole("navigation", { name: "Printable templates" }).boundingBox();
   const pv = await m.getByTestId("printable-preview").boundingBox();
   assert(nav.y + nav.height <= pv.y + 1, "template picker above the preview on a phone");
+  const acts = await m.getByTestId("printable-actions").boundingBox();
+  assert(acts && acts.y >= pv.y + pv.height - 1, "worksheet buttons under the preview on a phone");
+  const pb = await m.getByTestId("print-worksheet").boundingBox();
+  assert(pb && pb.height >= 56, `buttons at least 56px tall (${pb?.height})`);
   await shot(m, "p15-phone-printables");
   await phone.close();
   log("phone: stacked faces, tap to turn, picker above the preview, no sideways scroll");

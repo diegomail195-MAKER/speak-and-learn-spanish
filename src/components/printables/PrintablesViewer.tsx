@@ -71,6 +71,17 @@ function Thumb({ kind }: { kind: PrintTemplate }) {
   );
 }
 
+const icon = { viewBox: "0 0 24 24", width: 20, height: 20, fill: "none", stroke: "currentColor", strokeWidth: 2.2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true, className: "shrink-0" };
+const PrinterIcon = () => (
+  <svg {...icon}><path d="M7 9V3h10v6" /><rect x="3" y="9" width="18" height="8" rx="2" /><path d="M7 14h10v7H7z" /></svg>
+);
+const DownloadIcon = () => (
+  <svg {...icon}><path d="M12 3v12M7 10l5 5 5-5M4 19h16" /></svg>
+);
+const GearIcon = () => (
+  <svg {...icon}><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.8l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.8v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>
+);
+
 /** Scales a real-size page down to the width available, keeping its layout. */
 function Scaled({ width, height, avail, children }: { width: number; height: number; avail: number; children: ReactNode }) {
   const k = Math.min(1, avail / width);
@@ -213,15 +224,26 @@ export function PrintablesViewer({ title, cards, onClose, lang = "en", font = "d
     }
   }
 
-  const bar = "inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-bold text-ink-2 hover:bg-paper-2 hover:text-ink disabled:opacity-40";
+  const canPrint = pages.length > 0 && !emptyNote;
+  // The worksheet actions, 3D color blocks: beside the sheet on wide screens, under it on phones.
+  const actions = (
+    <div className="no-print grid shrink-0 grid-cols-3 gap-2 border-t border-line bg-paper-2 p-3 md:w-60 md:grid-cols-1 md:content-start md:gap-3 md:border-t-0 md:py-4 md:pl-0 md:pr-4" data-testid="printable-actions">
+      <button type="button" className="btn-3d btn-3d-grape" onClick={print} disabled={!canPrint} data-testid="print-worksheet">
+        <PrinterIcon /> Print worksheet
+      </button>
+      <button type="button" className="btn-3d btn-3d-mango" onClick={downloadPdf} disabled={!canPrint || !!busy} data-testid="download-pdf">
+        <DownloadIcon /> {busy === "pdf" ? "Making PDF…" : "Download PDF"}
+      </button>
+      <button type="button" className="btn-3d btn-3d-mint" onClick={() => setShowOptions((v) => !v)} aria-expanded={showOptions} data-testid="printable-options">
+        <GearIcon /> Options
+      </button>
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-paper" role="dialog" aria-modal="true" aria-label="Printables">
       <div className="flex flex-wrap items-center gap-1 border-b border-line bg-card px-3 py-2 sm:px-5">
         <h2 className="mr-auto font-display text-lg font-extrabold">Printables</h2>
-        <button type="button" className={bar} onClick={print} disabled={!pages.length || !!emptyNote} data-testid="print-worksheet">🖨 Print worksheet</button>
-        <button type="button" className={bar} onClick={downloadPdf} disabled={!pages.length || !!emptyNote || !!busy} data-testid="download-pdf">⬇ {busy === "pdf" ? "Making PDF…" : "Download PDF"}</button>
-        <button type="button" className={`${bar} ${showOptions ? "bg-paper-2 text-ink" : ""}`} onClick={() => setShowOptions((v) => !v)} aria-expanded={showOptions}>⚙ Options</button>
         <button type="button" className="grid h-9 w-9 place-items-center rounded-full text-2xl leading-none text-muted hover:bg-paper-2 hover:text-ink" onClick={onClose} aria-label="Close">×</button>
       </div>
 
@@ -248,9 +270,9 @@ export function PrintablesViewer({ title, cards, onClose, lang = "en", font = "d
           </ul>
         </nav>
 
-        <div className="relative min-h-0 flex-1">
+        <div className="relative flex min-h-0 flex-1 flex-col md:flex-row">
           {showOptions && (
-            <section aria-label="Print options" className="absolute right-3 top-3 z-10 max-h-[calc(100%-1.5rem)] w-[min(22rem,calc(100%-1.5rem))] overflow-auto rounded-xl2 border border-line bg-card p-4 text-sm shadow-soft">
+            <section aria-label="Print options" className="absolute bottom-[5.5rem] right-3 z-10 md:bottom-auto md:right-[15.75rem] md:top-3 max-h-[calc(100%-7rem)] md:max-h-[calc(100%-1.5rem)] w-[min(22rem,calc(100%-1.5rem))] overflow-auto rounded-xl2 border border-line bg-card p-4 text-sm shadow-soft">
               <h3 className="mb-3 font-display text-base font-extrabold">Options</h3>
               {!cutout && (
                 <>
@@ -358,7 +380,7 @@ export function PrintablesViewer({ title, cards, onClose, lang = "en", font = "d
             </section>
           )}
 
-          <div ref={previewRef} className="h-full overflow-auto bg-paper-2 p-4" data-testid="printable-preview" data-print-font={font}>
+          <div ref={previewRef} className="min-h-0 flex-1 overflow-auto bg-paper-2 p-4" data-testid="printable-preview" data-print-font={font}>
             {error && <p role="alert" className="mx-auto mb-3 max-w-xl rounded-xl bg-coral-soft p-3 text-sm text-coral-dark">{error}</p>}
             {tpl === "quiz" && missing.length > 0 && (
               <section aria-label="Complete the quiz options" className="mx-auto mb-4 max-w-2xl rounded-xl2 border border-sun bg-sun-soft p-4 text-sm">
@@ -396,6 +418,7 @@ export function PrintablesViewer({ title, cards, onClose, lang = "en", font = "d
               </div>
             )}
           </div>
+          {actions}
         </div>
       </div>
 
