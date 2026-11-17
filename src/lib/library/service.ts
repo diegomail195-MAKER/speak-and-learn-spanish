@@ -87,3 +87,35 @@ export async function assertFilesReady(content: unknown) {
   if (n !== ids.length) throw new HttpError(400, "A file in this activity didn't finish uploading. Upload it again.");
   return ids;
 }
+
+/** Library › Videos: published topics with their VIDEO and SONG resources and published content, in topic order. */
+export async function libraryVideoTopics(opts: { grade?: "LOWER" | "UPPER" | null; slug?: string } = {}) {
+  const topics = await db.topic.findMany({
+    where: { status: "PUBLISHED", ...(opts.slug ? { slug: opts.slug } : {}) },
+    orderBy: [{ sortOrder: "asc" }, { titleEn: "asc" }],
+    select: {
+      slug: true,
+      titleEs: true,
+      titleEn: true,
+      category: true,
+      resources: {
+        where: { resource: { ...publishedWhere, kind: { in: ["VIDEO", "SONG"] }, ...(opts.grade ? { grades: { has: opts.grade } } : {}) } },
+        orderBy: { position: "asc" },
+        select: { resource: { select: { id: true, kind: true, title: true, currentVersion: { select: { title: true, content: true } } } } },
+      },
+    },
+  });
+  return topics.map((t) => ({
+    slug: t.slug,
+    titleEs: t.titleEs,
+    titleEn: t.titleEn,
+    category: t.category,
+    resources: t.resources.map(({ resource: r }) => ({ id: r.id, kind: r.kind as string, title: r.currentVersion?.title || r.title, content: r.currentVersion?.content ?? null })),
+  }));
+}
+
+/** Topics a resource belongs to (slugs, in topic order). */
+export async function topicsOfResource(resourceId: string) {
+  const rows = await db.topicResource.findMany({ where: { resourceId, topic: { status: "PUBLISHED" } }, select: { topic: { select: { slug: true, sortOrder: true } } } });
+  return rows.map((r) => r.topic).sort((a, b) => a.sortOrder - b.sortOrder).map((t) => t.slug);
+}
