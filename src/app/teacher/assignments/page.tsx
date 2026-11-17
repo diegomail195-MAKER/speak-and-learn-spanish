@@ -108,12 +108,18 @@ export default async function AssignmentsPage({ searchParams }: { searchParams: 
                         ) : (
                           <span className="text-5xl" aria-hidden>{ICON[main]}</span>
                         )}
-                        <span className="absolute left-3 top-3 flex flex-wrap gap-1">
-                          {r.kinds.map((k) => (
-                            <span key={k} className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-ink shadow-sm" style={{ background: KIND_LABEL[k].color }} data-testid="assignment-kind">
+                        {/* Up to 3 categories, then "+N", kept clear of the open/closed badge. */}
+                        <span className="absolute left-3 right-20 top-3 flex flex-wrap gap-1">
+                          {r.kinds.slice(0, r.kinds.length > 3 ? 2 : 3).map((k) => (
+                            <span key={k} className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-extrabold text-ink shadow-sm" style={{ background: KIND_LABEL[k].color }} data-testid="assignment-kind">
                               {ICON[k]} {KIND_LABEL[k].label}
                             </span>
                           ))}
+                          {r.kinds.length > 3 && (
+                            <span className="whitespace-nowrap rounded-full bg-card px-2.5 py-0.5 text-xs font-extrabold text-ink-2 shadow-sm" title={r.kinds.slice(2).map((k) => KIND_LABEL[k].label).join(", ")}>
+                              +{r.kinds.length - 2}
+                            </span>
+                          )}
                         </span>
                         <span className="absolute right-3 top-3">
                           <Badge tone={r.active ? "leaf" : "neutral"}>{r.active ? "open" : "closed"}</Badge>

@@ -24,7 +24,7 @@ export interface PlayerProps {
   exitHref: string;
   /** Questions already finished in an unfinished attempt. */
   done?: Record<string, "NONE" | "HINT" | "MODEL" | null>;
-  /** Flashcards: the strip under the game (title and actions). */
+  /** The bar under the game (title and actions). */
   below?: ReactNode;
 }
 
@@ -43,7 +43,7 @@ export function GamePlayer(props: PlayerProps) {
   return <VoiceGamePlayer {...props} />;
 }
 
-function VoiceGamePlayer({ game, mode, diagnostics = false, submitTurn, onFinish, exitHref, done }: PlayerProps) {
+function VoiceGamePlayer({ game, mode, diagnostics = false, submitTurn, onFinish, exitHref, done, below }: PlayerProps) {
   const s = useVoiceSession(game, { mode, submitTurn, onFinish, done });
   const [run, setRun] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -54,7 +54,7 @@ function VoiceGamePlayer({ game, mode, diagnostics = false, submitTurn, onFinish
   const Board = boards[game.board] ?? SequenceBoard;
 
   return (
-    <PlayerFrame s={s} exitHref={exitHref} rootRef={rootRef} diagnostics={diagnostics}>
+    <PlayerFrame s={s} exitHref={exitHref} rootRef={rootRef} diagnostics={diagnostics} below={below}>
       {started ? (
         <Board key={run} s={s} questions={game.questions} exitHref={exitHref} />
       ) : (

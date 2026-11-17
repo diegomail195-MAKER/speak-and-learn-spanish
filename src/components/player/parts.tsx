@@ -17,7 +17,7 @@ const MIC_LABEL: Partial<Record<MicState, string>> = {
   suspended: "Micrófono interrumpido",
 };
 
-export function PlayerFrame({ s, exitHref, rootRef, children, order, diagnostics }: { s: VoiceSession; exitHref: string; rootRef: RefObject<HTMLDivElement | null>; children: ReactNode; order?: PlayQuestion[]; diagnostics?: boolean }) {
+export function PlayerFrame({ s, exitHref, rootRef, children, order, diagnostics, below }: { s: VoiceSession; exitHref: string; rootRef: RefObject<HTMLDivElement | null>; children: ReactNode; order?: PlayQuestion[]; diagnostics?: boolean; below?: ReactNode }) {
   const questions = order ?? s.game.questions;
   function toggleFullscreen() {
     if (document.fullscreenElement) document.exitFullscreen();
@@ -40,6 +40,7 @@ export function PlayerFrame({ s, exitHref, rootRef, children, order, diagnostics
         </button>
       </header>
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center px-4 pb-6 sm:px-6">{children}</main>
+      {below && <div className="mx-auto w-full max-w-4xl px-4 pb-6 sm:px-6">{below}</div>}
       {diagnostics && <DiagnosticsPanel s={s} />}
     </div>
   );
