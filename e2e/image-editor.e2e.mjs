@@ -162,15 +162,15 @@ try {
   assert(await tool("Undo").isDisabled(), "the original opens with nothing to undo");
   log("after Apply, reopening keeps Undo/Undo changes; Undo changes + Apply restores the original picture");
 
-  // Replace opens the picture search; Remove takes the picture off.
+  // Replace opens the card's photo form (Search online); Remove takes the picture off.
   await shot(page, "ie4-full-bar");
   await tool("Replace").click();
-  await page.getByRole("dialog", { name: "Add image" }).waitFor();
-  await page.getByRole("dialog", { name: "Add image" }).getByRole("button", { name: "Close" }).click();
+  await page.getByTestId("card-photo-form").waitFor();
+  await page.getByTestId("photo-form-cancel").click();
   await thumb.click();
   await tool("Remove").click();
   await row.getByRole("button", { name: /^Edit:/ }).waitFor({ state: "detached" });
-  log("Replace opens Add image; Remove takes the picture off");
+  log("Replace opens the photo form; Remove takes the picture off");
 
   // Narrow screen: the bar wraps to a second row, no sideways scroll.
   await row.getByRole("button", { name: /^Add image/ }).first().click();

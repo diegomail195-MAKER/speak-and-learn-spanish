@@ -36,7 +36,10 @@ export function FaceEditor({
   tts,
   rate,
   className = "",
+  onSearch,
 }: {
+  /** Opens the card's photo form on this face's picture. */
+  onSearch?: () => void;
   face: FaceData;
   onChange: (f: FaceData) => void;
   label: string;
@@ -83,7 +86,7 @@ export function FaceEditor({
       {showLabel && <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted md:hidden">{label}</span>}
       <div onPaste={onPaste} className="relative flex min-h-14 items-center gap-1.5 rounded-xl border border-line bg-card p-1.5 focus-within:border-sky focus-within:ring-2 focus-within:ring-sky/20">
         {face.imageAssetId && (
-          <ImageField compact inline label={label} assetId={face.imageAssetId} alt={face.imageAlt} suggest={face.text} onChange={(a) => onChange({ ...face, imageAssetId: a?.id ?? null })} />
+          <ImageField compact inline onSearch={onSearch} label={label} assetId={face.imageAssetId} alt={face.imageAlt} suggest={face.text} onChange={(a) => onChange({ ...face, imageAssetId: a?.id ?? null })} />
         )}
         <textarea
           ref={textRef}
@@ -107,7 +110,7 @@ export function FaceEditor({
           label={label}
         />
         {!face.imageAssetId && (
-          <ImageField compact inline label={label} assetId={null} suggest={face.text} onChange={(a) => onChange({ ...face, imageAssetId: a?.id ?? null })} />
+          <ImageField compact inline onSearch={onSearch} label={label} assetId={null} suggest={face.text} onChange={(a) => onChange({ ...face, imageAssetId: a?.id ?? null })} />
         )}
         {face.imageAssetId && !showAlt && (
           <button

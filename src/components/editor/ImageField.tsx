@@ -58,7 +58,10 @@ export function ImageField({
   compact = false,
   inline = false,
   label,
+  onSearch,
 }: {
+  /** Flashcards: "Search the internet" (and Replace) open the card's photo form instead of the panel. */
+  onSearch?: () => void;
   assetId: string | null | undefined;
   alt?: string;
   onChange: (a: { id: string; url: string } | null) => void;
@@ -155,7 +158,7 @@ export function ImageField({
         <span className="flex">
         <button
           type="button"
-          onClick={() => setPanel("search")}
+          onClick={() => (onSearch ? onSearch() : setPanel("search"))}
           className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-paper-2 hover:text-sky"
           aria-label={`${t.searchWeb}${label ? ` (${label})` : ""}`}
           title={t.searchWeb}
@@ -207,7 +210,7 @@ export function ImageField({
           error={error}
           onCancel={() => setEditing(null)}
           onRemove={editing.local ? undefined : () => (onChange(null), setEditing(null))}
-          onReplace={editing.local ? undefined : () => (setEditing(null), setPanel("search"))}
+          onReplace={editing.local ? undefined : () => (setEditing(null), onSearch ? onSearch() : setPanel("search"))}
           onApply={(blob, { history, reverted }) => {
             const o = editing.origin;
             // "Undo changes" then Apply: back to the original picture.

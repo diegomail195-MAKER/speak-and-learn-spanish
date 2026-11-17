@@ -15,6 +15,7 @@ import { LANGUAGES, type AppLanguage } from "@/lib/tts/voices";
 import { AudioControl, type TtsConfig } from "./AudioControl";
 import { AudioDefaultsContext, AudioField, type AudioDefaults } from "./AudioField";
 import { DiagramPoints } from "./DiagramPoints";
+import { CardPhotoForm } from "./CardPhotoForm";
 import { FaceEditor, FlashcardPreview, RowControls, swapItem } from "./FlashcardParts";
 import { UiLangProvider, useUi } from "./i18n";
 import { ImageField, mediaSrc } from "./ImageField";
@@ -107,6 +108,8 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
   const { t, lang: uiLang, setLang: setUiLang } = useUi();
   const [game, setGame] = useState<EditorGame>(() => editorState(initial, template));
   const [dragFrom, setDragFrom] = useState<number | null>(null);
+  // Flashcards: the card (and picture slot) whose "Search online" form is open.
+  const [photoForm, setPhotoForm] = useState<{ index: number; slot: "front" | "back" } | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [lastDeleted, setLastDeleted] = useState<{ item: EditorItem; index: number } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -748,6 +751,40 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
         )}
       </section>
 
+      {photoForm && flash && game.items[photoForm.index] && (() => {
+        const i = photoForm.index;
+        const it = game.items[i];
+        const back = it.data.back ?? {};
+        const backLang = it.data.translationLanguage ?? (game.language === "es-419" ? "en-US" : "es-419");
+        const cat = categories.find((c) => c.id === game.categoryId);
+        return (
+          <CardPhotoForm
+            key={`${i}-${photoForm.slot}`}
+            faces={[
+              { key: "front", text: it.text, language: game.language, imageAssetId: it.imageAssetId ?? null },
+              ...(twoSided ? [{ key: "back" as const, text: back.text ?? "", language: backLang, imageAssetId: back.imageAssetId ?? null }] : []),
+            ]}
+            category={cat ? { nameEn: cat.nameEn, nameEs: cat.nameEs } : null}
+            focus={photoForm.slot}
+            onCancel={() => setPhotoForm(null)}
+            onSave={(next) => {
+              // Each slot keeps its own picture; text, audio and alt text of the card stay as they are.
+              setItem(i, (x) => {
+                let y = x;
+                for (const n of next) {
+                  if (n.key === "front") y = { ...y, text: n.text, imageAssetId: n.imageAssetId, imageUrl: mediaSrc(n.imageAssetId), data: { ...y.data, imageAlt: n.imageAssetId === x.imageAssetId ? y.data.imageAlt : "" } };
+                  else {
+                    const b = y.data.back ?? {};
+                    y = { ...y, data: { ...y.data, translation: undefined, back: { ...b, text: n.text, imageAssetId: n.imageAssetId, imageAlt: n.imageAssetId === b.imageAssetId ? b.imageAlt : "" } } };
+                  }
+                }
+                return y;
+              });
+              setPhotoForm(null);
+            }}
+          />
+        );
+      })()}
       {showPreview && <FlashcardPreview items={game.items} twoSided={twoSided} rate={game.settings.rate} language={game.language} onClose={() => setShowPreview(false)} />}
 
       {problems.length > 0 && (
@@ -855,6 +892,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                         tts={tts}
                         rate={game.settings.rate}
                         onChange={(f) => setItem(i, (x) => ({ ...x, text: f.text ?? "", imageAssetId: f.imageAssetId ?? null, imageUrl: mediaSrc(f.imageAssetId), data: { ...x.data, imageAlt: f.imageAlt, audio: f.audio ?? null } }))}
+                        onSearch={() => setPhotoForm({ index: i, slot: "front" })}
                       />
                       {twoSided && (
                         <FaceEditor
@@ -866,6 +904,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                           tts={tts}
                           rate={game.settings.rate}
                           onChange={(f) => setData(i, { back: f, translation: undefined })}
+                          onSearch={() => setPhotoForm({ index: i, slot: "back" })}
                         />
                       )}
                       <div className={`col-start-2 flex flex-wrap items-center justify-end gap-1 self-start xl:col-span-1 xl:col-start-auto xl:pt-2 ${twoSided ? "md:col-span-2" : ""}`}>
