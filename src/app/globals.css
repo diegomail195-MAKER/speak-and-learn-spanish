@@ -204,3 +204,37 @@ body {
   .btn-3d { font-size: 0.85rem; padding: 0.5rem 0.65rem; gap: 0.4rem; }
 }
 @media print { .btn-3d { display: none !important; } }
+
+/* Compact 3D color-block tools (picture editor bar): 44px tall, a 4px darker base; pressing moves
+   the face 3px down and shrinks the base. transform only, so neighbours never move. */
+.tool-3d {
+  --face: #ffffff;
+  --base: #b9b9c3;
+  --ink: var(--color-ink);
+  display: inline-flex;
+  min-height: 44px;
+  min-width: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-bottom: 4px;
+  padding: 0 0.75rem;
+  border-radius: 12px;
+  background: var(--face);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 800;
+  box-shadow: 0 4px 0 var(--base);
+  transition: transform 70ms ease, box-shadow 70ms ease, filter 120ms ease;
+}
+.tool-3d:hover:not(:disabled) { filter: brightness(1.04); }
+.tool-3d:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--base); }
+.tool-3d:disabled { --face: #e4e4e8; --base: #b4b4bc; --ink: #8b8b96; cursor: not-allowed; }
+.tool-3d:focus-visible { outline: 3px solid var(--color-sky); outline-offset: 3px; border-radius: 12px; }
+.tool-3d-gray { --face: #ececf0; --base: #a9a9b4; --ink: #3f4356; }
+.tool-3d-lavender { --face: #d5c2fa; --base: #9771d6; --ink: #3b1f80; }
+.tool-3d-mango { --face: #ffd45c; --base: #c99512; --ink: #3d2a00; }
+.tool-3d-mint { --face: #a6efc8; --base: #43a86f; --ink: #0d6b2e; }
+.tool-3d-sky { --face: #c3e2fb; --base: #5b97c9; --ink: #0b3d66; }
+.tool-3d-grape { --face: #5b14b0; --base: #34086b; --ink: #ffffff; }
+.tool-3d-coral { --face: #f8aaa5; --base: #c9615b; --ink: #8a0f0f; }

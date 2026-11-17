@@ -1,42 +1,121 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useUi } from "./i18n";
 
-type Edit = { rot: 0 | 90 | 180 | 270; fh: boolean; fv: boolean; crop: { x: number; y: number; w: number; h: number } | null };
-const START: Edit = { rot: 0, fh: false, fv: false, crop: null };
+type Rect = { x: number; y: number; w: number; h: number };
+/** One edit, applied to the picture as it looks at that moment: rotate left/right, flip, or cut to a box. */
+type Op = "L" | "R" | "H" | "V" | Rect;
+/** A step of the history: the edits so far and the crop box being drawn (not cut yet). */
+export type EditStep = { ops: Op[]; box: Rect | null };
+const START: EditStep = { ops: [], box: null };
 const MAX_SIDE = 1600;
 
-/** Draws the rotated/flipped picture (no crop) onto a canvas. */
-function transformed(img: HTMLImageElement, e: Edit): HTMLCanvasElement {
-  const swap = e.rot === 90 || e.rot === 270;
+/** The picture with every edit applied, in order. */
+function render(img: HTMLImageElement, ops: Op[]): HTMLCanvasElement {
   const scale = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
-  const w = Math.round(img.naturalWidth * scale);
-  const h = Math.round(img.naturalHeight * scale);
-  const c = document.createElement("canvas");
-  c.width = swap ? h : w;
-  c.height = swap ? w : h;
-  const ctx = c.getContext("2d")!;
-  ctx.translate(c.width / 2, c.height / 2);
-  ctx.rotate((e.rot * Math.PI) / 180);
-  ctx.scale(e.fh ? -1 : 1, e.fv ? -1 : 1);
-  ctx.drawImage(img, -w / 2, -h / 2, w, h);
+  let c = document.createElement("canvas");
+  c.width = Math.round(img.naturalWidth * scale);
+  c.height = Math.round(img.naturalHeight * scale);
+  c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+  for (const op of ops) {
+    const n = document.createElement("canvas");
+    const ctx = n.getContext("2d")!;
+    if (typeof op === "object") {
+      n.width = Math.max(1, Math.round(op.w * c.width));
+      n.height = Math.max(1, Math.round(op.h * c.height));
+      ctx.drawImage(c, op.x * c.width, op.y * c.height, n.width, n.height, 0, 0, n.width, n.height);
+    } else if (op === "L" || op === "R") {
+      n.width = c.height;
+      n.height = c.width;
+      ctx.translate(n.width / 2, n.height / 2);
+      ctx.rotate(op === "R" ? Math.PI / 2 : -Math.PI / 2); // canvas y points down: + is clockwise
+      ctx.drawImage(c, -c.width / 2, -c.height / 2);
+    } else {
+      n.width = c.width;
+      n.height = c.height;
+      ctx.translate(op === "H" ? n.width : 0, op === "V" ? n.height : 0);
+      ctx.scale(op === "H" ? -1 : 1, op === "V" ? -1 : 1);
+      ctx.drawImage(c, 0, 0);
+    }
+    c = n;
+  }
   return c;
 }
 
+/** Moves a crop box with the picture when it is rotated or flipped. */
+function moveBox(b: Rect | null, op: "L" | "R" | "H" | "V"): Rect | null {
+  if (!b) return null;
+  if (op === "R") return { x: 1 - (b.y + b.h), y: b.x, w: b.h, h: b.w };
+  if (op === "L") return { x: b.y, y: 1 - (b.x + b.w), w: b.h, h: b.w };
+  if (op === "H") return { ...b, x: 1 - (b.x + b.w) };
+  return { ...b, y: 1 - (b.y + b.h) };
+}
+
+const ico = { viewBox: "0 0 24 24", width: 20, height: 20, fill: "none", stroke: "currentColor", strokeWidth: 2.4, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+const Icons = {
+  undo: <svg {...ico}><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>,
+  rotL: <svg {...ico}><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>,
+  rotR: <svg {...ico}><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg>,
+  flipH: <svg {...ico}><path d="M8 3 4 7l4 4" /><path d="M4 7h16" /><path d="m16 21 4-4-4-4" /><path d="M20 17H4" /></svg>,
+  flipV: <svg {...ico}><path d="m8 7 4-4 4 4" /><path d="M12 3v18" /><path d="m8 17 4 4 4-4" /></svg>,
+  crop: <svg {...ico}><path d="M6 2v14a2 2 0 0 0 2 2h14" /><path d="M18 22V8a2 2 0 0 0-2-2H2" /></svg>,
+  reset: <svg {...ico}><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 3v6h-6" /></svg>,
+  replace: (
+    <svg {...ico} strokeWidth={2}>
+      <rect x="2" y="3" width="10" height="8" rx="1.5" /><path d="m3 10 3-3 2 2 1.5-1.5L12 10" />
+      <rect x="12" y="13" width="10" height="8" rx="1.5" /><path d="m13 20 3-3 2 2 1.5-1.5L22 20" />
+      <path d="M16 3h2a2 2 0 0 1 2 2v3" /><path d="m18 6 2 2 2-2" /><path d="M8 21H6a2 2 0 0 1-2-2v-3" /><path d="m6 18-2-2-2 2" />
+    </svg>
+  ),
+  trash: <svg {...ico}><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M5 6l1 15h12l1-15" /><path d="M10 10v7M14 10v7" /></svg>,
+};
+
+/** A compact 3D color-block tool button. An icon-only one gets a tooltip and an accessible name. */
+function Tool({ color, icon, label, text, onClick, disabled }: { color: string; icon: ReactNode; label: string; text?: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button type="button" className={`tool-3d tool-3d-${color}`} onClick={onClick} disabled={disabled} aria-label={text ? undefined : label} title={label}>
+      {icon}
+      {text && <span>{text}</span>}
+    </button>
+  );
+}
+
 /**
- * Crop (drag on the picture), rotate, flip; "Undo" steps back and "Undo changes" resets.
- * Nothing is saved until "Apply" (the result is uploaded as a new picture).
+ * Rotate, flip and crop (drag a box, then "Crop"); "Undo" steps back one edit and "Undo changes"
+ * goes back to the original picture. Nothing is saved until "Apply" (the result is uploaded as a
+ * new picture). `initial`: the history of an earlier edit of this picture, so it can still be undone.
  */
-export function ImageEditor({ src, onApply, onCancel, onRemove, onReplace, busy, error }: { src: string; onApply: (blob: Blob | null) => void; onCancel: () => void; onRemove?: () => void; onReplace?: () => void; busy?: boolean; error?: string }) {
+export function ImageEditor({
+  src,
+  initial,
+  onApply,
+  onCancel,
+  onRemove,
+  onReplace,
+  busy,
+  error,
+}: {
+  src: string;
+  initial?: EditStep[];
+  /** `blob` null: nothing changed. `reverted`: back to the original picture. */
+  onApply: (blob: Blob | null, r: { history: EditStep[]; reverted: boolean }) => void;
+  onCancel: () => void;
+  onRemove?: () => void;
+  onReplace?: () => void;
+  busy?: boolean;
+  error?: string;
+}) {
   const { t } = useUi();
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [loadError, setLoadError] = useState("");
-  const [hist, setHist] = useState<Edit[]>([START]);
+  const [hist, setHist] = useState<EditStep[]>(() => (initial?.length ? initial : [START]));
+  const startState = useRef(JSON.stringify(hist[hist.length - 1]));
   const [drag, setDrag] = useState<{ x0: number; y0: number; x: number; y: number } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const e = hist[hist.length - 1];
-  const push = (n: Partial<Edit>) => setHist((h) => [...h, { ...h[h.length - 1], ...n }]);
+  const push = (n: EditStep) => setHist((h) => [...h, n]);
+  const edited = e.ops.length > 0 || !!e.box;
 
   useEffect(() => {
     const i = new Image();
@@ -46,15 +125,16 @@ export function ImageEditor({ src, onApply, onCancel, onRemove, onReplace, busy,
     i.src = src;
   }, [src]);
 
+  const base = useMemo(() => (img ? render(img, e.ops) : null), [img, e.ops]);
+
   useEffect(() => {
-    if (!img || !canvasRef.current) return;
-    const base = transformed(img, e);
+    if (!base || !canvasRef.current) return;
     const c = canvasRef.current;
     c.width = base.width;
     c.height = base.height;
     const ctx = c.getContext("2d")!;
     ctx.drawImage(base, 0, 0);
-    const r = drag ? { x: Math.min(drag.x0, drag.x), y: Math.min(drag.y0, drag.y), w: Math.abs(drag.x - drag.x0), h: Math.abs(drag.y - drag.y0) } : e.crop;
+    const r = drag ? { x: Math.min(drag.x0, drag.x), y: Math.min(drag.y0, drag.y), w: Math.abs(drag.x - drag.x0), h: Math.abs(drag.y - drag.y0) } : e.box;
     if (r && r.w > 0 && r.h > 0) {
       ctx.fillStyle = "rgba(30,35,64,0.55)";
       const W = c.width, H = c.height;
@@ -66,27 +146,24 @@ export function ImageEditor({ src, onApply, onCancel, onRemove, onReplace, busy,
       ctx.lineWidth = Math.max(2, W / 300);
       ctx.strokeRect(r.x * W, r.y * H, r.w * W, r.h * H);
     }
-  }, [img, e, drag]);
+  }, [base, e.box, drag]);
 
   const rel = (ev: React.PointerEvent) => {
     const b = canvasRef.current!.getBoundingClientRect();
     return { x: Math.min(1, Math.max(0, (ev.clientX - b.left) / b.width)), y: Math.min(1, Math.max(0, (ev.clientY - b.top) / b.height)) };
   };
 
-  // Rotating or flipping clears the crop (its box would no longer match the picture).
-  const rotate = (d: 90 | -90) => push({ rot: (((e.rot + d) % 360) + 360) % 360 as Edit["rot"], crop: null });
+  // A crop box being drawn turns and flips with the picture.
+  const turn = (op: "L" | "R" | "H" | "V") => push({ ops: [...e.ops, op], box: moveBox(e.box, op) });
+  const crop = () => e.box && push({ ops: [...e.ops, e.box], box: null });
 
   function apply() {
     if (!img) return;
-    if (hist.length === 1) return onApply(null);
-    const base = transformed(img, e);
-    const r = e.crop ?? { x: 0, y: 0, w: 1, h: 1 };
-    const out = document.createElement("canvas");
-    out.width = Math.max(1, Math.round(r.w * base.width));
-    out.height = Math.max(1, Math.round(r.h * base.height));
-    out.getContext("2d")!.drawImage(base, r.x * base.width, r.y * base.height, out.width, out.height, 0, 0, out.width, out.height);
+    if (JSON.stringify(e) === startState.current) return onApply(null, { history: hist, reverted: false });
+    if (!edited) return onApply(null, { history: hist, reverted: true });
+    const out = render(img, e.box ? [...e.ops, e.box] : e.ops);
     try {
-      out.toBlob((b) => onApply(b), "image/webp", 0.9);
+      out.toBlob((b) => onApply(b, { history: e.box ? [...hist, { ops: [...e.ops, e.box], box: null }] : hist, reverted: false }), "image/webp", 0.9);
     } catch {
       setLoadError("This picture can't be edited here. Upload it from your device instead.");
     }
@@ -98,20 +175,22 @@ export function ImageEditor({ src, onApply, onCancel, onRemove, onReplace, busy,
     return () => window.removeEventListener("keydown", esc);
   }, [onCancel]);
 
-  const tool = "grid h-9 min-w-9 place-items-center rounded-lg border border-line bg-card px-2 text-sm font-bold text-ink-2 hover:bg-paper-2 disabled:opacity-40";
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center bg-ink/50 p-3 sm:p-8">
       <div role="dialog" aria-modal="true" aria-label={t.edit} className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-xl2 bg-card shadow-soft">
-        <div className="flex flex-wrap items-center gap-1.5 border-b border-line bg-paper px-3 py-2">
-          <button type="button" className={tool} onClick={() => setHist((h) => (h.length > 1 ? h.slice(0, -1) : h))} disabled={hist.length === 1}>{t.undo}</button>
-          <button type="button" className={tool} onClick={() => rotate(-90)} aria-label={t.rotateL} title={t.rotateL}>⟲</button>
-          <button type="button" className={tool} onClick={() => rotate(90)} aria-label={t.rotateR} title={t.rotateR}>⟳</button>
-          <button type="button" className={tool} onClick={() => push({ fh: !e.fh, crop: null })} aria-label={t.flipH} title={t.flipH}>⇋</button>
-          <button type="button" className={tool} onClick={() => push({ fv: !e.fv, crop: null })} aria-label={t.flipV} title={t.flipV}>⇵</button>
-          <button type="button" className={tool} onClick={() => setHist([START])} disabled={hist.length === 1}>{t.reset}</button>
-          {onReplace && <button type="button" className={tool} onClick={onReplace}>{t.replace}</button>}
-          {onRemove && <button type="button" className={`${tool} text-coral-dark`} onClick={onRemove}>{t.remove}</button>}
-          <button type="button" onClick={onCancel} className="ml-auto rounded-full px-2 text-2xl leading-none text-muted hover:text-ink" aria-label={t.close}>×</button>
+        <div className="flex items-start gap-2 border-b border-line bg-paper px-3 pb-1.5 pt-2.5">
+          <div className="flex flex-1 flex-wrap items-center gap-2" role="toolbar" aria-label={t.edit} data-testid="image-tools">
+            <Tool color="gray" icon={Icons.undo} label={t.undo} text={t.undo} onClick={() => setHist((h) => (h.length > 1 ? h.slice(0, -1) : h))} disabled={hist.length === 1} />
+            <Tool color="lavender" icon={Icons.rotL} label={t.rotateL} onClick={() => turn("L")} />
+            <Tool color="lavender" icon={Icons.rotR} label={t.rotateR} onClick={() => turn("R")} />
+            <Tool color="mango" icon={Icons.flipH} label={t.flipH} onClick={() => turn("H")} />
+            <Tool color="mint" icon={Icons.flipV} label={t.flipV} onClick={() => turn("V")} />
+            <Tool color="sky" icon={Icons.crop} label={t.crop} text={t.crop} onClick={crop} disabled={!e.box} />
+            <Tool color="gray" icon={Icons.reset} label={t.reset} text={t.reset} onClick={() => push(START)} disabled={!edited} />
+            {onReplace && <Tool color="grape" icon={Icons.replace} label={t.replace} text={t.replace} onClick={onReplace} />}
+            {onRemove && <Tool color="coral" icon={Icons.trash} label={t.remove} text={t.remove} onClick={onRemove} />}
+          </div>
+          <button type="button" onClick={onCancel} className="mt-1.5 rounded-full px-2 text-2xl leading-none text-muted hover:text-ink" aria-label={t.close}>×</button>
         </div>
         <div className="min-h-0 flex-1 overflow-auto bg-paper-2 p-3">
           {loadError ? (
@@ -122,6 +201,7 @@ export function ImageEditor({ src, onApply, onCancel, onRemove, onReplace, busy,
             <canvas
               ref={canvasRef}
               aria-label={t.cropHint}
+              data-testid="image-canvas"
               className="mx-auto block max-h-[60vh] max-w-full cursor-crosshair touch-none rounded-lg bg-[repeating-conic-gradient(#eee_0_25%,#fff_0_50%)] [background-size:16px_16px]"
               onPointerDown={(ev) => {
                 ev.currentTarget.setPointerCapture(ev.pointerId);
@@ -133,7 +213,7 @@ export function ImageEditor({ src, onApply, onCancel, onRemove, onReplace, busy,
                 if (!drag) return;
                 const r = { x: Math.min(drag.x0, drag.x), y: Math.min(drag.y0, drag.y), w: Math.abs(drag.x - drag.x0), h: Math.abs(drag.y - drag.y0) };
                 setDrag(null);
-                if (r.w > 0.03 && r.h > 0.03) push({ crop: r });
+                if (r.w > 0.03 && r.h > 0.03) push({ ops: e.ops, box: r });
               }}
             />
           )}
