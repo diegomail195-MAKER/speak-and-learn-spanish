@@ -16,7 +16,6 @@ import { AudioControl, type TtsConfig } from "./AudioControl";
 import { AudioDefaultsContext, AudioField, type AudioDefaults } from "./AudioField";
 import { DiagramPoints } from "./DiagramPoints";
 import { FaceEditor, FlashcardPreview, RowControls, swapItem } from "./FlashcardParts";
-import { PhotoPicker } from "./PhotoPicker";
 import { UiLangProvider, useUi } from "./i18n";
 import { ImageField, mediaSrc } from "./ImageField";
 import { SpanishField } from "./SpanishField";
@@ -108,8 +107,6 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
   const { t, lang: uiLang, setLang: setUiLang } = useUi();
   const [game, setGame] = useState<EditorGame>(() => editorState(initial, template));
   const [dragFrom, setDragFrom] = useState<number | null>(null);
-  // The flashcard row whose Picture section is open (the one being edited).
-  const [photoRow, setPhotoRow] = useState<number | null>(0);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [lastDeleted, setLastDeleted] = useState<{ item: EditorItem; index: number } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -847,7 +844,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                 const back = it.data.back ?? {};
                 const backLang = it.data.translationLanguage ?? (game.language === "es-419" ? "en-US" : "es-419");
                 return (
-                  <li key={rowKey} {...rowProps} onFocusCapture={() => setPhotoRow(i)} className={`rounded-xl px-2 py-1 hover:bg-card ${dropMark} ${dragFrom === i ? "opacity-50" : ""}`} aria-label={`${t.card[0].toUpperCase()}${t.card.slice(1)} ${i + 1}`}>
+                  <li key={rowKey} {...rowProps} className={`rounded-xl px-2 py-1 hover:bg-card ${dropMark} ${dragFrom === i ? "opacity-50" : ""}`} aria-label={`${t.card[0].toUpperCase()}${t.card.slice(1)} ${i + 1}`}>
                     <div className={`grid items-start gap-x-3 gap-y-1 ${twoSided ? "md:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_auto]" : "xl:grid-cols-[2.5rem_minmax(0,1fr)_auto]"} grid-cols-[2.5rem_minmax(0,1fr)]`}>
                       <span className={`self-start text-right font-display text-lg font-semibold text-ink-2 ${twoSided ? "pt-8 md:pt-3.5" : "pt-3.5"}`}>{i + 1}.</span>
                       <FaceEditor
@@ -878,15 +875,6 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                         {controls}
                       </div>
                     </div>
-                    {photoRow === i && (
-                      <PhotoPicker
-                        index={i}
-                        faces={[{ text: it.text, language: game.language }, ...(twoSided ? [{ text: back.text, language: backLang }] : [])]}
-                        categoryName={categories.find((c) => c.id === game.categoryId)?.nameEn}
-                        assetId={it.imageAssetId}
-                        onPick={(a) => setItem(i, (x) => ({ ...x, imageAssetId: a.id, imageUrl: mediaSrc(a.id) }))}
-                      />
-                    )}
                   </li>
                 );
               }
