@@ -21,6 +21,7 @@ export interface FlashcardsGameProps {
   withMic: boolean;
   /** Strip under the game (title and the actions for this person). */
   below?: ReactNode;
+  previewNote?: string | null;
 }
 
 /**
@@ -30,7 +31,7 @@ export interface FlashcardsGameProps {
  * the next card comes up. Cards with a spoken answer keep LextroSpeak's voice exercise (the
  * microphone listens, the answer is checked and the card is marked by itself).
  */
-export function FlashcardsGame({ game, mode, diagnostics, submitTurn, onFinish, exitHref, done, withMic, below }: FlashcardsGameProps) {
+export function FlashcardsGame({ game, mode, diagnostics, submitTurn, onFinish, exitHref, done, withMic, below, previewNote = "Teacher preview — answers are not saved" }: FlashcardsGameProps) {
   const s = useVoiceSession(game, { mode, submitTurn, onFinish, done });
   const [run, setRun] = useState(0);
   const stage = useRef<HTMLDivElement>(null);
@@ -60,7 +61,7 @@ export function FlashcardsGame({ game, mode, diagnostics, submitTurn, onFinish, 
           <a href={exitHref} onClick={() => s.stopMic()} className="rounded-full px-3 py-1.5 text-sm font-bold text-white/70 hover:bg-white/10 hover:text-white">
             ✕ <span className="sr-only sm:not-sr-only">Exit</span>
           </a>
-          {mode === "preview" && <span className="rounded-full bg-sky-soft px-3 py-1 text-xs font-bold text-sky">Teacher preview — answers are not saved</span>}
+          {mode === "preview" && previewNote && <span className="rounded-full bg-sky-soft px-3 py-1 text-xs font-bold text-sky">{previewNote}</span>}
         </div>
 
         <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center px-3 pb-14 sm:px-6">

@@ -31,7 +31,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams: 
       video: { select: { title: true, youtubeId: true } },
       collection: { select: { title: true } },
       topic: { select: { titleEn: true } },
-      activities: { orderBy: { position: "asc" }, select: { resource: { select: { kind: true, title: true } } } },
+      activities: { orderBy: { position: "asc" }, select: { resource: { select: { kind: true, title: true } }, game: { select: { title: true, templateKey: true } } } },
       recipients: { include: { classroom: true, level: true, group: { include: { level: true } }, student: true } },
       _count: { select: { attempts: { where: { completedAt: { not: null } } } } },
     },
@@ -45,12 +45,12 @@ export default async function AssignmentsPage({ searchParams }: { searchParams: 
       ? [a.game.templateKey === "FLASHCARDS" ? "FLASHCARDS" : "GAME"]
       : a.video || a.collectionId
         ? ["VIDEO"]
-        : [...new Set(a.activities.map((x) => x.resource.kind as Kind))].filter((k) => k in KIND_LABEL);
+        : [...new Set(a.activities.map((x) => (x.game ? (x.game.templateKey === "FLASHCARDS" ? "FLASHCARDS" : "GAME") : x.resource?.kind) as Kind))].filter((k) => k in KIND_LABEL);
     const thumb = a.game?.items[0]?.imageAssetId ? mediaUrl(a.game.items[0].imageAssetId) : a.video?.youtubeId ? `https://i.ytimg.com/vi/${a.video.youtubeId}/mqdefault.jpg` : null;
     const detail = a.game
       ? `${templateByKey(a.game.templateKey)?.name ?? "Game"} · ${a.game._count.items} ${a.game.templateKey === "FLASHCARDS" ? "cards" : "items"}`
       : a.topicId
-        ? a.activities.map((x) => x.resource.title).slice(0, 3).join(" · ") + (a.activities.length > 3 ? ` +${a.activities.length - 3}` : "")
+        ? a.activities.map((x) => x.resource?.title ?? x.game?.title ?? "Activity").slice(0, 3).join(" · ") + (a.activities.length > 3 ? ` +${a.activities.length - 3}` : "")
         : "";
     return {
       id: a.id,

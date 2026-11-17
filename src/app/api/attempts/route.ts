@@ -8,9 +8,9 @@ import { db } from "@/lib/db";
 // Starts (or continues) the student's attempt at an assignment.
 export const POST = handle(async (req: Request) => {
   const { student } = await requireStudent();
-  const { assignmentId, videoId } = z.object({ assignmentId: z.string(), videoId: z.string().nullish() }).parse(await req.json());
+  const { assignmentId, videoId, activityId } = z.object({ assignmentId: z.string(), videoId: z.string().nullish(), activityId: z.string().nullish() }).parse(await req.json());
   // For a video assignment the game is the video's practice activity.
-  const { assignment: a, gameId } = await practiceTarget(student, assignmentId, videoId);
+  const { assignment: a, gameId } = await practiceTarget(student, assignmentId, videoId, activityId);
   const open = await db.studentAttempt.findFirst({ where: { studentId: student.id, assignmentId: a.id, gameId, completedAt: null }, orderBy: { startedAt: "desc" } });
   if (open) return NextResponse.json({ attemptId: open.id, resumed: true });
   const done = await db.studentAttempt.count({ where: { studentId: student.id, assignmentId: a.id, gameId, completedAt: { not: null } } });

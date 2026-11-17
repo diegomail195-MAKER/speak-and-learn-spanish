@@ -154,6 +154,7 @@ model Teacher {
   videos      Video[]
   assignments Assignment[]
   folders     ActivityFolder[]
+  topicPlans  TopicPlan[]
 
   @@index([schoolId])
 }
@@ -418,6 +419,7 @@ model Game {
   attempts         StudentAttempt[]
   practiceFor      Video[]          @relation("PracticeGame")
   libraryResources GameResource[]
+  topicActivities  AssignmentActivity[]
 
   @@index([schoolId, status])
   @@index([teacherId])
@@ -776,6 +778,7 @@ model Topic {
   grade       Grade?          @relation(fields: [gradeId], references: [id], onDelete: SetNull)
   resources   TopicResource[]
   assignments Assignment[]
+  plans       TopicPlan[]
 
   @@index([gradeId])
 }
@@ -872,20 +875,42 @@ model LibraryFile {
   createdAt    DateTime @default(now())
 }
 
+// One step of a Topic assignment, in the teacher's order: a library resource (pinned version) or
+// one of the teacher's own activities (gameId), e.g. a Speaking game.
 model AssignmentActivity {
-  id           String @id @default(cuid())
+  id           String  @id @default(cuid())
   assignmentId String
-  resourceId   String
-  versionId    String
+  resourceId   String?
+  versionId    String?
+  gameId       String?
   position     Int
 
   assignment Assignment         @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  resource   LibraryResource    @relation(fields: [resourceId], references: [id], onDelete: Restrict)
-  version    ResourceVersion    @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  resource   LibraryResource?   @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+  version    ResourceVersion?   @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  game       Game?              @relation(fields: [gameId], references: [id], onDelete: Cascade)
   progress   ActivityProgress[]
 
   @@index([assignmentId])
   @@index([resourceId])
+  @@index([gameId])
+}
+
+// A teacher's lesson order for a Library topic: steps ("r:<resourceId>" library resources,
+// "g:<gameId>" the teacher's own activities) and the library resources they removed. Library
+// resources published later (not in steps, not hidden) are added at the end.
+model TopicPlan {
+  id        String   @id @default(cuid())
+  teacherId String
+  topicId   String
+  steps     String[]
+  hidden    String[]
+  updatedAt DateTime @updatedAt
+
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  topic   Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, topicId])
 }
 
 model ActivityProgress {

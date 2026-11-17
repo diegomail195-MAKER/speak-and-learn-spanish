@@ -18,17 +18,18 @@ async function postJson(url: string, body: unknown, retries = 2): Promise<Respon
   }
 }
 
-export function StudentPlay({ game, assignmentId, videoId, done, exitHref, below }: { game: PlayGame; assignmentId: string; videoId: string | null; done: Record<string, "NONE" | "HINT" | "MODEL" | null>; exitHref: string; below?: ReactNode }) {
+/** `activityId`: a teacher's activity inside a Topic lesson (the attempt belongs to that step). `onComplete`: after the attempt is saved as finished. */
+export function StudentPlay({ game, assignmentId, videoId, activityId, done, exitHref, below, onComplete }: { game: PlayGame; assignmentId: string; videoId: string | null; activityId?: string; done: Record<string, "NONE" | "HINT" | "MODEL" | null>; exitHref: string; below?: ReactNode; onComplete?: (s: { presented: number }) => void }) {
   const attemptId = useRef<string | null>(null);
 
   const ensureAttempt = useCallback(async () => {
     if (attemptId.current) return attemptId.current;
-    const res = await postJson("/api/attempts", { assignmentId, videoId });
+    const res = await postJson("/api/attempts", { assignmentId, videoId, activityId });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error);
     attemptId.current = json.attemptId as string;
     return attemptId.current;
-  }, [assignmentId, videoId]);
+  }, [assignmentId, videoId, activityId]);
 
   const submitTurn = useCallback(
     async (q: PlayQuestion, body: Record<string, unknown>): Promise<TurnResult> => {
@@ -42,10 +43,14 @@ export function StudentPlay({ game, assignmentId, videoId, done, exitHref, below
 
   const onFinish = useCallback(
     async (s: { presented: number; durationMs: number }) => {
-      const id = await ensureAttempt();
-      await postJson(`/api/attempts/${id}/complete`, s);
+      try {
+        const id = await ensureAttempt();
+        await postJson(`/api/attempts/${id}/complete`, s);
+      } finally {
+        onComplete?.(s);
+      }
     },
-    [ensureAttempt],
+    [ensureAttempt, onComplete],
   );
 
   return <GamePlayer game={game} mode="student" done={done} submitTurn={submitTurn} onFinish={onFinish} exitHref={exitHref} below={below} />;
