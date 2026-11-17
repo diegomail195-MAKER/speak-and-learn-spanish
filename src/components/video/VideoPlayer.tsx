@@ -56,9 +56,15 @@ export function VideoPlayer({
   startAt = 0,
   onProgress,
   onEnded,
+  bare = false,
+  autoPlay = false,
 }: {
   video: PlayVideo;
   startAt?: number;
+  /** Only the picture, filling its parent (no progress bar or speed row): the Topic page frames it. */
+  bare?: boolean;
+  /** Start playing at once: only after the person pressed Play on a cover. */
+  autoPlay?: boolean;
   /** Called every ~10 s while playing, on pause, on end and when leaving the page. */
   onProgress?: (p: ProgressReport, opts?: { beacon?: boolean }) => void;
   onEnded?: () => void;
@@ -162,7 +168,7 @@ export function VideoPlayer({
         // Documented parameters only (developers.google.com/youtube/player_parameters). rel=0 limits
         // end-of-video suggestions to the same channel; it does not remove them. The deprecated
         // modestbranding flag is not used: YouTube's logo and title links can still open YouTube.
-        playerVars: { rel: 0, playsinline: 1, iv_load_policy: 3, start: startAt > 5 ? Math.floor(startAt) : 0, cc_lang_pref: "es", hl: "es" },
+        playerVars: { rel: 0, playsinline: 1, autoplay: autoPlay ? 1 : 0, iv_load_policy: 3, start: startAt > 5 ? Math.floor(startAt) : 0, cc_lang_pref: "es", hl: "es" },
         events: {
           onReady: () => {
             clearTimeout(timeout);
@@ -227,6 +233,18 @@ export function VideoPlayer({
   }
 
   const pct = dur ? Math.min(100, (pos / dur) * 100) : 0;
+
+  if (bare) {
+    return video.source === "HOSTED" ? (
+      <video ref={videoRef} data-testid="video-file" src={video.url ?? undefined} controls playsInline autoPlay={autoPlay} preload="metadata" poster={video.coverUrl ?? undefined} className="h-full w-full bg-black object-contain" crossOrigin="anonymous">
+        {video.captionsUrl && <track kind="subtitles" src={video.captionsUrl} srcLang={video.captionsLanguage} label={video.captionsLanguage === "es" ? "Español" : video.captionsLanguage} default />}
+      </video>
+    ) : ytError ? (
+      <div className="grid h-full w-full place-items-center bg-black p-6 text-center text-white">{ytError}</div>
+    ) : (
+      <div ref={ytHost} className="h-full w-full bg-black [&>iframe]:h-full [&>iframe]:w-full" />
+    );
+  }
 
   return (
     <div>

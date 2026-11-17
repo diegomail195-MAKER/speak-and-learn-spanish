@@ -300,7 +300,13 @@ try {
     await teacher.goto(`${BASE}/teacher/library?grade=LOWER`);
     await teacher.waitForSelector(`text=${topicEs}`);
     await teacher.goto(`${BASE}/teacher/library/topics/${topic.slug}?grade=LOWER`);
-    for (const t of ["Canción de los animales", "Video: el perro y el gato", "Memory: animales", "Flashcards: animales"]) await teacher.waitForSelector(`text=${t}`);
+    // The Topic page: the video is featured; the other activities are under their category.
+    await teacher.waitForSelector("[data-testid=hero-title]");
+    await teacher.waitForSelector("text=Video: el perro y el gato");
+    for (const [cat, t] of [["music", "Canción de los animales"], ["games", "Memory: animales"], ["flashcards", "Flashcards: animales"]]) {
+      await teacher.click(`[data-testid=category-${cat}]`);
+      await teacher.waitForSelector(`[data-testid=category-item]:has-text('${t}')`);
+    }
     await teacher.goto(`${BASE}/teacher/library/resources/${memoryId}`);
     // The teacher can try the game: play it to the end
     for (const pair of ["0", "1"]) {
@@ -373,7 +379,11 @@ try {
       const s = await studentSignIn(sctx, code, name, secret);
       await s.click("[data-testid=student-task]");
       await s.waitForURL(/\/learn\/tasks\//);
-      const links = await s.locator("[data-testid=student-activity]").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+      const links = [];
+      for (const cat of ["videos", "games", "flashcards", "music", "speaking"]) {
+        await s.click(`[data-testid=category-${cat}]`);
+        links.push(...(await s.locator("[data-testid=category-panel] a[data-testid=category-item]").evaluateAll((as) => as.map((a) => a.getAttribute("href")))));
+      }
       assert(links.length === 3, `${name} sees ${links.length} activities`);
       for (const href of links) {
         await s.goto(`${BASE}${href}`);
@@ -458,7 +468,8 @@ try {
     const ectx = await browser.newContext(desktop);
     const e = await studentSignIn(ectx, code, "Eva", listSecrets.Eva.secret);
     await e.click("[data-testid=student-task]");
-    await e.click("[data-testid=student-activity]:has-text('Flashcards')");
+    await e.click("[data-testid=category-flashcards]");
+    await e.click("[data-testid=category-item]:has-text('Flashcards')");
     await e.click("[data-testid=flashcard]");
     await e.waitForSelector("[data-testid=flashcard]:has-text('the puppy')");
     await ectx.close();
@@ -466,11 +477,13 @@ try {
     const dctx = await browser.newContext(desktop);
     const d = await studentSignIn(dctx, code, "Diego", diegoPin);
     await d.goto(`${BASE}/learn/tasks/${taskId}`);
-    await d.waitForSelector("[data-testid=student-activity]:has-text('Memory: animales') [aria-label=Done]");
-    await d.click("[data-testid=student-activity]:has-text('Memory: animales')");
+    await d.click("[data-testid=category-games]");
+    await d.waitForSelector("[data-testid=category-item]:has-text('Memory: animales') [aria-label=Done]");
+    await d.click("[data-testid=category-item]:has-text('Memory: animales')");
     await d.waitForSelector("[data-testid=memory-tile]");
     await d.goto(`${BASE}/learn/tasks/${taskId}`);
-    await d.click("[data-testid=student-activity]:has-text('Flashcards')");
+    await d.click("[data-testid=category-flashcards]");
+    await d.click("[data-testid=category-item]:has-text('Flashcards')");
     await d.click("[data-testid=flashcard]");
     await d.waitForSelector("[data-testid=flashcard]:has-text('the dog')"); // pinned v1
     await dctx.close();
@@ -627,7 +640,8 @@ try {
       const s = await studentSignIn(sc, code, "Ana", listSecrets.Ana.secret);
       await s.tap("[data-testid=student-task]");
       await s.waitForURL(/\/learn\/tasks\//);
-      await s.tap("[data-testid=student-activity]:has-text('Flashcards')");
+      await s.tap("[data-testid=category-flashcards]");
+      await s.tap("[data-testid=category-item]:has-text('Flashcards')");
       await s.tap("[data-testid=flashcard]");
       await s.waitForSelector("[data-testid=flashcard]:has-text('the dog')");
       const over = await s.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
