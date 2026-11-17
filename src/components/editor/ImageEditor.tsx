@@ -52,7 +52,7 @@ function moveBox(b: Rect | null, op: "L" | "R" | "H" | "V"): Rect | null {
   return { ...b, y: 1 - (b.y + b.h) };
 }
 
-const ico = { viewBox: "0 0 24 24", width: 20, height: 20, fill: "none", stroke: "currentColor", strokeWidth: 2.4, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+const ico = { viewBox: "0 0 24 24", width: 16, height: 16, fill: "none", stroke: "currentColor", strokeWidth: 2.4, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
 const Icons = {
   undo: <svg {...ico}><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>,
   rotL: <svg {...ico}><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>,
@@ -178,7 +178,7 @@ export function ImageEditor({
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center bg-ink/50 p-3 sm:p-8">
       <div role="dialog" aria-modal="true" aria-label={t.edit} className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-xl2 bg-card shadow-soft">
-        <div className="flex items-start gap-2 border-b border-line bg-paper px-3 pb-1.5 pt-2.5">
+        <div className="flex items-center gap-2 border-b border-line bg-paper px-3 pb-1.5 pt-2">
           <div className="flex flex-1 flex-wrap items-center gap-2" role="toolbar" aria-label={t.edit} data-testid="image-tools">
             <Tool color="gray" icon={Icons.undo} label={t.undo} text={t.undo} onClick={() => setHist((h) => (h.length > 1 ? h.slice(0, -1) : h))} disabled={hist.length === 1} />
             <Tool color="lavender" icon={Icons.rotL} label={t.rotateL} onClick={() => turn("L")} />
@@ -190,7 +190,9 @@ export function ImageEditor({
             {onReplace && <Tool color="grape" icon={Icons.replace} label={t.replace} text={t.replace} onClick={onReplace} />}
             {onRemove && <Tool color="coral" icon={Icons.trash} label={t.remove} text={t.remove} onClick={onRemove} />}
           </div>
-          <button type="button" onClick={onCancel} className="mt-1.5 rounded-full px-2 text-2xl leading-none text-muted hover:text-ink" aria-label={t.close}>×</button>
+          <button type="button" onClick={onCancel} className="mb-1 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-coral-soft text-coral-dark hover:bg-coral hover:text-white" aria-label={t.close} title={t.close} data-testid="image-close">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
         </div>
         <div className="min-h-0 flex-1 overflow-auto bg-paper-2 p-3">
           {loadError ? (

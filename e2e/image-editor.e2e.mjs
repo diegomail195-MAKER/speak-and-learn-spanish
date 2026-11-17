@@ -1,7 +1,7 @@
 // End-to-end test for the picture editor: each rotate/flip goes the right way (checked on the
 // canvas pixels of a four-colour test picture), Undo steps back one edit, Undo changes returns
 // to the original, Crop cuts to the box, an applied edit can still be undone when reopened,
-// and Replace / Remove still work. Also the 3D tool bar: 44px buttons, wraps on a narrow screen.
+// and Replace / Remove still work. Also the 3D tool bar: compact 36px buttons on one row, wraps on a narrow screen.
 //
 // Run: BASE_URL=http://localhost:3100 node e2e/image-editor.e2e.mjs
 import { chromium } from "playwright";
@@ -69,13 +69,17 @@ try {
   await page.getByTestId("image-canvas").waitFor();
   await page.waitForFunction(() => document.querySelector("[data-testid=image-canvas]")?.width === 200);
 
-  // The bar: real buttons, at least 44px tall, icon-only ones named, with a tooltip.
+  // The bar: real buttons, compact, icon-only ones named, with a tooltip.
   for (const n of ["Undo", "Rotate left", "Rotate right", "Flip horizontally", "Flip vertically", "Crop", "Undo changes"]) {
     const b = tool(n);
     const box = await b.boundingBox();
-    assert(box && box.height >= 44, `${n}: at least 44px tall (${box?.height})`);
+    assert(box && box.height >= 34 && box.height <= 40, `${n}: compact, about 36px tall (${box?.height})`);
     assert((await b.getAttribute("title")) === n, `${n}: tooltip`);
   }
+  const tops = await page.getByTestId("image-tools").locator("button").evaluateAll((bs) => bs.map((b) => Math.round(b.getBoundingClientRect().top)));
+  assert(new Set(tops).size === 1, `all tools on one aligned row on a laptop (${tops})`);
+  const x = await page.getByTestId("image-close").boundingBox();
+  assert(x.width >= 36, "the close button is big enough to see");
   assert(await tool("Undo").isDisabled(), "Undo off before any edit");
   assert(await tool("Undo changes").isDisabled(), "Undo changes off before any edit");
   let v = await look();
@@ -159,6 +163,7 @@ try {
   log("after Apply, reopening keeps Undo/Undo changes; Undo changes + Apply restores the original picture");
 
   // Replace opens the picture search; Remove takes the picture off.
+  await shot(page, "ie4-full-bar");
   await tool("Replace").click();
   await page.getByRole("dialog", { name: "Add image" }).waitFor();
   await page.getByRole("dialog", { name: "Add image" }).getByRole("button", { name: "Close" }).click();
