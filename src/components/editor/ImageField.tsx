@@ -2,10 +2,36 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useUi } from "./i18n";
-import { ImageEditor } from "./ImageEditor";
+import { ImageEditor, type EditStep } from "./ImageEditor";
 
 type Asset = { id: string; url: string; name: string };
 type WebResult = { id: string; thumb: string; tags: string; author: string; pageUrl: string; width: number; height: number; license: string };
+
+/**
+ * An edited picture remembers its original and its edits, so reopening it can still Undo them.
+ * Uploaded originals are kept by id in this browser; a file from the device only for this visit.
+ */
+type Origin = { origId?: string; file?: File; src?: string; history: EditStep[] };
+const localOrigins = new Map<string, Origin>();
+const ORIGIN_KEY = "lextro-image-origin:";
+function readOrigin(id: string | null | undefined): Origin | null {
+  if (!id) return null;
+  if (localOrigins.has(id)) return localOrigins.get(id)!;
+  try {
+    const v = JSON.parse(localStorage.getItem(ORIGIN_KEY + id) ?? "null");
+    return v?.origId && Array.isArray(v.history) ? v : null;
+  } catch {
+    return null;
+  }
+}
+function saveOrigin(id: string, o: Origin) {
+  if (o.file) return void localOrigins.set(id, o);
+  try {
+    localStorage.setItem(ORIGIN_KEY + id, JSON.stringify({ origId: o.origId, history: o.history }));
+  } catch {
+    /* storage off: Undo then works only until the editor closes */
+  }
+}
 
 export const mediaSrc = (id: string | null | undefined) => (id ? `/api/media/${id}` : null);
 
@@ -45,13 +71,21 @@ export function ImageField({
 }) {
   const { t } = useUi();
   const [panel, setPanel] = useState<false | "search" | "upload">(false);
-  const [editing, setEditing] = useState<{ src: string; name: string; local: boolean; file?: File } | null>(null);
+  const [editing, setEditing] = useState<{ src: string; name: string; local: boolean; file?: File; origin?: Origin | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const src = mediaSrc(assetId);
 
-  async function applyEdited(blob: Blob | null, name: string) {
-    // blob null = unchanged local file: upload the original bytes
+  /** Opens the editor on a saved picture: on its original, with its edits, when it was edited here. */
+  function openEditor(id: string, url: string) {
+    const o = readOrigin(id);
+    if (o?.file) return setEditing({ src: o.src!, name: o.file.name, local: false, file: o.file, origin: o });
+    if (o?.origId) return setEditing({ src: mediaSrc(o.origId)!, name: "image.webp", local: false, origin: o });
+    setEditing({ src: url, name: "image.webp", local: false });
+  }
+
+  async function applyEdited(blob: Blob | null, name: string, history?: EditStep[]) {
+    // blob null = unchanged local file (or back to a device original): upload the original bytes
     if (!editing) return;
     setBusy(true);
     setError("");
@@ -59,6 +93,10 @@ export function ImageField({
       let b = blob;
       if (!b) b = editing.file ?? (await (await fetch(editing.src)).blob());
       const a = await uploadBlob(b, name);
+      if (blob && history) {
+        const root = editing.origin ?? (editing.local ? { file: editing.file, src: editing.src } : { origId: assetId ?? undefined });
+        saveOrigin(a.id, { origId: root.origId, file: root.file, src: root.src, history });
+      }
       onChange({ id: a.id, url: a.url });
       setEditing(null);
       setPanel(false);
@@ -74,7 +112,7 @@ export function ImageField({
       {src && compact ? (
         <button
           type="button"
-          onClick={() => setEditing({ src, name: "image.webp", local: false })}
+          onClick={() => openEditor(assetId!, src)}
           className={`shrink-0 overflow-hidden rounded-lg border border-line bg-card ${inline ? "h-8 w-8" : "h-14 w-14"}`}
           title={t.edit}
           aria-label={`${t.edit}: ${label ?? t.addImage}`}
@@ -86,7 +124,7 @@ export function ImageField({
         <div className="flex items-start gap-2">
           <button
             type="button"
-            onClick={() => setEditing({ src, name: "image.webp", local: false })}
+            onClick={() => openEditor(assetId!, src)}
             className={`shrink-0 overflow-hidden rounded-lg border border-line bg-paper ${compact ? "h-14 w-14" : "h-28 w-36"}`}
             title={t.edit}
             aria-label={`${t.edit}: ${label ?? t.addImage}`}
@@ -96,7 +134,7 @@ export function ImageField({
           </button>
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex flex-wrap gap-1 text-[11px] font-bold">
-              <button type="button" onClick={() => setEditing({ src, name: "image.webp", local: false })} className="rounded-full bg-paper-2 px-2 py-0.5 text-ink-2 hover:bg-line">{t.edit}</button>
+              <button type="button" onClick={() => openEditor(assetId!, src)} className="rounded-full bg-paper-2 px-2 py-0.5 text-ink-2 hover:bg-line">{t.edit}</button>
               <button type="button" onClick={() => setPanel("search")} className="rounded-full bg-paper-2 px-2 py-0.5 text-ink-2 hover:bg-line">{t.replace}</button>
               <button type="button" onClick={() => onChange(null)} className="rounded-full px-2 py-0.5 text-muted hover:text-coral-dark">{t.remove}</button>
             </div>
@@ -164,14 +202,18 @@ export function ImageField({
       {editing && (
         <ImageEditor
           src={editing.src}
+          initial={editing.origin?.history}
           busy={busy}
           error={error}
           onCancel={() => setEditing(null)}
           onRemove={editing.local ? undefined : () => (onChange(null), setEditing(null))}
           onReplace={editing.local ? undefined : () => (setEditing(null), setPanel("search"))}
-          onApply={(blob) => {
-            if (!blob && !editing.local) return setEditing(null); // nothing changed
-            applyEdited(blob, blob ? editing.name.replace(/\.[^.]+$/, "") + ".webp" : editing.name);
+          onApply={(blob, { history, reverted }) => {
+            const o = editing.origin;
+            // "Undo changes" then Apply: back to the original picture.
+            if (reverted && o?.origId) return (onChange({ id: o.origId, url: mediaSrc(o.origId)! }), setEditing(null));
+            if (!blob && !editing.local && !(reverted && o?.file)) return setEditing(null); // nothing changed
+            applyEdited(blob, blob ? editing.name.replace(/\.[^.]+$/, "") + ".webp" : editing.name, history);
           }}
         />
       )}
