@@ -90,7 +90,9 @@ try {
   // Publish, then edit again: the status change must not be taken as a conflict
   await page.reload();
   await page.waitForSelector("text=Frente");
-  await page.getByRole("button", { name: /^Publish|^Publicar/ }).click();
+  // (Flashcards publish from the activity page; the editor shows the new status after a reload.)
+  assert((await page.request.post(`${BASE}/api/games/${gameId}/publish`)).ok(), "publish");
+  await page.reload();
   await page.waitForSelector("text=Published", { timeout: 15000 });
   await front(page, 1).fill("amarillo");
   await waitSaved();

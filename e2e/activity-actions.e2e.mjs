@@ -50,7 +50,7 @@ try {
 
   // Editor: no Settings panel any more (it moved to Activity settings); Let's practice can be edited.
   assert((await page.getByRole("button", { name: /^⚙ Settings$/ }).count()) === 0, "the editor still has Settings");
-  await page.getByTestId("open-activity-settings").waitFor();
+  assert((await page.getByTestId("open-activity-settings").count()) === 0, "the editor bar has no settings button");
   await page.getByTestId("create-practice").click();
   await page.getByTestId("practice-edit").click();
   const prow = page.getByTestId("practice-row").first();
