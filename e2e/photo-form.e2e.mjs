@@ -3,9 +3,8 @@
 // see COMMONS_API_URL), upload the second, save; change only the second, reload; remove the
 // second. The first photo, the text and the audio must never change. Cancel keeps everything.
 //
-// Start the server with COMMONS_API_URL=http://127.0.0.1:3199/w/api.php and, for Google Images
-// (fake Custom Search API), GOOGLE_CSE_API_KEY=test GOOGLE_CSE_CX=test
-// GOOGLE_IMAGES_TEST_ENDPOINT=http://127.0.0.1:3199/cse, then:
+// Start the server with COMMONS_API_URL=http://127.0.0.1:3199/w/api.php (no Google keys: the
+// search must work with Wikimedia Commons' public API alone), then:
 // Run: BASE_URL=http://localhost:3100 node e2e/photo-form.e2e.mjs
 import { chromium } from "playwright";
 import { createServer } from "node:http";
@@ -60,7 +59,10 @@ const fake = createServer((req, res) => {
   if (q) {
     const term = q.replace(" filetype:bitmap", "");
     searches.push(term);
-    if (!term.includes("zzzz")) {
+    if (term === "gato") {
+      for (let i = 1; i <= 6; i++) pages.push(page(`gato ${i}.jpg`, 500));
+      pages.forEach((p, i) => (p.index = i + 1));
+    } else if (!term.includes("zzzz")) {
       pages = [page(`${term} cartoon.png`, 2000, "image/png"), page(`${term} tiny.jpg`, 200)];
       for (let i = 1; i <= 8; i++) pages.push(page(`${term} photo ${i}.jpg`, 2400));
       pages.forEach((p, i) => (p.index = i + 1));
@@ -139,13 +141,21 @@ try {
   assert(labels.every((l) => !/cartoon|clipart|tiny/.test(l)), "cartoons, clip art and tiny files left out");
   assert(searches.at(-1) === "turkey animal", `searched on opening, with the category (${searches.at(-1)})`);
   assert((await box(0).getByTestId("google-images").count()) === 0, "no Open in Google Images link");
-  assert((await box(0).getByTestId("google-missing").count()) === 0, "Google Images configured: no missing-setup note");
 
-  // Typing «turkey»: the photos appear by themselves (no Enter, no button).
+  // Typing «capybara» and then «turkey»: the photos update by themselves (no Enter, no button).
+  const only = (word) => p.waitForFunction((w) => document.querySelectorAll("[data-testid=photo-suggestion]").length === 6 && [...document.querySelectorAll("[data-testid=photo-suggestion]")].every((b) => b.getAttribute("aria-label").startsWith(`${w} photo`)), word, { timeout: 15000 });
+  await query.fill("");
+  await query.pressSequentially("capybara", { delay: 40 });
+  await only("capybara");
+  assert(searches.at(-1) === "capybara", `typed query searched (${searches.at(-1)})`);
+  await shot(p, "pf0-capybara");
   await query.fill("");
   await query.pressSequentially("turkey", { delay: 40 });
   await p.waitForFunction(() => document.querySelectorAll("[data-testid=photo-suggestion]").length === 6 && [...document.querySelectorAll("[data-testid=photo-suggestion]")].every((b) => b.getAttribute("aria-label").startsWith("turkey photo")), null, { timeout: 15000 });
   assert(searches.at(-1) === "turkey", `typed query searched (${searches.at(-1)})`);
+  // A common word whose Commons files are all small still shows photos (never an empty panel).
+  await query.fill("gato");
+  await p.waitForFunction(() => document.querySelectorAll("[data-testid=photo-suggestion]").length === 6 && document.querySelector("[data-testid=photo-suggestion]").getAttribute("aria-label").startsWith("gato"), null, { timeout: 15000 });
 
   // Editing the query: waits for typing to stop, the last term wins; no results → message + upload.
   const n0 = searches.length;
@@ -168,9 +178,9 @@ try {
   await form().waitFor({ state: "detached", timeout: 15000 });
   const it1 = await savedCard(gameId, (x) => x.imageAssetId && backOf(x).imageAssetId, "both photos saved");
   const front = await db.mediaAsset.findUniqueOrThrow({ where: { id: it1.imageAssetId } });
-  assert(/wild turkey photo 2 — Google Images https:\/\/example\.org\/wild%20turkey%20photo%202/.test(front.originalName), `source kept: ${front.originalName}`);
+  assert(/wild turkey photo 2 — Ana Foto \/ Wikimedia Commons \(CC BY-SA 4\.0\)/.test(front.originalName), `source kept: ${front.originalName}`);
   assert(it1.imageAssetId !== backOf(it1).imageAssetId, "each slot has its own photo");
-  log("Google Images in the panel: photos appear while typing «turkey»; first slot searched, second uploaded, Save: two different photos, source kept");
+  log("Wikimedia Commons in the panel: photos update while typing «capybara» then «turkey»; first slot searched, second uploaded, Save: two different photos, source kept");
 
   // ── 3. Cancel keeps everything ──
   await row().getByRole("button", { name: /^Edit: Back/ }).first().click();
@@ -189,7 +199,9 @@ try {
   await p.getByRole("dialog", { name: "Edit" }).getByRole("button", { name: "Replace", exact: true }).click();
   await form().waitFor();
   assert(await box(0).getByTestId("photo-preview").isVisible() && await box(1).getByTestId("photo-preview").isVisible(), "existing photos shown in their boxes");
-  await box(1).getByRole("button", { name: "Cambiar imagen / Change image" }).click();
+  assert(await box(1).getByTestId("photo-search").isVisible(), "Replace opens the search in the slot it came from");
+  assert(await box(1).getByRole("button", { name: "Quitar imagen / Remove image" }).isVisible(), "Remove image stays available while searching");
+  assert((await box(0).getByTestId("photo-search").count()) === 0, "the other slot stays closed");
   await box(1).getByTestId("photo-upload").setInputFiles(fx("cat.png"));
   await p.waitForTimeout(300);
   await shot(p, "pf2-change-second");

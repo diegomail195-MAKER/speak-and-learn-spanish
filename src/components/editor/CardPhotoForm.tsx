@@ -14,7 +14,7 @@ type Slot = { assetId: string | null; pending: Photo | null; searching: boolean;
 
 const LANG: Record<string, string> = { "es-419": "Español", "en-US": "English", "fr-FR": "Français" };
 const SIDE: Record<CardFace["key"], string> = { front: "Frente / Front", back: "Reverso / Back" };
-const cache = new Map<string, { photos: Photo[]; missing: string | null }>();
+const cache = new Map<string, Photo[]>();
 
 export function CardPhotoForm({
   faces,
@@ -31,7 +31,7 @@ export function CardPhotoForm({
   onCancel: () => void;
 }) {
   const [texts, setTexts] = useState(() => Object.fromEntries(faces.map((f) => [f.key, f.text])) as Record<string, string>);
-  const [slots, setSlots] = useState(() => Object.fromEntries(faces.map((f) => [f.key, { assetId: f.imageAssetId, pending: null, searching: f.key === focus && !f.imageAssetId, uploading: false, error: "" }])) as Record<string, Slot>);
+  const [slots, setSlots] = useState(() => Object.fromEntries(faces.map((f) => [f.key, { assetId: f.imageAssetId, pending: null, searching: f.key === focus, uploading: false, error: "" }])) as Record<string, Slot>);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const set = (k: string, s: Partial<Slot>) => setSlots((x) => ({ ...x, [k]: { ...x[k], ...s } }));
@@ -135,12 +135,10 @@ function PhotoBox({ legend, slot, initialQuery, onChange }: { legend: string; sl
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={preview} alt="" referrerPolicy="no-referrer" className="max-h-56 max-w-full rounded-xl object-contain" />
           {slot.pending && <p className="mt-1 text-xs text-muted">{slot.pending.title} — {slot.pending.author} ({slot.pending.license})</p>}
-          {!slot.searching && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" className="lx-btn lx-btn-light" onClick={() => onChange({ searching: true })}>Cambiar imagen / Change image</button>
-              <button type="button" className="lx-btn lx-btn-light text-coral-dark" onClick={() => onChange({ assetId: null, pending: null, searching: false })}>Quitar imagen / Remove image</button>
-            </div>
-          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {!slot.searching && <button type="button" className="lx-btn lx-btn-light" onClick={() => onChange({ searching: true })}>Cambiar imagen / Change image</button>}
+            <button type="button" className="lx-btn lx-btn-light text-coral-dark" onClick={() => onChange({ assetId: null, pending: null, searching: false })}>Quitar imagen / Remove image</button>
+          </div>
         </div>
       ) : (
         !slot.searching && (
@@ -157,10 +155,10 @@ function PhotoBox({ legend, slot, initialQuery, onChange }: { legend: string; sl
   );
 }
 
-/** The search inside a photo box: an editable query, Google Images, up to six Commons photos. */
+/** The search inside a photo box: an editable query and up to six photos (Wikimedia Commons). */
 function SearchPanel({ initialQuery, selected, onPick, onClose }: { initialQuery: string; selected: string | null; onPick: (p: Photo) => void; onClose: () => void }) {
   const [q, setQ] = useState(initialQuery);
-  const [state, setState] = useState<{ status: "idle" | "busy" | "done" | "error"; photos: Photo[]; message?: string; missing?: string | null }>({ status: "idle", photos: [] });
+  const [state, setState] = useState<{ status: "idle" | "busy" | "done" | "error"; photos: Photo[]; message?: string }>({ status: "idle", photos: [] });
   const query = q.trim();
   const first = useRef(true);
 
@@ -169,18 +167,18 @@ function SearchPanel({ initialQuery, selected, onPick, onClose }: { initialQuery
     first.current = false;
     if (query.length < 2) return setState({ status: "idle", photos: [] });
     const hit = cache.get(query);
-    if (hit) return setState({ status: "done", photos: hit.photos, missing: hit.missing });
+    if (hit) return setState({ status: "done", photos: hit });
     // A new text drops the old results at once; the search runs 500 ms after typing stops
     // (right away when the panel opens with the card's word) and cancels the previous one.
-    setState((s) => ({ status: "busy", photos: [], missing: s.missing }));
+    setState({ status: "busy", photos: [] });
     const ctrl = new AbortController();
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(`/api/images/photos?${new URLSearchParams({ q: query })}`, { signal: ctrl.signal });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error);
-        cache.set(query, { photos: json.results, missing: json.missing ?? null });
-        setState({ status: "done", photos: json.results, missing: json.missing ?? null });
+        cache.set(query, json.results);
+        setState({ status: "done", photos: json.results });
       } catch (e) {
         if (!ctrl.signal.aborted) setState({ status: "error", photos: [], message: (e as Error).message });
       }
@@ -197,11 +195,6 @@ function SearchPanel({ initialQuery, selected, onPick, onClose }: { initialQuery
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <button type="button" onClick={onClose} className="text-muted underline">Cerrar búsqueda / Close search</button>
       </div>
-      {state.missing && (
-        <p className="mt-2 rounded-lg bg-[#fff6dc] px-3 py-2 text-xs text-[#6b4e00]" data-testid="google-missing">
-          {state.missing} Mientras tanto se muestran fotos de Wikimedia Commons.
-        </p>
-      )}
       <div className="mt-3" aria-live="polite">
         {query.length < 2 ? (
           <p className="text-sm text-muted">Escribe una palabra / Type a word</p>

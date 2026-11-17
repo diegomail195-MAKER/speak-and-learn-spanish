@@ -45,6 +45,9 @@ export function googleImagesUrl(term: string, context: string): string {
 
 const NOT_PHOTO = /\b(drawing|draw|cartoon|clip ?art|clipart|illustration|illustrated|icon|logo|emblem|coat of arms|flag|diagram|map|chart|sketch|painting|engraving|lithograph|poster|sticker|emoji|vector|svg|symbol|silhouette|pictogram|stamp|banknote|coin|text|screenshot|plate \d+)\b/i;
 
+/** True when a file name says it is a drawing, icon, logo, map… (not a photograph). */
+export const looksDrawn = (title: string) => NOT_PHOTO.test(title);
+
 export type CommonsCandidate = { title: string; mime: string; width: number; height: number; categories?: string };
 
 /** Higher is better: sharp photographs with a clear subject; drawings, icons and logos sink. */

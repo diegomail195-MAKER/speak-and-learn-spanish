@@ -1,7 +1,7 @@
 import "server-only";
 import { HttpError } from "@/lib/auth/guards";
 import { IMAGE_MAX_BYTES, sniffImage } from "@/lib/media/validate";
-import { rankPhotos, type CommonsCandidate } from "./photoQuery";
+import { looksDrawn, photoScore, rankPhotos, type CommonsCandidate } from "./photoQuery";
 import { hasBlockedWords } from "./safety";
 
 // Wikimedia Commons: free, openly licensed photographs, no API key. Teachers see thumbnails; a
@@ -10,7 +10,9 @@ import { hasBlockedWords } from "./safety";
 
 const API = () => process.env.COMMONS_API_URL || "https://commons.wikimedia.org/w/api.php";
 const FILE_HOSTS = () => new Set(["upload.wikimedia.org", ...(process.env.COMMONS_API_URL ? [new URL(process.env.COMMONS_API_URL).host] : [])]);
-const HEADERS = { "User-Agent": "LextroSpeak/1.0 (classroom flashcards; image picker)", "Api-User-Agent": "LextroSpeak/1.0" };
+// Wikimedia asks API clients for a descriptive User-Agent with a way to reach the operator.
+const UA = `LextroSpeak/1.0 (${process.env.APP_URL || "https://speak-and-learn-spanish.vercel.app"}; classroom flashcards image search) node-fetch`;
+const HEADERS = { "User-Agent": UA, "Api-User-Agent": UA, Accept: "application/json" };
 
 export type CommonsPhoto = { id: string; title: string; thumb: string; width: number; height: number; author: string; license: string; pageUrl: string };
 
@@ -41,9 +43,19 @@ function fileUrl(raw: string | undefined): string | null {
 
 async function api(params: Record<string, string>): Promise<Page[]> {
   const qs = new URLSearchParams({ action: "query", format: "json", formatversion: "2", origin: "*", ...params });
-  const res = await fetch(`${API()}?${qs}`, { headers: HEADERS, cache: "no-store", signal: AbortSignal.timeout(10_000) });
-  if (!res.ok) throw new HttpError(502, "The photo search is not available right now.");
-  const json = (await res.json()) as { query?: { pages?: Page[] } };
+  const res = await fetch(`${API()}?${qs}`, { headers: HEADERS, cache: "no-store", signal: AbortSignal.timeout(10_000) }).catch((e: Error) => {
+    console.error("commons api unreachable", e.message);
+    throw new HttpError(502, "No se pudo conectar con Wikimedia Commons. Sube una foto.");
+  });
+  if (!res.ok) {
+    console.error("commons api http", res.status, (await res.text().catch(() => "")).slice(0, 300));
+    throw new HttpError(502, `Wikimedia Commons no responde ahora (HTTP ${res.status}). Sube una foto.`);
+  }
+  const json = (await res.json().catch(() => null)) as { query?: { pages?: Page[] }; error?: { code?: string; info?: string } } | null;
+  if (!json || json.error) {
+    console.error("commons api error", json?.error);
+    throw new HttpError(502, `Wikimedia Commons devolvió un error${json?.error?.code ? ` (${json.error.code})` : ""}. Sube una foto.`);
+  }
   return json.query?.pages ?? [];
 }
 
@@ -69,16 +81,18 @@ function toPhoto(p: Page): (CommonsPhoto & CommonsCandidate) | null {
   };
 }
 
-/** Up to `max` photos for a search, best photographs first. */
-export async function searchCommons(query: string, max = 6): Promise<CommonsPhoto[]> {
+export type CommonsStats = { found: number; usable: number; shown: number };
+
+/** Up to `max` photos for a search, best photographs first, plus how many were found and dropped. */
+export async function searchCommonsDetailed(query: string, max = 6): Promise<{ photos: CommonsPhoto[]; stats: CommonsStats }> {
   const q = query.trim().slice(0, 100);
-  if (!q) return [];
+  if (!q) return { photos: [], stats: { found: 0, usable: 0, shown: 0 } };
   if (hasBlockedWords(q)) throw new HttpError(422, "Esa búsqueda no está permitida. Prueba con otra palabra.");
   const pages = await api({
     generator: "search",
     gsrsearch: `${q} filetype:bitmap`,
     gsrnamespace: "6",
-    gsrlimit: String(Math.min(50, max * 5)),
+    gsrlimit: String(Math.min(50, Math.max(30, max * 5))),
     prop: "imageinfo",
     iiprop: "url|size|mime|extmetadata",
     iiurlwidth: "360",
@@ -88,7 +102,25 @@ export async function searchCommons(query: string, max = 6): Promise<CommonsPhot
     .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
     .map(toPhoto)
     .filter((p): p is CommonsPhoto & CommonsCandidate => !!p);
-  return rankPhotos(list, max).map(({ id, title, thumb, width, height, author, license, pageUrl }) => ({ id, title, thumb, width, height, author, license, pageUrl }));
+  // Real photographs first; when too few pass the strict photo check, fill with the next best
+  // safe results (still JPEG/PNG photos from Commons) so a common word never comes back empty.
+  const best = rankPhotos(list, max);
+  if (best.length < Math.min(3, list.length)) {
+    const rest = list
+      .filter((c) => !best.includes(c) && !looksDrawn(c.title) && Math.max(c.width, c.height) >= 320)
+      .map((c, i) => ({ c, s: photoScore(c, i) }))
+      .sort((a, b) => b.s - a.s)
+      .map((x) => x.c);
+    best.push(...rest.slice(0, max - best.length));
+  }
+  const photos = best.map(({ id, title, thumb, width, height, author, license, pageUrl }) => ({ id, title, thumb, width, height, author, license, pageUrl }));
+  const stats = { found: pages.length, usable: list.length, shown: photos.length };
+  console.info("commons search", JSON.stringify({ q, ...stats }));
+  return { photos, stats };
+}
+
+export async function searchCommons(query: string, max = 6): Promise<CommonsPhoto[]> {
+  return (await searchCommonsDetailed(query, max)).photos;
 }
 
 /** Re-reads a Commons file by title, downloads a 1280px copy and returns it with its credits. */
