@@ -342,7 +342,7 @@ function ItemCard({ item, icon, active, onPlay }: { item: HeroItem; icon?: strin
 }
 
 /** Big shapes at the edges, the centre left clear for the video. Hidden from assistive tech. */
-function Shapes({ kind }: { kind: "leaves" | "geometric" | "bubbles" }) {
+export function Shapes({ kind }: { kind: "leaves" | "geometric" | "bubbles" }) {
   const side = "pointer-events-none absolute hidden md:block";
   if (kind === "leaves") {
     return (

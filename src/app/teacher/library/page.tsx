@@ -1,17 +1,21 @@
 import Link from "next/link";
 import { KindBadge, TopicCard } from "@/components/library/LibraryBits";
+import { VideoGallery } from "@/components/library/VideoGallery";
 import { PageHeader } from "@/components/ui/Panel";
-import { libraryTopics } from "@/lib/library/service";
+import { libraryTopics, libraryVideoTopics } from "@/lib/library/service";
+import { buildGalleryRows, galleryCategories } from "@/lib/library/videoGallery";
 import { GRADES, GRADE_LABEL, KINDS, KIND_LABEL, type Grade, type Kind } from "@/lib/library/types";
 
 export const metadata = { title: "Library" };
 
 // Library: first by grade, then by topic or by type of resource. Published content only.
-export default async function LibraryPage({ searchParams }: { searchParams: Promise<{ grade?: string; type?: string }> }) {
+export default async function LibraryPage({ searchParams }: { searchParams: Promise<{ grade?: string; type?: string; cat?: string }> }) {
   const sp = await searchParams;
   const grade = (GRADES as readonly string[]).includes(sp.grade ?? "") ? (sp.grade as Grade) : null;
   const type = (KINDS as readonly string[]).includes(sp.type ?? "") ? (sp.type as Kind) : null;
   const topics = grade ? await libraryTopics({ grade }) : [];
+  // Videos: the PBS KIDS-style gallery (featured video + one row per topic).
+  const videoRows = grade && type === "VIDEO" ? buildGalleryRows(await libraryVideoTopics({ grade })) : null;
   const tab = (active: boolean) => `rounded-full px-4 py-2.5 font-bold ${active ? "bg-ink text-white" : "bg-card text-ink-2 ring-1 ring-line hover:bg-paper-2"}`;
 
   return (
@@ -38,7 +42,9 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
             ))}
           </nav>
           {topics.length === 0 && <p className="text-muted">No published content for this grade yet.</p>}
-          {!type ? (
+          {videoRows ? (
+            <VideoGallery rows={videoRows} categories={galleryCategories(videoRows)} grade={grade} initialCategory={sp.cat ?? ""} />
+          ) : !type ? (
             <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {topics.map((t) => (
                 <li key={t.id}>
