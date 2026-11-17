@@ -19,6 +19,8 @@ export async function GameLibraryPanel({ gameId, part = "all" }: { gameId: strin
   ]);
   const picker = <LibraryPicker items={library} excludeIds={rows.map((r) => r.resourceId)} onAdd={addResourcesToGame.bind(null, gameId)} />;
   if (part === "picker") return picker;
+  // The flashcards editor no longer adds resources: show its list only for ones already linked.
+  if (part === "list" && rows.length === 0) return null;
   return (
     <Panel className={part === "list" ? "mt-6" : "mx-auto mt-8 max-w-5xl"}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
