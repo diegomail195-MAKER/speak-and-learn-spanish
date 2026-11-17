@@ -3,7 +3,9 @@
 // see COMMONS_API_URL), upload the second, save; change only the second, reload; remove the
 // second. The first photo, the text and the audio must never change. Cancel keeps everything.
 //
-// Start the server with COMMONS_API_URL=http://127.0.0.1:3199/w/api.php, then:
+// Start the server with COMMONS_API_URL=http://127.0.0.1:3199/w/api.php and, for Google Images
+// (fake Custom Search API), GOOGLE_CSE_API_KEY=test GOOGLE_CSE_CX=test
+// GOOGLE_IMAGES_TEST_ENDPOINT=http://127.0.0.1:3199/cse, then:
 // Run: BASE_URL=http://localhost:3100 node e2e/photo-form.e2e.mjs
 import { chromium } from "playwright";
 import { createServer } from "node:http";
@@ -43,6 +45,15 @@ const fake = createServer((req, res) => {
   const u = new URL(req.url, FAKE);
   // Different bytes per file (the media library keeps one copy of identical files).
   if (u.pathname.startsWith("/img/")) return res.writeHead(200, { "Content-Type": "image/png" }).end(Buffer.concat([PNG, Buffer.from(u.pathname)]));
+  if (u.pathname === "/cse") {
+    // Fake Google Custom Search (searchType=image): one clip-art and one tiny result per answer.
+    const term = u.searchParams.get("q");
+    searches.push(term);
+    assert(u.searchParams.get("searchType") === "image" && u.searchParams.get("safe") === "active", "Google image search, safe on");
+    const it = (title, w) => ({ link: `${FAKE}/img/${encodeURIComponent(title)}.jpg`, title, displayLink: "example.org", image: { thumbnailLink: `${FAKE}/img/${encodeURIComponent(title)}-thumb.jpg`, width: w, height: Math.round(w * 0.75), contextLink: `https://example.org/${encodeURIComponent(title)}` } });
+    const items = term.includes("zzzz") ? [] : [it(`${term} clipart`, 2000), it(`${term} tiny`, 200), ...Array.from({ length: 8 }, (_, i) => it(`${term} photo ${i + 1}`, 2400))];
+    return res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ items }));
+  }
   const q = u.searchParams.get("gsrsearch");
   const titles = u.searchParams.get("titles");
   let pages = [];
@@ -125,9 +136,16 @@ try {
   const thumbs = box(0).getByTestId("photo-suggestion");
   assert((await thumbs.count()) === 6, `six photos (${await thumbs.count()})`);
   const labels = await thumbs.evaluateAll((bs) => bs.map((b) => b.getAttribute("aria-label")));
-  assert(labels.every((l) => !/cartoon|tiny/.test(l)), "cartoons and tiny files left out");
-  const g = new URL(await box(0).getByTestId("google-images").getAttribute("href"));
-  assert(g.hostname === "www.google.com" && g.searchParams.get("tbm") === "isch" && g.searchParams.get("safe") === "active" && g.searchParams.get("q") === "turkey animal photograph -cartoon -illustration", `Google link ${g}`);
+  assert(labels.every((l) => !/cartoon|clipart|tiny/.test(l)), "cartoons, clip art and tiny files left out");
+  assert(searches.at(-1) === "turkey animal", `searched on opening, with the category (${searches.at(-1)})`);
+  assert((await box(0).getByTestId("google-images").count()) === 0, "no Open in Google Images link");
+  assert((await box(0).getByTestId("google-missing").count()) === 0, "Google Images configured: no missing-setup note");
+
+  // Typing «turkey»: the photos appear by themselves (no Enter, no button).
+  await query.fill("");
+  await query.pressSequentially("turkey", { delay: 40 });
+  await p.waitForFunction(() => document.querySelectorAll("[data-testid=photo-suggestion]").length === 6 && [...document.querySelectorAll("[data-testid=photo-suggestion]")].every((b) => b.getAttribute("aria-label").startsWith("turkey photo")), null, { timeout: 15000 });
+  assert(searches.at(-1) === "turkey", `typed query searched (${searches.at(-1)})`);
 
   // Editing the query: waits for typing to stop, the last term wins; no results → message + upload.
   const n0 = searches.length;
@@ -150,9 +168,9 @@ try {
   await form().waitFor({ state: "detached", timeout: 15000 });
   const it1 = await savedCard(gameId, (x) => x.imageAssetId && backOf(x).imageAssetId, "both photos saved");
   const front = await db.mediaAsset.findUniqueOrThrow({ where: { id: it1.imageAssetId } });
-  assert(/wild turkey photo 2 — Ana Foto \/ Wikimedia Commons \(CC BY-SA 4\.0\) https:\/\/commons\.wikimedia\.org\/wiki\/File:/.test(front.originalName), `credits kept: ${front.originalName}`);
+  assert(/wild turkey photo 2 — Google Images https:\/\/example\.org\/wild%20turkey%20photo%202/.test(front.originalName), `source kept: ${front.originalName}`);
   assert(it1.imageAssetId !== backOf(it1).imageAssetId, "each slot has its own photo");
-  log("search for the first slot, upload to the second, Save: two different photos, credits kept");
+  log("Google Images in the panel: photos appear while typing «turkey»; first slot searched, second uploaded, Save: two different photos, source kept");
 
   // ── 3. Cancel keeps everything ──
   await row().getByRole("button", { name: /^Edit: Back/ }).first().click();
