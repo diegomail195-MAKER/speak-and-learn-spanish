@@ -252,9 +252,11 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
           {progress}
         </span>
       </span>
-      <Link href={exitHref} onClick={voice.stop} className="rounded-full px-3 py-2 text-sm font-bold text-sky hover:underline" data-testid="lesson-exit">
-        {mode === "preview" ? "‹ Library" : "‹ Mis tareas · My Assignments"}
-      </Link>
+      {mode === "student" && (
+        <Link href={exitHref} onClick={voice.stop} className="rounded-full px-3 py-2 text-sm font-bold text-sky hover:underline" data-testid="lesson-exit">
+          ‹ Mis tareas · My Assignments
+        </Link>
+      )}
     </div>
   );
 
@@ -270,7 +272,7 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
             Paso {phase.i + 1} de {total} · Step {phase.i + 1} of {total}
           </span>
           <KindIcon kind={s.kind} />
-          <span className="text-sm font-bold uppercase tracking-[0.14em] text-ink/70">{label.es} · {label.en}</span>
+          <span className="text-sm font-bold uppercase tracking-[0.14em] text-ink/70">{label.es === label.en ? label.es : `${label.es} · ${label.en}`}</span>
           <h1 className="font-display text-3xl font-extrabold leading-tight text-ink sm:text-4xl" data-testid="lesson-step-title">{s.title}</h1>
           <div className="w-full rounded-2xl bg-white/85 px-5 py-4" data-testid="lesson-line" aria-live="polite">
             {lines.map((l) => (
@@ -313,7 +315,7 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
         </p>
         <h1 className="mb-4 font-display text-3xl font-extrabold">{s.title}</h1>
         <div data-testid="lesson-activity">{player}</div>
-        <div className="sticky bottom-3 z-20 mt-6 flex flex-wrap items-center justify-center gap-3 rounded-full bg-white/90 p-2 shadow-pop backdrop-blur">
+        <div className="sticky bottom-3 z-20 mt-6 flex flex-wrap items-center justify-center gap-2 rounded-3xl bg-white/90 p-2 text-center shadow-pop backdrop-blur">
           {practice ? (
             <button type="button" onClick={() => setPhase({ t: "menu" })} data-testid="lesson-back-menu" className="inline-flex h-12 items-center rounded-full px-6 font-extrabold text-white" style={{ background: PURPLE }}>
               ‹ Volver al menú · Back to menu

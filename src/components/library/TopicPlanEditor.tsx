@@ -138,7 +138,7 @@ export function TopicPlanEditor({ topicId, initial, removed, own }: { topicId: s
             <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-extrabold text-white" style={{ background: PURPLE }}>{i + 1}</span>
             <KindIcon kind={it.kind} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate font-display font-extrabold text-ink">{it.title}</span>
+              <span className="line-clamp-2 break-words font-display font-extrabold leading-tight text-ink" data-testid="plan-title">{it.title}</span>
               <span className="text-xs font-bold text-muted">{LABEL[it.kind] ?? it.kind}{it.key.startsWith("g:") ? " · my activity" : ""}</span>
             </span>
             <span className="flex shrink-0 items-center gap-1">
