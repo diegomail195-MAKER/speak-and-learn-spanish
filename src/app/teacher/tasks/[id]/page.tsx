@@ -7,7 +7,10 @@ import { Badge, Panel } from "@/components/ui/Panel";
 import { setAssignmentActive } from "@/lib/actions/assignments";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
+import { gameKind } from "@/lib/library/steps";
 import type { Kind } from "@/lib/library/types";
+
+const stepTitle = (a: { version: { title: string } | null; game: { title: string } | null }) => a.version?.title ?? a.game?.title ?? "Activity";
 
 export const metadata = { title: "Task" };
 
@@ -25,7 +28,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
           student: { select: { id: true, firstName: true, lastInitial: true, classroom: { select: { id: true, name: true } } } },
         },
       },
-      activities: { orderBy: { position: "asc" }, include: { resource: { select: { kind: true, status: true } }, version: { select: { number: true, title: true } }, progress: { select: { studentId: true, completedAt: true, score: true, total: true } } } },
+      activities: { orderBy: { position: "asc" }, include: { resource: { select: { kind: true, status: true } }, version: { select: { number: true, title: true } }, game: { select: { title: true, templateKey: true } }, progress: { select: { studentId: true, completedAt: true, score: true, total: true } } } },
     },
   });
   if (!t) notFound();
@@ -77,9 +80,9 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
               const done = new Set(a.progress.filter((p) => p.completedAt).map((p) => p.studentId));
               return (
                 <li key={a.id} className="flex flex-wrap items-center gap-3 py-3">
-                  <KindBadge kind={a.resource.kind as Kind} />
-                  <span className="flex-1 font-bold">{a.version.title} <span className="text-xs font-semibold text-muted">v{a.version.number}</span></span>
-                  {a.resource.status === "ARCHIVED" && <Badge>archived</Badge>}
+                  <KindBadge kind={a.game ? gameKind(a.game.templateKey) : (a.resource?.kind as Kind)} />
+                  <span className="flex-1 font-bold">{stepTitle(a)} {a.version && <span className="text-xs font-semibold text-muted">v{a.version.number}</span>}{a.game && <span className="text-xs font-semibold text-muted">my activity</span>}</span>
+                  {a.resource?.status === "ARCHIVED" && <Badge>archived</Badge>}
                   <span className="text-sm font-bold">{done.size}/{list.length} done</span>
                 </li>
               );
@@ -92,7 +95,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
         <h2 className="font-display text-xl font-extrabold">Progress</h2>
         <table className="mt-3 w-full min-w-[600px] text-left text-sm">
           <thead className="bg-sky-soft">
-            <tr><th className="px-3 py-2">Student</th>{t.activities.map((a) => <th key={a.id} className="px-3 py-2">{a.version.title}</th>)}</tr>
+            <tr><th className="px-3 py-2">Student</th>{t.activities.map((a) => <th key={a.id} className="px-3 py-2">{stepTitle(a)}</th>)}</tr>
           </thead>
           <tbody className="divide-y divide-line">
             {list.map((s) => (

@@ -26,6 +26,8 @@ export interface PlayerProps {
   done?: Record<string, "NONE" | "HINT" | "MODEL" | null>;
   /** The bar under the game (title and actions). */
   below?: ReactNode;
+  /** Preview mode: the note on the start screen (null hides it, e.g. Student View and "Practice again"). */
+  previewNote?: string | null;
 }
 
 /** Activities answered only by typing or dragging don't open the microphone. */
@@ -43,7 +45,7 @@ export function GamePlayer(props: PlayerProps) {
   return <VoiceGamePlayer {...props} />;
 }
 
-function VoiceGamePlayer({ game, mode, diagnostics = false, submitTurn, onFinish, exitHref, done, below }: PlayerProps) {
+function VoiceGamePlayer({ game, mode, diagnostics = false, submitTurn, onFinish, exitHref, done, below, previewNote }: PlayerProps) {
   const s = useVoiceSession(game, { mode, submitTurn, onFinish, done });
   const [run, setRun] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -61,6 +63,7 @@ function VoiceGamePlayer({ game, mode, diagnostics = false, submitTurn, onFinish
         <StartScreen
           s={s}
           preview={mode === "preview"}
+          previewNote={previewNote}
           withMic={withMic}
           onStart={async () => {
             if (await s.start(withMic)) setRun((r) => r + 1);

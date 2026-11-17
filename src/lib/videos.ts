@@ -118,7 +118,13 @@ export function completedFrom(watchedSec: number, durationSec: number | null | u
  * Resolves which game a student plays for an assignment: the game itself, or
  * for "Watch & Practice" the practice game attached to an assigned video.
  */
-export async function practiceTarget(student: StudentRef, assignmentId: string, videoId?: string | null) {
+export async function practiceTarget(student: StudentRef, assignmentId: string, videoId?: string | null, activityId?: string | null) {
+  if (activityId) {
+    // A teacher's activity that is a step of a Topic lesson.
+    const act = await db.assignmentActivity.findFirst({ where: { id: activityId, assignmentId, gameId: { not: null }, assignment: assignmentsForStudentWhere(student) }, include: { assignment: true, game: { select: { id: true, schoolId: true } } } });
+    if (!act?.game || act.game.schoolId !== student.schoolId) throw new HttpError(404, "Activity not found");
+    return { assignment: act.assignment, gameId: act.game.id, video: null };
+  }
   if (!videoId) {
     const a = await db.assignment.findFirst({ where: { id: assignmentId, ...assignmentsForStudentWhere(student) } });
     if (!a || !a.gameId) throw new HttpError(404, "Assignment not found");

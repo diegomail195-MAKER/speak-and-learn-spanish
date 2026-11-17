@@ -42,7 +42,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
             <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {topics.map((t) => (
                 <li key={t.id}>
-                  <TopicCard href={`/teacher/library/topics/${t.slug}?grade=${grade}`} topic={t} kinds={t.resources.map((r) => r.resource.kind as Kind)} />
+                  <TopicCard href={`/teacher/library/topics/${t.slug}?grade=${grade}`} studentViewHref={`/teacher/library/topics/${t.slug}/student-view?grade=${grade}`} topic={t} kinds={t.resources.map((r) => r.resource.kind as Kind)} />
                 </li>
               ))}
             </ul>

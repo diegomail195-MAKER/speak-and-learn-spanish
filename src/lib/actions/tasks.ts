@@ -14,7 +14,9 @@ const taskSchema = z.object({
   groupIds: z.array(z.string()).max(50).default([]),
   studentIds: z.array(z.string()).max(300).default([]),
   topicId: z.string().min(1, "Choose a topic."),
-  resourceIds: z.array(z.string()).min(1, "Select at least one activity.").max(40),
+  // Steps in the teacher's order: "r:<resourceId>" (library) or "g:<gameId>" (the teacher's own activity).
+  stepKeys: z.array(z.string().regex(/^[rg]:[\w-]{1,64}$/)).min(1, "Select at least one activity.").max(40),
+  title: z.string().trim().max(120).default(""),
   dueAt: z.string().optional(),
   instructions: z.string().trim().max(1000).default(""),
 });
@@ -43,12 +45,20 @@ export async function createTopicTask(input: unknown): Promise<TaskResult> {
 
   const topic = await db.topic.findFirst({ where: { id: d.topicId, status: "PUBLISHED" } });
   if (!topic) return { error: "Topic not found." };
-  const links = await db.topicResource.findMany({
-    where: { topicId: topic.id, resourceId: { in: d.resourceIds }, resource: { status: "PUBLISHED", currentVersionId: { not: null } } },
-    include: { resource: { select: { id: true, currentVersionId: true } } },
-    orderBy: { position: "asc" },
-  });
-  if (links.length !== new Set(d.resourceIds).size) return { error: "Some activities are no longer available. Reload the preview." };
+  const keys = [...new Set(d.stepKeys)];
+  const resIds = keys.filter((k) => k.startsWith("r:")).map((k) => k.slice(2));
+  const gameIds = keys.filter((k) => k.startsWith("g:")).map((k) => k.slice(2));
+  const [links, games] = await Promise.all([
+    db.topicResource.findMany({
+      where: { topicId: topic.id, resourceId: { in: resIds }, resource: { status: "PUBLISHED", currentVersionId: { not: null } } },
+      include: { resource: { select: { id: true, currentVersionId: true } } },
+    }),
+    db.game.findMany({ where: { id: { in: gameIds }, schoolId: user.schoolId, status: "PUBLISHED" }, select: { id: true } }),
+  ]);
+  if (links.length !== resIds.length || games.length !== gameIds.length) return { error: "Some activities are no longer available. Reload the preview." };
+  const version = new Map(links.map((l) => [l.resource.id, l.resource.currentVersionId!]));
+  // The lesson follows the order the teacher chose (library and own activities mixed).
+  const steps = keys.map((k, i) => (k.startsWith("r:") ? { resourceId: k.slice(2), versionId: version.get(k.slice(2))!, position: i } : { gameId: k.slice(2), position: i }));
 
   const dueAt = d.dueAt ? new Date(d.dueAt) : null;
   if (dueAt && Number.isNaN(dueAt.getTime())) return { error: "Invalid due date." };
@@ -57,16 +67,16 @@ export async function createTopicTask(input: unknown): Promise<TaskResult> {
       schoolId: user.schoolId,
       teacherId: teacher.id,
       topicId: topic.id,
-      title: `${topic.titleEs} · ${topic.titleEn}`,
+      title: d.title || `${topic.titleEs} · ${topic.titleEn}`,
       instructions: d.instructions,
       dueAt,
       recipients: {
         create: [...rec.groupIds.map((groupId) => ({ type: "GROUP" as const, groupId })), ...rec.studentIds.map((studentId) => ({ type: "STUDENT" as const, studentId }))],
       },
-      activities: { create: links.map((l, i) => ({ resourceId: l.resource.id, versionId: l.resource.currentVersionId!, position: i })) },
+      activities: { create: steps },
     },
   });
-  await audit(user.schoolId, user.id, "task.assign", "Assignment", a.id, { topic: topic.slug, groups: rec.groupIds.length, students: rec.studentIds.length, dropped: rec.dropped.length, activities: links.length });
+  await audit(user.schoolId, user.id, "task.assign", "Assignment", a.id, { topic: topic.slug, groups: rec.groupIds.length, students: rec.studentIds.length, dropped: rec.dropped.length, activities: steps.length });
   revalidatePath(`/teacher/classes/${classroom.id}`);
   return { assignmentId: a.id };
 }

@@ -324,10 +324,20 @@ function ItemCard({ item, icon, active, onPlay }: { item: HeroItem; icon?: strin
       )}
     </>
   );
-  return onPlay ? (
+  const card = onPlay ? (
     <button type="button" onClick={onPlay} className={cls} data-testid="category-item">{body}</button>
   ) : (
     <Link href={item.href} className={cls} data-testid="category-item">{body}</Link>
+  );
+  if (!item.assignHref) return card;
+  return (
+    <div className="flex flex-col gap-1">
+      {card}
+      <span className="flex justify-end gap-3 px-2 text-sm font-bold">
+        {onPlay && <Link href={item.href} className="text-[#620D78] hover:underline">Open</Link>}
+        <Link href={item.assignHref} className="text-[#620D78] hover:underline" data-testid="assign-one" aria-label={`Assign only ${item.title}`}>Assign this activity</Link>
+      </span>
+    </div>
   );
 }
 

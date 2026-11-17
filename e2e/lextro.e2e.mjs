@@ -379,11 +379,10 @@ try {
       const s = await studentSignIn(sctx, code, name, secret);
       await s.click("[data-testid=student-task]");
       await s.waitForURL(/\/learn\/tasks\//);
-      const links = [];
-      for (const cat of ["videos", "games", "flashcards", "music", "speaking"]) {
-        await s.click(`[data-testid=category-${cat}]`);
-        links.push(...(await s.locator("[data-testid=category-panel] a[data-testid=category-item]").evaluateAll((as) => as.map((a) => a.getAttribute("href")))));
-      }
+      // The task opens as the guided lesson; each step also has its own page.
+      await s.locator("[data-testid=topic-lesson][data-phase=intro][data-step='0']").waitFor();
+      assert((await s.getByTestId("lesson-step-count").textContent()).includes("de 3"), `${name}: lesson of ${await s.getByTestId("lesson-step-count").textContent()}`);
+      const links = (await db.assignmentActivity.findMany({ where: { assignmentId: taskId }, orderBy: { position: "asc" } })).map((a) => `/learn/tasks/${taskId}/${a.id}`);
       assert(links.length === 3, `${name} sees ${links.length} activities`);
       for (const href of links) {
         await s.goto(`${BASE}${href}`);
@@ -467,23 +466,20 @@ try {
 
     const ectx = await browser.newContext(desktop);
     const e = await studentSignIn(ectx, code, "Eva", listSecrets.Eva.secret);
-    await e.click("[data-testid=student-task]");
-    await e.click("[data-testid=category-flashcards]");
-    await e.click("[data-testid=category-item]:has-text('Flashcards')");
+    const eTask = await db.assignment.findFirst({ where: { recipients: { some: { student: { firstName: "Eva" } } }, topicId }, orderBy: { createdAt: "desc" }, include: { activities: { where: { resourceId: cardsId } } } });
+    await e.goto(`${BASE}/learn/tasks/${eTask.id}/${eTask.activities[0].id}`);
     await e.click("[data-testid=flashcard]");
     await e.waitForSelector("[data-testid=flashcard]:has-text('the puppy')");
     await ectx.close();
 
     const dctx = await browser.newContext(desktop);
     const d = await studentSignIn(dctx, code, "Diego", diegoPin);
-    await d.goto(`${BASE}/learn/tasks/${taskId}`);
-    await d.click("[data-testid=category-games]");
-    await d.waitForSelector("[data-testid=category-item]:has-text('Memory: animales') [aria-label=Done]");
-    await d.click("[data-testid=category-item]:has-text('Memory: animales')");
+    const dActs = await db.assignmentActivity.findMany({ where: { assignmentId: taskId }, include: { progress: true } });
+    const mem = dActs.find((a) => a.resourceId === memoryId);
+    assert(mem.progress.length > 0, "Diego's Memory progress was lost");
+    await d.goto(`${BASE}/learn/tasks/${taskId}/${mem.id}`);
     await d.waitForSelector("[data-testid=memory-tile]");
-    await d.goto(`${BASE}/learn/tasks/${taskId}`);
-    await d.click("[data-testid=category-flashcards]");
-    await d.click("[data-testid=category-item]:has-text('Flashcards')");
+    await d.goto(`${BASE}/learn/tasks/${taskId}/${dActs.find((a) => a.resourceId === cardsId).id}`);
     await d.click("[data-testid=flashcard]");
     await d.waitForSelector("[data-testid=flashcard]:has-text('the dog')"); // pinned v1
     await dctx.close();
@@ -640,8 +636,10 @@ try {
       const s = await studentSignIn(sc, code, "Ana", listSecrets.Ana.secret);
       await s.tap("[data-testid=student-task]");
       await s.waitForURL(/\/learn\/tasks\//);
-      await s.tap("[data-testid=category-flashcards]");
-      await s.tap("[data-testid=category-item]:has-text('Flashcards')");
+      await s.getByTestId("lesson-intro").waitFor();
+      const lessonOver = await s.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      assert(lessonOver <= 1, `lesson scrolls sideways by ${lessonOver}px`);
+      await s.goto(`${BASE}/learn/tasks/${taskId}/${(await db.assignmentActivity.findFirst({ where: { assignmentId: taskId, resourceId: cardsId } })).id}`);
       await s.tap("[data-testid=flashcard]");
       await s.waitForSelector("[data-testid=flashcard]:has-text('the dog')");
       const over = await s.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

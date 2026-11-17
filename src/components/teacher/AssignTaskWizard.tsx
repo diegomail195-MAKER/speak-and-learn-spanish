@@ -12,11 +12,11 @@ import { GRADES, GRADE_LABEL, KIND_LABEL, type Grade, type Kind } from "@/lib/li
 import { dedupeRecipients } from "@/lib/tasks";
 
 type ClassData = { id: string; name: string; groups: Array<{ id: string; name: string; memberIds: string[] }>; students: Array<{ id: string; name: string }> };
-type TopicData = { id: string; slug: string; titleEn: string; titleEs: string; category: string; color: string; art: string; resources: Array<{ id: string; kind: string; title: string; grades: string[] }> };
+type TopicData = { id: string; slug: string; titleEn: string; titleEs: string; category: string; color: string; art: string; resources: Array<{ id: string; kind: string; title: string; grades: string[]; href: string }> };
 
 const chip = "flex cursor-pointer items-center gap-2 rounded-full border border-line bg-card px-3 py-2 text-sm font-bold has-[:checked]:border-teal has-[:checked]:bg-teal-soft has-[:checked]:text-teal-dark";
 
-export function AssignTaskWizard({ classes, topics, initialClassId, initialTopicId, initialGrade }: { classes: ClassData[]; topics: TopicData[]; initialClassId: string; initialTopicId?: string; initialGrade?: Grade }) {
+export function AssignTaskWizard({ classes, topics, initialClassId, initialTopicId, initialGrade, initialOnly }: { classes: ClassData[]; topics: TopicData[]; initialClassId: string; initialTopicId?: string; initialGrade?: Grade; initialOnly?: string }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [classId, setClassId] = useState(initialClassId);
@@ -27,7 +27,12 @@ export function AssignTaskWizard({ classes, topics, initialClassId, initialTopic
   const [q, setQ] = useState("");
   const [topicId, setTopicId] = useState(initialTopicId ?? "");
   // Arriving from "Assign this topic": every activity of that topic (for the grade) starts selected.
-  const [selected, setSelected] = useState<Set<string>>(() => new Set((topics.find((t) => t.id === initialTopicId)?.resources ?? []).filter((r) => !initialGrade || r.grades.includes(initialGrade)).map((r) => r.id)));
+  // "Assign" on one activity of the topic starts with only that one selected.
+  const [selected, setSelected] = useState<Set<string>>(() => {
+    const all = (topics.find((t) => t.id === initialTopicId)?.resources ?? []).filter((r) => !initialGrade || r.grades.includes(initialGrade)).map((r) => r.id);
+    return new Set(initialOnly && all.includes(initialOnly) ? [initialOnly] : all);
+  });
+  const [title, setTitle] = useState(() => topics.find((t) => t.id === initialTopicId)?.titleEs ?? "");
   const [dueAt, setDueAt] = useState("");
   const [error, setError] = useState<string>();
   const [pending, start] = useTransition();
@@ -46,13 +51,14 @@ export function AssignTaskWizard({ classes, topics, initialClassId, initialTopic
     setTopicId(id);
     const t = topics.find((x) => x.id === id)!;
     setSelected(new Set(t.resources.filter((r) => !grade || r.grades.includes(grade)).map((r) => r.id)));
+    setTitle(t.titleEs);
     setStep(3);
   };
 
   const confirm = () =>
     start(async () => {
       setError(undefined);
-      const res = await createTopicTask({ classroomId: classId, groupIds: rec.groupIds, studentIds: rec.studentIds, topicId, resourceIds: activities.filter((a) => selected.has(a.id)).map((a) => a.id), dueAt: dueAt || undefined });
+      const res = await createTopicTask({ classroomId: classId, groupIds: rec.groupIds, studentIds: rec.studentIds, topicId, stepKeys: activities.filter((a) => selected.has(a.id)).map((a) => a.id), title: title.trim(), dueAt: dueAt || undefined });
       if (res.error) setError(res.error);
       else router.push(`/teacher/tasks/${res.assignmentId}?new=1`);
     });
@@ -152,17 +158,26 @@ export function AssignTaskWizard({ classes, topics, initialClassId, initialTopic
             </div>
             <Button type="button" variant="secondary" size="sm" onClick={() => setStep(2)}>Change topic</Button>
           </div>
-          <p className="text-sm text-ink-2">Open each activity to try it. Uncheck the ones you don’t want to assign.</p>
+          <div className="max-w-md">
+            <Label htmlFor="lesson-title" hint="students see and hear it">Lesson title</Label>
+            <Input id="lesson-title" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} placeholder={topic.titleEs} />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="flex-1 text-sm text-ink-2">Students follow these steps in this order. Open each one to try it; uncheck the ones you don’t want to assign.</p>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setSelected(new Set(activities.map((a) => a.id)))} data-testid="select-whole-topic">Whole topic</Button>
+            <a href={`/teacher/library/topics/${topic.slug}/lesson`} target="_blank" rel="noopener" className="rounded-full px-4 py-2 text-sm font-bold text-sky ring-1 ring-line hover:bg-sky-soft">Change order ↗</a>
+          </div>
           <ul className="divide-y divide-line rounded-[22px] border border-line">
-            {activities.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+            {activities.map((a, i) => (
+              <li key={a.id} className="flex flex-wrap items-center gap-3 px-4 py-3" data-testid="wizard-step">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-ink text-xs font-extrabold text-white">{i + 1}</span>
                 <label className="flex flex-1 cursor-pointer items-center gap-3">
                   <input type="checkbox" className="h-5 w-5" checked={selected.has(a.id)} onChange={() => toggle(selected, a.id, setSelected)} aria-label={`Assign ${a.title}`} />
-                  <KindBadge kind={a.kind as Kind} />
+                  <KindBadge kind={a.kind as Kind | "SPEAKING"} />
                   <span className="font-bold">{a.title}</span>
                 </label>
-                <a href={`/teacher/library/resources/${a.id}`} target="_blank" rel="noopener" className="rounded-full px-4 py-2 text-sm font-bold text-sky ring-1 ring-line hover:bg-sky-soft">
-                  {KIND_LABEL[a.kind as Kind].verb} ↗
+                <a href={a.href} target="_blank" rel="noopener" className="rounded-full px-4 py-2 text-sm font-bold text-sky ring-1 ring-line hover:bg-sky-soft">
+                  {a.kind === "SPEAKING" ? "Try" : KIND_LABEL[a.kind as Kind].verb} ↗
                 </a>
               </li>
             ))}
@@ -185,6 +200,7 @@ export function AssignTaskWizard({ classes, topics, initialClassId, initialTopic
           <p><strong>Class:</strong> {cls.name}</p>
           <p><strong>To:</strong> {[...cls.groups.filter((g) => groupIds.has(g.id)).map((g) => `group ${g.name}`), ...cls.students.filter((s) => rec.studentIds.includes(s.id)).map((s) => s.name)].join(", ")} — {rec.studentCount} student{rec.studentCount === 1 ? "" : "s"}</p>
           <p><strong>Topic:</strong> {topic.titleEs} · {topic.titleEn}</p>
+          <p><strong>Lesson title:</strong> {title.trim() || `${topic.titleEs} · ${topic.titleEn}`}</p>
           <p><strong>Activities ({selected.size}):</strong> {activities.filter((a) => selected.has(a.id)).map((a) => a.title).join(", ")}</p>
           {dueAt && <p><strong>Due:</strong> {dueAt}</p>}
           <FormError message={error} />

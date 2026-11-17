@@ -14,9 +14,10 @@ export const POST = handle(async (req: Request, ctx: { params: Promise<{ id: str
   let names = { firstName: "", lastName: "" };
   if (user.role === "STUDENT") {
     const student = user.student;
-    const assignment = new URL(req.url).searchParams.get("assignment");
+    const sp = new URL(req.url).searchParams;
+    const assignment = sp.get("assignment");
     if (!student || !assignment) throw new HttpError(403, "Not allowed");
-    const t = await practiceTarget(student, assignment);
+    const t = await practiceTarget(student, assignment, null, sp.get("activity"));
     if (t.gameId !== id) throw new HttpError(403, "Not allowed");
     names = splitSpellingName(student.spellingName, student.firstName);
   }

@@ -1,6 +1,9 @@
 // Data for the Topic page (featured video, video carousel and the five categories), built from a
 // topic's real library resources. Shared by the teacher's Library page and the student's task page.
-import { libraryFileUrl, type Kind } from "./types";
+import { libraryFileUrl, type Kind as LibraryKind } from "./types";
+
+/** Library kinds plus the teacher's own Speaking activities. */
+type Kind = LibraryKind | "SPEAKING";
 
 export type HeroCategoryKey = "videos" | "games" | "flashcards" | "music" | "speaking";
 
@@ -10,8 +13,8 @@ export const HERO_CATEGORIES: ReadonlyArray<{ key: HeroCategoryKey; label: strin
   { key: "games", label: "Games", icon: "/topic-icons/games.webp", kinds: ["GAME"], empty: "This topic has no games yet." },
   { key: "flashcards", label: "Flashcards", icon: "/topic-icons/flashcards.webp", kinds: ["FLASHCARDS"], empty: "This topic has no flashcards yet." },
   { key: "music", label: "Music Videos", icon: "/topic-icons/music-videos.webp", kinds: ["SONG"], empty: "This topic has no music videos yet." },
-  // No library resource is a speaking activity yet, so this stays empty instead of inventing one.
-  { key: "speaking", label: "Speaking", icon: "/topic-icons/speaking.webp", kinds: [], empty: "This topic has no speaking activities yet." },
+  // The teacher's own voice activities added to the topic's lesson.
+  { key: "speaking", label: "Speaking", icon: "/topic-icons/speaking.webp", kinds: ["SPEAKING"], empty: "This topic has no speaking activities yet." },
 ];
 
 export interface HeroVideo {
@@ -33,6 +36,8 @@ export interface HeroItem {
   done?: boolean;
   /** Videos: selecting it plays it in the featured player. */
   videoId?: string;
+  /** Teacher: assign only this activity. */
+  assignHref?: string;
 }
 
 export interface HeroData {
@@ -43,7 +48,7 @@ export interface HeroData {
   more: HeroItem[];
 }
 
-type Source = { id: string; kind: Kind; title: string; content: unknown; href: string; done?: boolean; activityId?: string };
+type Source = { id: string; kind: Kind; title: string; content: unknown; href: string; done?: boolean; activityId?: string; assignHref?: string };
 
 function videoOf(s: Source): HeroVideo | null {
   const c = (s.content ?? {}) as { file?: { fileId?: string } | null; youtubeId?: string | null; durationSec?: number | null };
@@ -58,7 +63,7 @@ export function buildHero(sources: Source[]): HeroData {
   const videos: HeroVideo[] = [];
   const more: HeroItem[] = [];
   for (const s of sources) {
-    const item: HeroItem = { id: s.id, kind: s.kind, title: s.title, href: s.href, done: s.done };
+    const item: HeroItem = { id: s.id, kind: s.kind, title: s.title, href: s.href, done: s.done, assignHref: s.assignHref };
     if (s.kind === "VIDEO") {
       const v = videoOf(s);
       if (v) {

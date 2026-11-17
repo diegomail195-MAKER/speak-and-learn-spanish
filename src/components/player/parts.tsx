@@ -46,11 +46,11 @@ export function PlayerFrame({ s, exitHref, rootRef, children, order, diagnostics
   );
 }
 
-export function StartScreen({ s, onStart, preview, withMic }: { s: VoiceSession; onStart: () => void; preview: boolean; withMic: boolean }) {
+export function StartScreen({ s, onStart, preview, withMic, previewNote = "Teacher preview — answers are not saved" }: { s: VoiceSession; onStart: () => void; preview: boolean; withMic: boolean; previewNote?: string | null }) {
   const { game, micState, error } = s;
   return (
     <div className="my-auto max-w-md text-center">
-      {preview && <p className="mb-3 inline-block rounded-full bg-sky-soft px-3 py-1 text-xs font-bold text-sky">Teacher preview — answers are not saved</p>}
+      {preview && previewNote && <p className="mb-3 inline-block rounded-full bg-sky-soft px-3 py-1 text-xs font-bold text-sky">{previewNote}</p>}
       <h1 className="font-display text-4xl font-semibold">{game.title}</h1>
       {game.instructions && <p className="mt-2 text-lg text-ink-2">{plainText(game.instructions)}</p>}
       <p className="mt-4 text-sm text-muted">
