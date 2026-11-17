@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { categoryContext, googleImagesUrl, searchTerm, withContext } from "@/lib/images/photoQuery";
+import { categoryContext, searchTerm, withContext } from "@/lib/images/photoQuery";
 import { mediaSrc, uploadBlob } from "./ImageField";
 
 // "Search online" for a flashcard: a form with the card's words and one "Foto / Photo" box per
@@ -14,7 +14,7 @@ type Slot = { assetId: string | null; pending: Photo | null; searching: boolean;
 
 const LANG: Record<string, string> = { "es-419": "Español", "en-US": "English", "fr-FR": "Français" };
 const SIDE: Record<CardFace["key"], string> = { front: "Frente / Front", back: "Reverso / Back" };
-const cache = new Map<string, Photo[]>();
+const cache = new Map<string, { photos: Photo[]; missing: string | null }>();
 
 export function CardPhotoForm({
   faces,
@@ -88,7 +88,6 @@ export function CardPhotoForm({
             legend={faces.length > 1 ? `Foto ${i + 1} · ${SIDE[f.key]}` : "Foto / Photo"}
             slot={slots[f.key]}
             initialQuery={withContext(term, context)}
-            google={(q) => googleImagesUrl(q, "")}
             onChange={(s) => set(f.key, s)}
           />
         ))}
@@ -106,7 +105,7 @@ export function CardPhotoForm({
 }
 
 /** One picture slot: its preview, Change / Remove, or Search online / Upload a photo. */
-function PhotoBox({ legend, slot, initialQuery, google, onChange }: { legend: string; slot: Slot; initialQuery: string; google: (q: string) => string; onChange: (s: Partial<Slot>) => void }) {
+function PhotoBox({ legend, slot, initialQuery, onChange }: { legend: string; slot: Slot; initialQuery: string; onChange: (s: Partial<Slot>) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const preview = slot.pending?.thumb ?? mediaSrc(slot.assetId);
 
@@ -151,7 +150,7 @@ function PhotoBox({ legend, slot, initialQuery, google, onChange }: { legend: st
           </>
         )
       )}
-      {slot.searching && <SearchPanel initialQuery={initialQuery} google={google} selected={slot.pending?.id ?? null} onPick={(p) => onChange({ pending: p })} onClose={() => onChange({ searching: false })} />}
+      {slot.searching && <SearchPanel initialQuery={initialQuery} selected={slot.pending?.id ?? null} onPick={(p) => onChange({ pending: p })} onClose={() => onChange({ searching: false })} />}
       {(slot.searching || !preview) && uploadField}
       {slot.error && <p role="alert" className="mt-2 text-xs font-semibold text-coral-dark">{slot.error}</p>}
     </fieldset>
@@ -159,28 +158,33 @@ function PhotoBox({ legend, slot, initialQuery, google, onChange }: { legend: st
 }
 
 /** The search inside a photo box: an editable query, Google Images, up to six Commons photos. */
-function SearchPanel({ initialQuery, google, selected, onPick, onClose }: { initialQuery: string; google: (q: string) => string; selected: string | null; onPick: (p: Photo) => void; onClose: () => void }) {
+function SearchPanel({ initialQuery, selected, onPick, onClose }: { initialQuery: string; selected: string | null; onPick: (p: Photo) => void; onClose: () => void }) {
   const [q, setQ] = useState(initialQuery);
-  const [state, setState] = useState<{ status: "idle" | "busy" | "done" | "error"; photos: Photo[] }>({ status: "idle", photos: [] });
+  const [state, setState] = useState<{ status: "idle" | "busy" | "done" | "error"; photos: Photo[]; message?: string; missing?: string | null }>({ status: "idle", photos: [] });
   const query = q.trim();
+  const first = useRef(true);
 
   useEffect(() => {
+    const now = first.current;
+    first.current = false;
     if (query.length < 2) return setState({ status: "idle", photos: [] });
-    if (cache.has(query)) return setState({ status: "done", photos: cache.get(query)! });
-    // Search ~650 ms after typing stops; a new text cancels the previous search.
+    const hit = cache.get(query);
+    if (hit) return setState({ status: "done", photos: hit.photos, missing: hit.missing });
+    // A new text drops the old results at once; the search runs 500 ms after typing stops
+    // (right away when the panel opens with the card's word) and cancels the previous one.
+    setState((s) => ({ status: "busy", photos: [], missing: s.missing }));
     const ctrl = new AbortController();
     const timer = setTimeout(async () => {
-      setState({ status: "busy", photos: [] });
       try {
         const res = await fetch(`/api/images/photos?${new URLSearchParams({ q: query })}`, { signal: ctrl.signal });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error);
-        cache.set(query, json.results);
-        setState({ status: "done", photos: json.results });
-      } catch {
-        if (!ctrl.signal.aborted) setState({ status: "error", photos: [] });
+        cache.set(query, { photos: json.results, missing: json.missing ?? null });
+        setState({ status: "done", photos: json.results, missing: json.missing ?? null });
+      } catch (e) {
+        if (!ctrl.signal.aborted) setState({ status: "error", photos: [], message: (e as Error).message });
       }
-    }, 650);
+    }, now ? 0 : 500);
     return () => (clearTimeout(timer), ctrl.abort());
   }, [query]);
 
@@ -188,21 +192,23 @@ function SearchPanel({ initialQuery, google, selected, onPick, onClose }: { init
     <div className="mt-4" data-testid="photo-search">
       <label className="block">
         <span className="mb-1 block text-sm font-bold">Buscar / Search</span>
-        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} maxLength={100} autoFocus placeholder="pavo, turkey…" className="lx-input" data-testid="photo-query" />
+        <input type="text" value={q} onChange={(e) => setQ(e.target.value)} maxLength={100} autoFocus placeholder="pavo, turkey…" className="lx-input" data-testid="photo-query" autoComplete="off" />
       </label>
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-        <a href={google(query)} target="_blank" rel="noopener noreferrer" className={`font-bold text-[#1d5f86] underline ${query ? "" : "pointer-events-none opacity-40"}`} data-testid="google-images">
-          Abrir en Google Imágenes / Open in Google Images ↗
-        </a>
         <button type="button" onClick={onClose} className="text-muted underline">Cerrar búsqueda / Close search</button>
       </div>
+      {state.missing && (
+        <p className="mt-2 rounded-lg bg-[#fff6dc] px-3 py-2 text-xs text-[#6b4e00]" data-testid="google-missing">
+          {state.missing} Mientras tanto se muestran fotos de Wikimedia Commons.
+        </p>
+      )}
       <div className="mt-3" aria-live="polite">
         {query.length < 2 ? (
           <p className="text-sm text-muted">Escribe una palabra / Type a word</p>
         ) : state.status === "busy" || state.status === "idle" ? (
           <p className="text-sm text-muted">Buscando fotos… / Looking for photos…</p>
         ) : state.status === "error" ? (
-          <p className="text-sm" data-testid="photo-error">No se pudo buscar ahora. Sube una foto. / Search is not available now. Upload a photo.</p>
+          <p className="text-sm" data-testid="photo-error">{state.message || "No se pudo buscar ahora."} Sube una foto. / Upload a photo.</p>
         ) : state.photos.length === 0 ? (
           <p className="text-sm" data-testid="photo-none">No hay fotos. Sube una foto. / No photos. Upload a photo.</p>
         ) : (
