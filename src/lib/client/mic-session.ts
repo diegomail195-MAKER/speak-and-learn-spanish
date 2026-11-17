@@ -39,7 +39,7 @@ registerProcessor("sls-tap", Tap);
 `;
 
 /** Peak below this (dBFS) means the mic is picking up almost nothing: too far, muted or broken. */
-const TOO_QUIET_DB = -42;
+const TOO_QUIET_DB = -48;
 
 export class MicSession {
   state: MicState = "idle";

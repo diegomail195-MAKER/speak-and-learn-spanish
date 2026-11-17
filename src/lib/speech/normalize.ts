@@ -107,3 +107,16 @@ export function similarity(a: string, b: string): number {
   const d = levenshtein(a, b);
   return 1 - d / Math.max(a.length, b.length);
 }
+
+/**
+ * A looser key for learners with an English accent (communication mode): on top of
+ * phoneticKey, the Spanish j/g sound and an English-style h count as the same, a final
+ * unstressed vowel the transcriber spells differently (o/u, e/i) counts as the same, and
+ * "rr"/"r"/English "r" are one sound. Different words stay different ("rojo" ≠ "azul").
+ */
+export function accentKey(word: string): string {
+  // English speakers write/say the Spanish j as h ("roho" for "rojo"): drop both before keying.
+  let w = phoneticKey(foldAccents(word.toLowerCase()).replace(/g(?=[ei])/g, "j").replace(/[jh]/g, ""));
+  w = w.replace(/u$/g, "o").replace(/i$/g, "e");
+  return w;
+}

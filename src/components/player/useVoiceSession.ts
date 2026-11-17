@@ -5,7 +5,7 @@
 // while the app speaks), one speaker, one recognizer. Boards (cards, wheel, boxes…) decide
 // *which* question comes next; this hook runs the question itself: present → listen → check
 // on the server → feedback → hint → model → next.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo, useEffect, useRef, useState } from "react";
 import { pick, type PhraseKind } from "@/lib/feedback";
 import { MicSession, type MicState } from "@/lib/client/mic-session";
 import { audioUrlsIn, preloadAudio, Speaker } from "@/lib/client/speaker";
@@ -22,7 +22,7 @@ export type Support = "NONE" | "HINT" | "MODEL";
 export type Phase = "start" | "intro" | "speaking" | "listening" | "thinking" | "feedback" | "idle" | "suspended" | "error" | "ready" | "done";
 export type Feedback = { tone: "good" | "retry" | "unsure" | "info"; text: string; model?: string; sub?: string } | null;
 /** A spoken line chosen by the board instead of the default phrases (text, translation, natural-voice clip). */
-export type CoachLine = { text: string; sub?: string; url?: string | null; language?: AudioLanguage };
+export type CoachLine = { text: string; sub?: string; url?: string | null; language?: AudioLanguage; then?: { text: string; url?: string | null; language?: AudioLanguage } };
 /** Lets a board choose its own feedback: "retry" never gives the answer; "model" comes before it. */
 export type Coach = (event: "correct" | "retry" | "model" | "uncertain" | "waiting", info: { tries: number }) => CoachLine;
 export type Input = "voice" | "typed" | "choice";
@@ -131,6 +131,11 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
   }, []);
 
   const lang = game.language;
+  // Every answer of the activity, so the recognizer knows the words in play (not only the right one).
+  const vocabulary = useMemo(
+    () => [...new Set(game.questions.filter((q) => q.mode !== "LETTERS").map((q) => plainText(q.expected).trim()).filter((t) => t && t.length <= 40))].slice(0, 40),
+    [game.questions],
+  );
   const spellOut = useCallback((word: string) => lettersOf(word).map((l) => letterName(l, (game.options.letterNames as LetterNameStyle) ?? "rae")).join(", "), [game.options.letterNames]);
 
   const say = useCallback(
@@ -230,6 +235,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
         input: body.input,
         language: q.answerLanguage,
         caseSensitive: game.options.caseSensitive === true,
+        speakingMode: game.options.speakingMode === "pronunciation" ? "pronunciation" : "communication",
       });
     },
     [game],
@@ -293,6 +299,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
         const l = o!.coach!(event, { tries: t.incorrect });
         setFeedback({ tone, text: l.text, sub: l.sub });
         await say(l.text, l.url, l.language);
+        if (l.then) await say(l.then.text, l.then.url, l.then.language);
       };
       if (!o?.skipPresent) await presentIt();
 
@@ -308,6 +315,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
           mode: q.mode,
           reference: game.templateKey === "LISTEN_AND_SPEAK" ? plainText(q.expected) : undefined,
           timeoutMs: 9000,
+          hints: vocabulary,
         });
         if (!alive()) return "aborted";
         if (skipFlag.current) continue;
@@ -416,6 +424,7 @@ export function useVoiceSession(game: PlayGame, sessionOpts: SessionOptions) {
             const l = o.coach("model", { tries: t.incorrect });
             setFeedback({ tone: "info", text: l.text, sub: l.sub, model: plainText(q.expected) });
             await say(l.text, l.url, l.language);
+            if (l.then) await say(l.then.text, l.then.url, l.then.language);
             await say(q.expected, q.modelAudioUrl, q.answerLanguage);
             return null;
           }

@@ -15,6 +15,7 @@ export function scoreTurn(opts: {
   input?: "voice" | "typed" | "choice";
   language?: "es-419" | "en-US" | "fr-FR";
   caseSensitive?: boolean;
+  speakingMode?: "communication" | "pronunciation";
 }): Evaluation & { endsQuestion: boolean } {
   const input = opts.input ?? "voice";
   const ev: Evaluation =
@@ -22,7 +23,7 @@ export function scoreTurn(opts: {
       ? evaluateTyped(opts.alternatives[0]?.text ?? "", { expected: opts.expected, accepted: input === "typed" ? opts.accepted : [], caseSensitive: opts.caseSensitive })
       : opts.tooQuiet
         ? { outcome: "UNCERTAIN", score: 0, reason: "no_speech", transcript: "" }
-        : evaluateAnswer(opts.alternatives, { expected: opts.expected, accepted: opts.accepted, mode: opts.mode, acceptShortAnswer: opts.acceptShortAnswer, language: opts.language });
+        : evaluateAnswer(opts.alternatives, { expected: opts.expected, accepted: opts.accepted, mode: opts.mode, acceptShortAnswer: opts.acceptShortAnswer, language: opts.language, speakingMode: opts.speakingMode });
   const incorrect = opts.incorrectSoFar + (ev.outcome === "INCORRECT" ? 1 : 0);
   return { ...ev, endsQuestion: ev.outcome === "CORRECT" || (ev.outcome === "INCORRECT" && incorrect >= opts.maxTries) };
 }

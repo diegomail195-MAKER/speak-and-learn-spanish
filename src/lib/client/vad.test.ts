@@ -42,4 +42,21 @@ describe("VAD", () => {
     // steady noise may trigger at most once at the start, never continuously
     expect(ev.filter((e) => e!.type === "speech-end").length).toBeLessThanOrEqual(1);
   });
+
+  it("hears a soft voice right after the app spoke through the speakers (no need to shout)", () => {
+    const vad = new Vad();
+    run(vad, Array.from({ length: 100 }, () => noise(-58)), false); // quiet room
+    // the question is read aloud: loud words with short gaps, picked up by the mic while disarmed
+    const tts = Array.from({ length: 150 }, (_, i) => (i % 25 < 20 ? tone(-28) : noise(-58)));
+    run(vad, tts, false);
+    // the student answers softly (≈ 18 dB over the room) straight away
+    const ev = run(vad, [...Array.from({ length: 30 }, () => tone(-40)), ...Array.from({ length: 60 }, () => noise(-58))]);
+    expect(ev.map((e) => e!.type)).toEqual(["speech-start", "speech-end"]);
+  });
+  it("keeps a short, soft one-word answer (≈ 200 ms)", () => {
+    const vad = new Vad();
+    run(vad, Array.from({ length: 100 }, () => noise(-55)), false);
+    const ev = run(vad, [...Array.from({ length: 10 }, () => tone(-42)), ...Array.from({ length: 60 }, () => noise(-55))]);
+    expect(ev.map((e) => e!.type)).toEqual(["speech-start", "speech-end"]);
+  });
 });

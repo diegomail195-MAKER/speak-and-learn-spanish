@@ -90,6 +90,11 @@ try {
   await page.waitForURL(/kind=VIDEO/);
   assert((await page.getByTestId("assignment-card").count()) === 0, "Videos filter hides the flashcards");
   log("My Assignments: preview cards with category, filters by category");
+  // Clicking an activity in My Activities plays it (it doesn't open the editor).
+  await page.goto(`${BASE}/teacher/my-activities`);
+  await page.locator("[data-testid=activity]", { hasText: "Animales y colores" }).getByTestId("activity-open").click();
+  await page.waitForURL(new RegExp(`/play/preview/${gameId}$`));
+  log("My Activities: a click plays the activity");
 
   // Play (teacher preview): the cards, then ¡Vamos a practicar! answered out loud.
   await page.goto(`${BASE}/play/preview/${gameId}`);
@@ -113,7 +118,7 @@ try {
   await shot(page, "lp5-practice-retry");
   log("first miss: look again, no answer");
   await page.waitForSelector("text=/Así es|Lo dijiste correctamente|Lo hiciste por tu cuenta|Seguiste intentándolo|Notaste la diferencia/", { timeout: 30000 });
-  await page.getByTestId("practice-question").filter({ hasText: "What color is this?" }).waitFor({ timeout: 15000 });
+  await page.getByTestId("practice-question").filter({ hasText: "¿Qué color es este?" }).waitFor({ timeout: 15000 });
   await page.waitForSelector("text=You're still learning this word", { timeout: 40000 });
   await shot(page, "lp5b-practice-model");
   log("second miss on card 2: the answer is given");
@@ -122,6 +127,12 @@ try {
   await shot(page, "lp6-practice-done");
   assert(score === "1/2", `practice score ${score}`);
   log("Let's practice:", score);
+  // Delete the assignment from My Assignments (after a confirmation).
+  page.once("dialog", (d) => d.accept());
+  await page.goto(`${BASE}/teacher/assignments`);
+  await page.getByTestId("assignment-card").filter({ hasText: "Animales y colores" }).getByTestId("delete-assignment").click();
+  await page.getByTestId("assignment-card").filter({ hasText: "Animales y colores" }).waitFor({ state: "detached", timeout: 15000 });
+  log("My Assignments: assignment deleted");
   assert(!errors.length, errors.join(" | "));
   log("ALL LET'S PRACTICE CHECKS PASSED");
 } catch (e) {

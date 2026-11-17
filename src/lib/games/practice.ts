@@ -71,9 +71,10 @@ export interface PracticeCard {
   q: PlayQuestion;
   /** What the student sees: a picture and/or words. */
   show: Pick<PlayFace, "text" | "imageUrl" | "imageAlt">;
-  /** The question, in the answer's language, and its translation. */
+  /** The question as asked (the teacher's own prompt, or the Spanish line). */
   question: string;
-  questionSub: string;
+  /** The standard question in both languages (null when the teacher wrote the prompt). */
+  ask: Line | null;
 }
 
 const asLang = (l: string | undefined): Lang | undefined => (l === "es-419" || l === "en-US" || l === "fr-FR" ? l : undefined);
@@ -125,8 +126,8 @@ export function practiceCards(game: PlayGame): PracticeCard[] {
         modelAudioUrl: plainText(q.expected) ? q.modelAudioUrl : null,
       },
       show,
-      question: ask.text,
-      questionSub: q.prompt ? "" : sub(ask, answerLanguage),
+      question: q.prompt ? ask.text : ask.es,
+      ask: q.prompt ? null : { es: ask.es, en: ask.en },
     });
   }
   return out;
@@ -135,7 +136,7 @@ export function practiceCards(game: PlayGame): PracticeCard[] {
 /** Card clips to create with the natural voice: each question and each answer. */
 export function practiceCardClips(game: PlayGame): Array<{ text: string; language: Lang }> {
   return practiceCards(game).flatMap((c) => [
-    ...(c.q.promptAudioUrl ? [] : [{ text: c.question, language: c.q.answerLanguage }]),
+    ...(c.ask ? [{ text: c.ask.es, language: "es-419" as Lang }, { text: c.ask.en, language: "en-US" as Lang }] : c.q.promptAudioUrl ? [] : [{ text: c.question, language: game.language }]),
     ...(c.q.modelAudioUrl ? [] : [{ text: c.q.expected, language: c.q.answerLanguage }]),
   ]);
 }

@@ -5,7 +5,7 @@ import "server-only";
 //   STT_PROVIDER=azure  + AZURE_SPEECH_KEY + AZURE_SPEECH_REGION   (recognition + pronunciation assessment)
 //   STT_PROVIDER=google + GOOGLE_CLOUD_API_KEY                      (recognition)
 //   STT_PROVIDER=gateway (Vercel AI Gateway, OpenAI transcription; STT_GATEWAY_MODEL, default
-//                        openai/gpt-4o-mini-transcribe). Also the default on Vercel when no
+//                        openai/gpt-4o-transcribe, then gpt-4o-mini-transcribe, then whisper-1). Also the default on Vercel when no
 //                        STT_PROVIDER is set, since the natural voices use the same gateway.
 // Without a server provider the browser's Web Speech API is used instead (Chrome sends that
 // audio to Google; see docs/PRIVACY.md).
@@ -44,7 +44,7 @@ export interface SttResult {
 
 const LETTER_HINTS = ["a", "be", "ce", "de", "e", "efe", "ge", "hache", "i", "jota", "ka", "ele", "eme", "ene", "eñe", "o", "pe", "cu", "erre", "ese", "te", "u", "uve", "doble ve", "equis", "i griega", "zeta", "be larga", "ve corta"];
 
-export async function recognize(provider: SttProviderName, wav: Buffer, opts: { locale: string; mode: "PHRASE" | "LETTERS"; reference?: string }): Promise<SttResult> {
+export async function recognize(provider: SttProviderName, wav: Buffer, opts: { locale: string; mode: "PHRASE" | "LETTERS"; reference?: string; hints?: string[] }): Promise<SttResult> {
   if (provider === "scripted-test") return scripted(wav, opts);
   if (provider === "gateway") return gateway(wav, opts);
   return provider === "azure" ? azure(wav, opts) : google(wav, opts);
@@ -52,25 +52,41 @@ export async function recognize(provider: SttProviderName, wav: Buffer, opts: { 
 
 /**
  * OpenAI transcription through Vercel AI Gateway. The language is fixed to the activity's (never
- * auto-detected), and the expected answer is never sent, so the engine can't be nudged towards
- * the right answer. Letter names get a hint of the alphabet, as with Google.
+ * auto-detected). The prompt gives the context of a child learning the language and the
+ * activity's whole vocabulary (every answer, not the right one), which helps with accents and
+ * soft voices without pushing the transcript towards the correct answer. Letter names get a
+ * hint of the alphabet, as with Google.
  */
-async function gateway(wav: Buffer, opts: { locale: string; mode: string }): Promise<SttResult> {
+const GATEWAY_MODELS = ["openai/gpt-4o-transcribe", "openai/gpt-4o-mini-transcribe", "openai/whisper-1"];
+const CONTEXT: Record<string, (words: string) => string> = {
+  es: (w) => `Un niño que aprende español responde en voz alta con acento.${w ? ` Palabras de la actividad: ${w}.` : ""}`,
+  en: (w) => `A child learning English answers out loud with an accent.${w ? ` Words in this activity: ${w}.` : ""}`,
+  fr: (w) => `Un enfant qui apprend le français répond à voix haute avec un accent.${w ? ` Mots de l'activité : ${w}.` : ""}`,
+};
+
+async function gateway(wav: Buffer, opts: { locale: string; mode: string; hints?: string[] }): Promise<SttResult> {
   const samples = (wav.length - 44) / 2;
   if (samples / 16000 < 0.25) return { provider: "gateway", locale: opts.locale, status: "NoMatch", alternatives: [], pronunciation: null };
-  const model = process.env.STT_GATEWAY_MODEL || "openai/gpt-4o-mini-transcribe";
-  const prompt = opts.mode === "LETTERS" ? `Letras del alfabeto: ${LETTER_HINTS.join(", ")}.` : undefined;
+  const lang = opts.locale.slice(0, 2);
+  const prompt = opts.mode === "LETTERS" ? `Letras del alfabeto: ${LETTER_HINTS.join(", ")}.` : (CONTEXT[lang] ?? CONTEXT.es)((opts.hints ?? []).join(", "));
+  const preferred = process.env.STT_GATEWAY_MODEL;
+  const models = preferred ? [preferred, ...GATEWAY_MODELS.filter((m) => m !== preferred)] : GATEWAY_MODELS;
   let text = "";
-  try {
-    text = (await gatewayTranscribe(model, wav, "audio/wav", opts.locale.slice(0, 2), prompt)).trim();
-  } catch (e) {
-    // A model the gateway doesn't offer: fall back to Whisper once.
-    if (model === "openai/whisper-1") throw e;
-    text = (await gatewayTranscribe("openai/whisper-1", wav, "audio/wav", opts.locale.slice(0, 2), prompt)).trim();
+  let lastError: unknown = null;
+  for (const model of models) {
+    try {
+      text = (await gatewayTranscribe(model, wav, "audio/wav", lang, prompt)).trim();
+      lastError = null;
+      break;
+    } catch (e) {
+      lastError = e; // a model the gateway doesn't offer: try the next one
+    }
   }
-  // Whisper-style models sometimes "hear" these on silence; treat them as nothing heard.
+  if (lastError) throw lastError;
+  // Whisper-style models sometimes "hear" these on silence, or echo the prompt; treat them as nothing heard.
   const junk = /^(gracias( por ver( el video)?)?|subtítulos .*|thank you|merci)[.!]?$/i;
-  const status = text && !junk.test(text) ? "Success" : "NoMatch";
+  const echoed = prompt && text && prompt.toLowerCase().includes(text.toLowerCase()) && text.length > 25;
+  const status = text && !junk.test(text) && !echoed ? "Success" : "NoMatch";
   return { provider: "gateway", locale: opts.locale, status, alternatives: status === "Success" ? [{ text, confidence: null }] : [], pronunciation: null };
 }
 
@@ -124,7 +140,7 @@ async function azure(wav: Buffer, opts: { locale: string; mode: string; referenc
   };
 }
 
-async function google(wav: Buffer, opts: { locale: string; mode: string }): Promise<SttResult> {
+async function google(wav: Buffer, opts: { locale: string; mode: string; hints?: string[] }): Promise<SttResult> {
   const pcm = wav.subarray(44); // strip the WAV header; LINEAR16 expects raw samples
   const res = await fetch(`https://speech.googleapis.com/v1/speech:recognize?key=${encodeURIComponent(process.env.GOOGLE_CLOUD_API_KEY!)}`, {
     method: "POST",
@@ -138,7 +154,7 @@ async function google(wav: Buffer, opts: { locale: string; mode: string }): Prom
         model: "latest_short",
         profanityFilter: true,
         // Letter names are short and easily misheard; hinting the alphabet helps without biasing towards one answer.
-        speechContexts: opts.mode === "LETTERS" ? [{ phrases: LETTER_HINTS, boost: 10 }] : undefined,
+        speechContexts: opts.mode === "LETTERS" ? [{ phrases: LETTER_HINTS, boost: 10 }] : opts.hints?.length ? [{ phrases: opts.hints, boost: 6 }] : undefined,
       },
       audio: { content: pcm.toString("base64") },
     }),

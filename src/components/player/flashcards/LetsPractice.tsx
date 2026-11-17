@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PRACTICE, clipKey, practiceCards, say as lineIn, sub as subIn, type Lang, type Line } from "@/lib/games/practice";
+import { PRACTICE, clipKey, practiceCards, type Lang, type Line } from "@/lib/games/practice";
 import type { PlayGame } from "@/lib/games/types";
 import { plainText } from "@/lib/text/segments";
 import { VoiceDock, shuffled } from "../parts";
@@ -40,11 +40,15 @@ export function usePracticeClips(url: string | undefined, enabled: boolean): Cli
 
 const pickOf = (list: readonly Line[]): Line => list[Math.floor(Math.random() * list.length)];
 
-/** A fixed line, said in `lang` with its natural-voice clip, with the other language underneath. */
-export function lineFor(l: Line, lang: Lang, clips: Clips): CoachLine {
-  const spoken: Lang = lang === "en-US" ? "en-US" : "es-419";
-  const text = lineIn(l, spoken);
-  return { text, sub: subIn(l, spoken), url: clips[clipKey(spoken, text)] ?? null, language: spoken };
+/** A fixed line, said first in Spanish and then in English (natural-voice clips when available). */
+export function lineFor(l: Line, _lang: Lang, clips: Clips): CoachLine {
+  return {
+    text: l.es,
+    sub: l.en,
+    url: clips[clipKey("es-419", l.es)] ?? null,
+    language: "es-419",
+    then: { text: l.en, url: clips[clipKey("en-US", l.en)] ?? null, language: "en-US" },
+  };
 }
 
 /** Says a line in Spanish, then in English (both natural voices when available). */
@@ -100,15 +104,21 @@ export function LetsPractice({ game, clips, onDone }: { game: PlayGame; clips: C
     setOverlay(null);
     if (i >= cards.length) {
       setStage("end");
-      const done = lineFor(PRACTICE.done, game.language, clipsRef.current);
       p.setFeedback(null);
-      await p.say(done.text, done.url, done.language);
+      await sayBoth(p.say, PRACTICE.done, clipsRef.current);
       p.stopMic();
       return;
     }
     setPos(i);
     const card = cards[i];
-    const question = () => p.say(card.question, clipsRef.current[clipKey(card.q.answerLanguage, card.question)] ?? card.q.promptAudioUrl, card.q.answerLanguage);
+    // The question in Spanish, then in English (a teacher's own prompt is said as written).
+    const question = async () => {
+      const c = clipsRef.current;
+      if (card.ask) {
+        await p.say(card.ask.es, c[clipKey("es-419", card.ask.es)] ?? null, "es-419");
+        await p.say(card.ask.en, c[clipKey("en-US", card.ask.en)] ?? null, "en-US");
+      } else await p.say(card.question, card.q.promptAudioUrl, game.language);
+    };
     const q = { ...card.q, modelAudioUrl: card.q.modelAudioUrl ?? clipsRef.current[clipKey(card.q.answerLanguage, card.q.expected)] ?? null };
     const r = await p.ask(q, { prompt: question, coach: coachFor(i) });
     if (my !== run.current || r === "aborted") return;
@@ -197,8 +207,8 @@ export function LetsPractice({ game, clips, onDone }: { game: PlayGame; clips: C
           <img src={c.show.imageUrl} alt={c.show.imageAlt || text || "Card picture"} className="min-h-0 w-full flex-1 object-contain" draggable={false} />
         )}
         {text && <span className="text-center font-display text-3xl font-bold sm:text-5xl">{text}</span>}
-        <span className="text-center font-display text-2xl font-bold text-ink sm:text-3xl" data-testid="practice-question">{plainText(c.question)}</span>
-        {c.questionSub && <span className="-mt-1 text-center text-base font-semibold text-muted">{c.questionSub}</span>}
+        <span className="text-center font-display text-2xl font-bold text-ink sm:text-3xl" data-testid="practice-question">{plainText(c.ask ? c.ask.es : c.question)}</span>
+        {c.ask && <span className="-mt-1 text-center text-lg font-semibold text-muted">{c.ask.en}</span>}
         {overlay && (
           <span aria-live="polite" className={`animate-pop-in pointer-events-none absolute inset-0 grid place-items-center rounded-[1.75rem] ${overlay === "good" ? "bg-leaf/25" : "bg-coral/25"}`}>
             <span className={`grid h-28 w-28 place-items-center rounded-full text-6xl font-bold text-white shadow-lg ${overlay === "good" ? "bg-leaf" : "bg-coral"}`}>{overlay === "good" ? "✓" : "→"}</span>
