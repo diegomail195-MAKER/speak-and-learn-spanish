@@ -1,6 +1,7 @@
 import "server-only";
 import { HttpError } from "@/lib/auth/guards";
 import { IMAGE_MAX_BYTES, sniffImage } from "@/lib/media/validate";
+import { searchCommons } from "./commons";
 import { hasBlockedWords, isSafeAnnotation, type SafeSearchAnnotation } from "./safety";
 
 // Internet image search for the game editor, from Pixabay (free, human-reviewed library, called
@@ -21,7 +22,9 @@ type PixabayHit = { id: number; previewURL: string; webformatURL: string; tags: 
 
 const PIXABAY_HOSTS = new Set(["pixabay.com", "cdn.pixabay.com"]);
 
-export const imageSearchEnabled = () => !!process.env.PIXABAY_API_KEY;
+const pixabayOn = () => !!process.env.PIXABAY_API_KEY;
+/** Always on: without a Pixabay key the search uses Wikimedia Commons photographs. */
+export const imageSearchEnabled = () => true;
 const visionKey = () => process.env.GOOGLE_VISION_API_KEY;
 
 async function pixabay(params: Record<string, string>): Promise<PixabayHit[]> {
@@ -52,7 +55,7 @@ async function download(url: string, max = IMAGE_MAX_BYTES): Promise<Buffer | nu
 }
 
 /** Google Cloud Vision SafeSearch; returns one verdict per image, false on any error (fail closed). */
-async function visionSafe(images: Buffer[]): Promise<boolean[]> {
+export async function visionSafe(images: Buffer[]): Promise<boolean[]> {
   const key = visionKey();
   if (!key) return images.map(() => true);
   const out: boolean[] = [];
@@ -89,6 +92,10 @@ export async function searchImages(query: string, kind: "photo" | "illustration"
   const q = query.trim().slice(0, 100);
   if (!q) return [];
   if (hasBlockedWords(q)) throw new HttpError(422, "Esa búsqueda no está permitida. Prueba con otra palabra.");
+  if (!pixabayOn()) {
+    const photos = await searchCommons(q, 24);
+    return photos.map((p) => ({ id: p.id, thumb: p.thumb, tags: p.title, author: p.author, pageUrl: p.pageUrl, width: p.width, height: p.height, license: p.license }));
+  }
   const hits = (await pixabay({ q, image_type: kind, lang: "es", per_page: size === "all" ? "30" : "100", order: "popular", ...(size === "large" ? { min_width: "3000" } : {}) }))
     .filter((h) => !hasBlockedWords(h.tags) && pixabayUrl(h.previewURL) && pixabayUrl(h.webformatURL))
     .filter((h) => size === "all" || !h.imageWidth || !h.imageHeight || sizeOf(h.imageWidth, h.imageHeight) === size)

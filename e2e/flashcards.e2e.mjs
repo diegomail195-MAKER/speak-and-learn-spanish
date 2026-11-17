@@ -75,11 +75,11 @@ try {
   await page.getByLabel("Instrucciones para los estudiantes").fill("Escucha y di el color.");
 
   const row1 = page.locator("ol > li").first();
-  // Front picture: "Añadir imagen" → search is not configured here → upload tab → edit → apply
+  // Front picture: "Añadir imagen" opens the upload tab → edit → apply
   async function addPicture(face) {
     await row1.getByRole("button", { name: `Añadir imagen (${face})` }).click();
     const dlg = page.getByRole("dialog", { name: "Añadir imagen" });
-    await dlg.getByText("La búsqueda en internet aún no está activada").waitFor();
+    await dlg.getByRole("tab", { selected: true }).waitFor();
     await dlg.locator("input[type=file]").setInputFiles(fx("red-circle.png"));
     const ed = page.getByRole("dialog", { name: "Editar" });
     await ed.locator("canvas").waitFor();
@@ -115,7 +115,7 @@ try {
   await row1.waitFor();
   assert(await row1.getByRole("button", { name: "Escuchar (Frente)" }).textContent().then((t) => /red.*EN/.test(t)), "front audio after reload");
   assert(await row1.getByRole("button", { name: "Escuchar (Reverso)" }).textContent().then((t) => /rojo.*ES/.test(t)), "back audio after reload");
-  assert((await row1.locator("img").count()) === 2, "both pictures after reload");
+  assert((await row1.locator(":scope > div img").count()) === 2, "both pictures after reload");
   await row1.getByRole("button", { name: "Editar texto alternativo (Frente)" }).click(); // filled alt text folds into a chip
   assert((await row1.getByRole("textbox", { name: "Texto alternativo (Frente)" }).inputValue()) === "Círculo rojo", "alt text after reload");
   log("reopened: pictures, alt text and audio kept");

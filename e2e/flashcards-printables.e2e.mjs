@@ -144,7 +144,7 @@ try {
   await page.reload();
   await page.getByRole("button", { name: "EN", exact: true }).click();
   await page.getByText("11 of 100").first().waitFor();
-  assert((await page.locator("ol > li").first().locator("img").count()) === 2, "pictures on both faces");
+  assert((await page.locator("ol > li").first().locator(":scope > div img").count()) === 2, "pictures on both faces");
   await shot(page, "p02-editor-11");
 
   // Edit one card in the editor: card 1's back text "rojo" → "rojo vivo"
