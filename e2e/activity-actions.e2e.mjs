@@ -52,6 +52,21 @@ try {
   await page.goto(`${BASE}/play/preview/${gameId}`);
   const bar = page.getByTestId("activity-actions");
   for (const t of ["action-edit", "action-print", "action-assign", "action-rename"]) await bar.getByTestId(t).waitFor();
+  // Activity settings → Font: saved per activity, previewed, and used by the game.
+  await page.getByTestId("tab-settings").click();
+  await page.getByTestId("font-select").selectOption("montessori");
+  await page.getByTestId("font-status").filter({ hasText: "Saved" }).waitFor();
+  const previewFont = await page.getByTestId("font-preview").locator(".font-display").evaluate((el) => getComputedStyle(el).fontFamily);
+  assert(/montessori|Playwrite/i.test(previewFont), `preview uses the cursive: ${previewFont}`);
+  assert((await page.getByTestId("font-preview").textContent()).includes("¿Cómo estás? Ñandú"), "sample has Ñ, accents and ¿¡");
+  await page.reload();
+  assert((await page.getByTestId("font-select").inputValue()) === "montessori", "font saved after reload");
+  assert((await page.getByTestId("flashcards-stage").getAttribute("data-practice-font")) === "montessori", "the game uses the font");
+  await page.waitForFunction(() => document.fonts.check('32px "Playwrite MX"') || [...document.fonts].some((f) => /montessori|Playwrite/i.test(f.family) && f.status === "loaded"), null, { timeout: 15000 });
+  await page.getByTestId("flashcards-stage").screenshot({ path: SHOTS ? path.join(SHOTS, "aa0-font-stage.png") : "/dev/null" });
+  await page.getByTestId("activity-settings").screenshot({ path: SHOTS ? path.join(SHOTS, "aa0-font-settings.png") : "/dev/null" });
+  log("Activity settings → Font: Montessori Cursive saved, previewed and applied to the game");
+  await page.getByTestId("tab-assignments").click();
   await page.getByTestId("activity-assignments").getByText("You haven't set any assignments yet.").waitFor();
   await shot(page, "aa1-bar-empty");
   log("flashcards: Edit Content, Print Worksheet, Set Assignment, Rename; no assignments yet");
@@ -97,6 +112,7 @@ try {
 
   // Back on the activity: its assignment is listed; renaming again keeps it.
   await page.goto(`${BASE}/play/preview/${gameId}`);
+  await page.getByTestId("tab-assignments").click();
   await page.getByTestId("activity-assignments").getByText("Segundo B").waitFor();
   await page.getByTestId("action-rename").click();
   await page.getByTestId("rename-input").fill("Colores");
@@ -104,7 +120,17 @@ try {
   await page.getByTestId("activity-title").filter({ hasText: "Colores" }).waitFor();
   await shot(page, "aa3-bar-assigned");
   await page.goto(`${BASE}/teacher/assignments`);
-  await page.getByTestId("assignment-card").filter({ hasText: "Colores" }).waitFor();
+  const card = page.getByTestId("assignment-card").filter({ hasText: "Colores" });
+  await card.waitFor();
+  // Compact card: title, type, recipients, date, status, results and delete all visible, card short.
+  for (const t of ["Colores", "Flashcards", "Segundo B", "no due date", "open", "See results"]) assert((await card.textContent()).includes(t), `card shows ${t}`);
+  await card.getByTestId("delete-assignment").waitFor();
+  const h = (await card.boundingBox()).height;
+  assert(h < 190, `compact card height ${h}`);
+  await shot(page, "aa5-my-assignments");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await shot(page, "aa6-my-assignments-phone");
+  await page.setViewportSize({ width: 1366, height: 900 });
   log("the assignment follows the renamed activity");
 
   // Another type of activity: same bar, without Print Worksheet.

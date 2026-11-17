@@ -95,46 +95,44 @@ export default async function AssignmentsPage({ searchParams }: { searchParams: 
           {shown.length === 0 ? (
             <EmptyState title={`No ${filter ? KIND_LABEL[filter].plural.toLowerCase() : "assignments"} assigned yet`} body="Choose another category to see your other assignments." />
           ) : (
-            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="assignment-list">
+            <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3" data-testid="assignment-list">
               {shown.map((r) => {
                 const main = r.kinds[0] ?? "GAME";
                 return (
                   <li key={r.id} data-testid="assignment-card" className="relative">
-                    <Link href={r.href} className="group flex h-full flex-col overflow-hidden rounded-xl2 border border-line bg-card transition hover:-translate-y-0.5 hover:shadow-soft">
-                      <span className="relative grid aspect-[16/9] place-items-center" style={{ background: `${KIND_LABEL[main].color}22` }}>
+                    {/* Compact card: a 16:9 thumbnail beside the details, so covers never stretch the card. */}
+                    <Link href={r.href} className="group flex h-full gap-3 rounded-xl2 border border-line bg-card p-3 transition hover:-translate-y-0.5 hover:shadow-soft focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-coral">
+                      <span className="relative grid aspect-video w-28 shrink-0 place-items-center self-start overflow-hidden rounded-lg sm:w-32" style={{ background: `${KIND_LABEL[main].color}22` }}>
                         {r.thumb ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={r.thumb} alt="" className="h-full w-full object-contain p-3" loading="lazy" />
+                          <img src={r.thumb} alt="" className="h-full w-full object-contain p-1.5" loading="lazy" />
                         ) : (
-                          <span className="text-5xl" aria-hidden>{ICON[main]}</span>
+                          <span className="text-3xl" aria-hidden>{ICON[main]}</span>
                         )}
-                        {/* Up to 3 categories, then "+N", kept clear of the open/closed badge. */}
-                        <span className="absolute left-3 right-20 top-3 flex flex-wrap gap-1">
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col gap-1">
+                        <span className="flex items-start gap-2">
+                          <span className="line-clamp-2 flex-1 font-display text-base font-semibold leading-snug group-hover:text-coral">{r.title}</span>
+                          <Badge tone={r.active ? "leaf" : "neutral"}>{r.active ? "open" : "closed"}</Badge>
+                        </span>
+                        <span className="flex flex-wrap gap-1">
                           {r.kinds.slice(0, r.kinds.length > 3 ? 2 : 3).map((k) => (
-                            <span key={k} className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-extrabold text-ink shadow-sm" style={{ background: KIND_LABEL[k].color }} data-testid="assignment-kind">
+                            <span key={k} className="whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-extrabold text-ink" style={{ background: KIND_LABEL[k].color }} data-testid="assignment-kind">
                               {ICON[k]} {KIND_LABEL[k].label}
                             </span>
                           ))}
                           {r.kinds.length > 3 && (
-                            <span className="whitespace-nowrap rounded-full bg-card px-2.5 py-0.5 text-xs font-extrabold text-ink-2 shadow-sm" title={r.kinds.slice(2).map((k) => KIND_LABEL[k].label).join(", ")}>
+                            <span className="whitespace-nowrap rounded-full bg-paper-2 px-2 py-0.5 text-[11px] font-extrabold text-ink-2" title={r.kinds.slice(2).map((k) => KIND_LABEL[k].label).join(", ")}>
                               +{r.kinds.length - 2}
                             </span>
                           )}
                         </span>
-                        <span className="absolute right-3 top-3">
-                          <Badge tone={r.active ? "leaf" : "neutral"}>{r.active ? "open" : "closed"}</Badge>
-                        </span>
-                      </span>
-                      <span className="flex flex-1 flex-col gap-1 p-4">
-                        <span className="font-display text-lg font-semibold leading-snug group-hover:text-coral">{r.title}</span>
-                        {r.detail && <span className="line-clamp-2 text-sm text-ink-2">{r.detail}</span>}
-                        <span className="mt-auto pr-12 pt-2 text-sm text-muted">
-                          👥 {r.who || "—"} · {r.due}
-                        </span>
-                        {r.completed !== null && <span className="pr-12 text-sm font-bold text-teal-dark">{r.completed} completed · See results →</span>}
+                        {r.detail && <span className="line-clamp-1 text-xs text-ink-2">{r.detail}</span>}
+                        <span className="mt-auto truncate pr-10 text-xs text-muted">👥 {r.who || "—"} · {r.due}</span>
+                        {r.completed !== null && <span className="pr-10 text-xs font-bold text-teal-dark">{r.completed} completed · See results →</span>}
                       </span>
                     </Link>
-                    <span className="absolute bottom-3 right-3">
+                    <span className="absolute bottom-2 right-2">
                       <DeleteAssignmentButton id={r.id} title={r.title} />
                     </span>
                   </li>

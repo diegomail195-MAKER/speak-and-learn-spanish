@@ -1,5 +1,6 @@
 "use client";
 
+import { FontPreview } from "./FontPreview";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -582,7 +583,10 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
             <section className="space-y-4 rounded-xl2 border border-line bg-card p-5" aria-label={`${template.name} options`}>
               <h2 className="font-display text-lg font-semibold">{template.name} options</h2>
               {template.options.filter((o) => o.key !== "sides" && o.key !== "letsPractice").map((o) => (
-                <OptionInput key={o.key} o={o} value={options[o.key]} onChange={(v) => setOption(o.key, v)} disabled={o.key === "seconds" && !options.timed} />
+                <div key={o.key} className="space-y-2">
+                  <OptionInput o={o} value={options[o.key]} onChange={(v) => setOption(o.key, v)} disabled={o.key === "seconds" && !options.timed} />
+                  {o.key === "font" && <FontPreview font={String(options.font ?? "default")} />}
+                </div>
               ))}
             </section>
           )}
