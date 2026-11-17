@@ -99,3 +99,24 @@ export async function deleteGame(form: FormData) {
   revalidatePath("/teacher/games");
   revalidatePath("/teacher/my-activities");
 }
+
+/**
+ * Renames an activity: only its title changes. The id stays the same, so its links, assignments,
+ * attempts and folder are untouched.
+ */
+export async function renameGame(gameId: string, title: string): Promise<{ ok: true; title: string } | { ok: false; error: string }> {
+  const { user } = await requireTeacher();
+  const g = await schoolGame(user.schoolId, gameId);
+  const next = title.replace(/\s+/g, " ").trim();
+  if (!next) return { ok: false, error: "The title can't be empty." };
+  if (next.length > 120) return { ok: false, error: "Use 120 characters or fewer." };
+  if (next !== g.title) {
+    await db.game.update({ where: { id: g.id }, data: { title: next } });
+    await audit(user.schoolId, user.id, "game.rename", "Game", g.id, { from: g.title, to: next });
+  }
+  revalidatePath("/teacher/my-activities");
+  revalidatePath("/teacher/games");
+  revalidatePath("/teacher/assignments");
+  revalidatePath(`/play/preview/${g.id}`);
+  return { ok: true, title: next };
+}
