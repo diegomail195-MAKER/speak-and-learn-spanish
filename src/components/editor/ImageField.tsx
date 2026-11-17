@@ -236,6 +236,7 @@ function AddImagePanel({ initialTab, suggest, onClose, onPicked, onLocalFile }: 
   const [importing, setImporting] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     // Is the provider configured? If not, show it clearly and open the upload tab.
@@ -290,10 +291,13 @@ function AddImagePanel({ initialTab, suggest, onClose, onPicked, onLocalFile }: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-ink/40 p-3 sm:p-8" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t.addImage} className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-xl2 bg-card shadow-soft outline-none">
-        <div className="flex items-center gap-2 border-b border-line px-4 py-3">
-          <h2 className="font-display text-lg font-semibold">{t.addImage}</h2>
-          <div className="ml-4 flex gap-1 rounded-full bg-paper-2 p-1 text-sm font-bold" role="tablist">
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t.addImage} className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-[28px] bg-white shadow-[0_12px_40px_rgba(98,13,120,.18)] outline-none">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-3 border-b border-[#EADCF7] px-5 pb-4 pt-4 sm:px-6">
+          <h2 className="font-display text-2xl font-extrabold text-[#620D78] sm:text-3xl">{t.addImage}</h2>
+          <button type="button" onClick={onClose} className="ml-auto grid h-10 w-10 place-items-center rounded-full text-[#620D78] hover:bg-[#F3E8FF]" aria-label={t.close} title={t.close}>
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
+          <div className="grid w-full grid-cols-3 gap-2 text-sm font-extrabold sm:text-base" role="tablist">
             {(["search", "upload", "mine"] as const).map((k) => (
               <button
                 key={k}
@@ -305,13 +309,12 @@ function AddImagePanel({ initialTab, suggest, onClose, onPicked, onLocalFile }: 
                   // Images already uploaded to this school, newest first, so they can be reused.
                   if (k === "mine" && !mine) fetch("/api/media").then((r) => r.json()).then((j) => setMine(j.assets ?? [])).catch(() => setMine([]));
                 }}
-                className={`rounded-full px-3 py-1 ${tab === k ? "bg-card text-ink shadow-sm" : "text-muted"}`}
+                className={`min-h-11 rounded-xl px-2 py-1.5 leading-tight ${tab === k ? "bg-[#620D78] text-white shadow-[0_3px_0_#3f0750]" : "bg-[#F1E6FC] text-[#620D78] hover:bg-[#E9D8FA]"}`}
               >
                 {k === "search" ? t.searchWeb : k === "upload" ? t.uploadImage : t.myImages}
               </button>
             ))}
           </div>
-          <button type="button" onClick={onClose} className="ml-auto rounded-full px-2 text-2xl leading-none text-muted hover:text-ink" aria-label={t.close}>×</button>
         </div>
         {tab === "mine" ? (
           <div className="min-h-48 flex-1 overflow-y-auto p-4">
@@ -378,24 +381,59 @@ function AddImagePanel({ initialTab, suggest, onClose, onPicked, onLocalFile }: 
           </div>
         ) : (
           <div
-            className="m-4 grid min-h-48 place-items-center rounded-xl border-2 border-dashed border-line bg-paper p-6 text-center"
-            onDragOver={(e) => e.preventDefault()}
+            className={`m-4 grid min-h-56 place-items-center rounded-[20px] border-2 p-6 text-center transition-colors sm:m-5 ${dragging ? "border-solid border-[#620D78] bg-[#EBDCFD]" : "border-dashed border-[#A43BE0] bg-[#F3E8FF]"}`}
+            data-testid="upload-zone"
+            data-dragging={dragging || undefined}
+            onDragEnter={(e) => (e.preventDefault(), setDragging(true))}
+            onDragOver={(e) => (e.preventDefault(), !dragging && setDragging(true))}
+            onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDragging(false)}
             onDrop={(e) => {
               e.preventDefault();
+              setDragging(false);
               const f = e.dataTransfer.files[0];
               if (f) onLocalFile(f);
             }}
           >
-            <div>
+            <div className="flex flex-col items-center">
               {state === "off" && <p className="mb-4 rounded-xl bg-sun-soft p-3 text-sm text-[#7a5200]">{t.searchOff}</p>}
-              <button type="button" onClick={() => fileRef.current?.click()} className="rounded-full bg-coral px-5 py-2 font-bold text-white hover:bg-coral-dark">{t.chooseFile}</button>
-              <p className="mt-2 text-sm text-muted">{t.dropHere}</p>
-              <p className="mt-1 text-xs text-muted">PNG, JPEG, GIF, WebP · 4 MB</p>
+              <PhotosIcon />
+              {dragging ? (
+                <p className="mt-4 text-xl font-extrabold text-[#620D78]">{t.dropImageHere}</p>
+              ) : (
+                <>
+                  <button type="button" onClick={() => fileRef.current?.click()} className="mt-3 min-h-12 min-w-56 rounded-full bg-[#FFC928] px-8 text-lg font-extrabold text-[#620D78] shadow-[0_4px_0_#D9A20F] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#D9A20F] sm:text-xl" data-testid="choose-file">
+                    {t.chooseFile}
+                  </button>
+                  <p className="mt-3 font-bold text-[#620D78]">{t.dropHere}</p>
+                </>
+              )}
+              <p className="mt-1 text-sm text-[#6b5a78]">PNG, JPEG, GIF, WebP · 4 MB</p>
               <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={(e) => e.target.files?.[0] && onLocalFile(e.target.files[0])} />
             </div>
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+/** Two overlapping photos, drawn in 3D-style gradients (upload zone). */
+function PhotosIcon() {
+  return (
+    <svg viewBox="0 0 160 120" width="150" height="112" aria-hidden className="drop-shadow-[0_10px_12px_rgba(98,13,120,.22)]">
+      <defs>
+        <linearGradient id="pi-back" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#C77DFF" /><stop offset="1" stopColor="#8B2FD6" /></linearGradient>
+        <linearGradient id="pi-frame" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#FFE07A" /><stop offset="1" stopColor="#FFB300" /></linearGradient>
+        <linearGradient id="pi-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#D6B2FF" /><stop offset="1" stopColor="#B57BFF" /></linearGradient>
+      </defs>
+      <g transform="rotate(12 112 52)"><rect x="78" y="14" width="64" height="62" rx="12" fill="url(#pi-back)" /><rect x="86" y="22" width="48" height="46" rx="6" fill="#A855F7" opacity=".55" /></g>
+      <g transform="rotate(-10 72 70)">
+        <rect x="34" y="34" width="80" height="70" rx="14" fill="url(#pi-frame)" />
+        <rect x="44" y="44" width="60" height="50" rx="6" fill="url(#pi-sky)" />
+        <path d="M44 88 62 66l12 13 9-9 21 22v2H44z" fill="#F5ECFF" />
+        <circle cx="90" cy="57" r="7" fill="#FFC928" />
+      </g>
+      <g stroke="#FFC928" strokeWidth="5" strokeLinecap="round"><path d="M30 30l-9-7M40 20l-3-11M24 44l-12-2" /></g>
+    </svg>
   );
 }

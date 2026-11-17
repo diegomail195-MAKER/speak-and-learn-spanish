@@ -64,6 +64,24 @@ try {
   await page.locator("ol > li").first().getByRole("button", { name: /^Add image/ }).first().click();
   const add = page.getByRole("dialog", { name: "Add image" });
   await add.getByRole("tab", { name: "Upload image" }).click();
+  // The upload zone: lavender, dashed violet border, 20px corners, mango button, active tab purple.
+  const zone = add.getByTestId("upload-zone");
+  const look0 = await zone.evaluate((z) => { const c = getComputedStyle(z); return { bg: c.backgroundColor, style: c.borderTopStyle, r: c.borderTopLeftRadius }; });
+  assert(look0.bg === "rgb(243, 232, 255)" && look0.style === "dashed" && look0.r === "20px", `upload zone ${JSON.stringify(look0)}`);
+  const btn = await add.getByTestId("choose-file").evaluate((b) => { const c = getComputedStyle(b); return { bg: c.backgroundColor, color: c.color, h: b.getBoundingClientRect().height }; });
+  assert(btn.bg === "rgb(255, 201, 40)" && btn.color === "rgb(98, 13, 120)" && btn.h >= 48, `choose file button ${JSON.stringify(btn)}`);
+  const tabBg = await add.getByRole("tab", { name: "Upload image" }).evaluate((b) => [getComputedStyle(b).backgroundColor, getComputedStyle(b).color]);
+  assert(tabBg[0] === "rgb(98, 13, 120)" && tabBg[1] === "rgb(255, 255, 255)", `active tab ${tabBg}`);
+  await shot(page, "ie0-add-image");
+  // Dragging a file over the box: solid purple border and "Drop image here".
+  const dt = await page.evaluateHandle(() => { const d = new DataTransfer(); d.items.add(new File(["x"], "x.png", { type: "image/png" })); return d; });
+  await zone.dispatchEvent("dragenter", { dataTransfer: dt });
+  await add.getByText("Drop image here").waitFor();
+  assert((await zone.evaluate((z) => getComputedStyle(z).borderTopStyle)) === "solid", "solid border while dragging");
+  await shot(page, "ie0-dragging");
+  await zone.dispatchEvent("dragleave", { dataTransfer: dt });
+  await add.getByTestId("choose-file").waitFor();
+  log("Add image: lavender upload zone, mango button, purple tab; dragging shows «Drop image here» with a solid border");
   await add.locator("input[type=file]").setInputFiles(QUAD);
   const ed = page.getByRole("dialog", { name: "Edit" });
   await page.getByTestId("image-canvas").waitFor();
