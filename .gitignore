@@ -44,3 +44,6 @@ next-env.d.ts
 /storage
 /e2e/*.png
 !.env.example
+
+# Graphify cache
+graphify-out/cache/
