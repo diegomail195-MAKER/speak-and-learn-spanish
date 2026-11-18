@@ -5,13 +5,13 @@ import { z } from "zod";
 import { audit } from "@/lib/audit";
 import { HttpError, requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { FOLDER_COLORS } from "@/lib/folders";
+import { FOLDER_COLOR_KEYS } from "@/lib/folders";
 
 // My Activities: folders and moving a teacher's own activities. Every action checks that the
 // folder and the activity belong to the signed-in teacher.
 
 const name = z.string().trim().min(1, "Give the folder a name").max(60);
-const color = z.enum(FOLDER_COLORS.map((c) => c.key) as [string, ...string[]]);
+const color = z.enum(FOLDER_COLOR_KEYS);
 const optId = z.string().max(40).nullable();
 
 async function ownFolder(teacherId: string, id: string) {
@@ -28,20 +28,47 @@ async function ownGame(teacherId: string, id: string) {
 
 const done = () => revalidatePath("/teacher/my-activities");
 
-export async function createFolder(input: { name: string; color: string; parentId: string | null }) {
-  const { teacher } = await requireTeacher();
-  const data = { name: name.parse(input.name), color: color.parse(input.color), parentId: optId.parse(input.parentId) };
-  if (data.parentId) await ownFolder(teacher.id, data.parentId);
-  const f = await db.activityFolder.create({ data: { ...data, teacherId: teacher.id } });
-  done();
-  return { id: f.id };
+/** Result of creating or editing a folder. Errors come back as data (not thrown), so the dialog
+ * can show them and keep what the teacher typed: thrown messages are hidden in production. */
+export type FolderSaveResult = { ok: true; folder: { id: string; name: string; color: string } } | { ok: false; error: string; code: "name" | "color" | "not_found" | "failed" };
+
+function saveError(e: unknown): FolderSaveResult {
+  if (e instanceof z.ZodError) {
+    const field = e.issues[0]?.path[0];
+    return { ok: false, code: field === "color" ? "color" : "name", error: e.issues[0]?.message ?? "Check the folder name" };
+  }
+  if (e instanceof HttpError && e.status === 404) return { ok: false, code: "not_found", error: e.message };
+  console.error("folder save failed", e);
+  return { ok: false, code: "failed", error: "The folder could not be saved. Try again." };
 }
 
-export async function updateFolder(input: { id: string; name: string; color: string }) {
+const folderInput = z.object({ name, color });
+
+export async function createFolder(input: { name: string; color: string; parentId: string | null }): Promise<FolderSaveResult> {
   const { teacher } = await requireTeacher();
-  const f = await ownFolder(teacher.id, input.id);
-  await db.activityFolder.update({ where: { id: f.id }, data: { name: name.parse(input.name), color: color.parse(input.color) } });
-  done();
+  try {
+    const data = { ...folderInput.parse({ name: input.name, color: input.color }), parentId: optId.parse(input.parentId) };
+    if (data.parentId) await ownFolder(teacher.id, data.parentId);
+    const f = await db.activityFolder.create({ data: { ...data, teacherId: teacher.id } });
+    done();
+    return { ok: true, folder: { id: f.id, name: f.name, color: f.color } };
+  } catch (e) {
+    return saveError(e);
+  }
+}
+
+/** Renames a folder and/or changes its colour. Its id, parent and contents stay the same. */
+export async function updateFolder(input: { id: string; name: string; color: string }): Promise<FolderSaveResult> {
+  const { teacher } = await requireTeacher();
+  try {
+    const f = await ownFolder(teacher.id, z.string().max(40).parse(input.id));
+    const data = folderInput.parse({ name: input.name, color: input.color });
+    const u = await db.activityFolder.update({ where: { id: f.id }, data });
+    done();
+    return { ok: true, folder: { id: u.id, name: u.name, color: u.color } };
+  } catch (e) {
+    return saveError(e);
+  }
 }
 
 /** Deletes a folder. What was inside (activities and folders) moves up to the parent folder. */

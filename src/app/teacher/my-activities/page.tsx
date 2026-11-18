@@ -59,6 +59,7 @@ export default async function MyActivitiesPage({ searchParams }: { searchParams:
     updatedAt: g.updatedAt.toISOString(),
     lastPlayed: lastPlayed.get(g.id)?.toISOString() ?? null,
     folderName: q && g.folderId ? byId.get(g.folderId)?.name ?? null : null,
+    folderColor: q && g.folderId ? byId.get(g.folderId)?.color ?? null : null,
   }));
   const sign = sort.dir === "asc" ? 1 : -1;
   activities.sort((a, b) => {
@@ -78,10 +79,10 @@ export default async function MyActivitiesPage({ searchParams }: { searchParams:
           .sort((a, b) => (sort.by === "modified" ? sign * a.updatedAt.localeCompare(b.updatedAt) : (sort.by === "name" ? sign : 1) * a.name.localeCompare(b.name, "es", { sensitivity: "base" })));
 
   // Every folder, indented, for "Move to…" (works without drag and drop, e.g. on a tablet).
-  const tree: Array<{ id: string; name: string; depth: number }> = [];
+  const tree: Array<{ id: string; name: string; color: string; depth: number }> = [];
   const walk = (parentId: string | null, depth: number) => {
     for (const f of allFolders.filter((x) => x.parentId === parentId)) {
-      tree.push({ id: f.id, name: f.name, depth });
+      tree.push({ id: f.id, name: f.name, color: f.color, depth });
       if (depth < 20) walk(f.id, depth + 1);
     }
   };
