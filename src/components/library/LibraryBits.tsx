@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Art, Icon } from "@/components/ui/Art";
+import { FavoriteButton } from "./FavoriteButton";
 import { GRADE_LABEL, KIND_LABEL, type Grade, type Kind } from "@/lib/library/types";
 
 export function KindDot({ kind, size = "h-8 w-8" }: { kind: Kind; size?: string }) {
@@ -44,9 +45,10 @@ export function EyeIcon({ className = "h-4 w-4" }: { className?: string }) {
 }
 
 /** `studentViewHref`: the eye "Student View" button in the top-right corner (teachers). */
-export function TopicCard({ href, topic, kinds, footer, studentViewHref }: { href: string; topic: { titleEn: string; titleEs: string; color: string; art: string }; kinds: Kind[]; footer?: React.ReactNode; studentViewHref?: string }) {
+export function TopicCard({ href, topic, kinds, footer, studentViewHref, favorite }: { href: string; topic: { titleEn: string; titleEs: string; color: string; art: string }; kinds: Kind[]; footer?: React.ReactNode; studentViewHref?: string; favorite?: { topicId: string; on: boolean; refresh?: boolean } }) {
   return (
     <div className="relative flex flex-col overflow-hidden rounded-[28px] bg-card shadow-pop">
+      {favorite && <FavoriteButton topicId={favorite.topicId} title={topic.titleEs} initial={favorite.on} refresh={favorite.refresh} />}
       {studentViewHref && (
         <Link
           href={studentViewHref}
@@ -57,7 +59,7 @@ export function TopicCard({ href, topic, kinds, footer, studentViewHref }: { hre
           <EyeIcon /> Student View
         </Link>
       )}
-      <Link href={href} className={`group flex flex-1 flex-col items-center gap-2 p-5 text-center ${studentViewHref ? "pt-12" : ""}`} style={{ background: topic.color }}>
+      <Link href={href} className={`group flex flex-1 flex-col items-center gap-2 p-5 text-center ${studentViewHref || favorite ? "pt-12" : ""}`} style={{ background: topic.color }}>
         <Art k={topic.art} className="h-24 w-24 transition group-hover:scale-105" />
         <span className="font-display text-2xl font-extrabold leading-none text-ink">{topic.titleEs}</span>
         <span className="font-bold text-ink/75">{topic.titleEn}</span>
