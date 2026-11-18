@@ -455,9 +455,12 @@ function GameEditorInner({ initial, template, categories }: { initial: EditorGam
           </Button>
           <Button size="sm" variant="voice" onClick={assign} disabled={!!busy}>{busy === "assign" ? "Publishing…" : "Assign"}</Button>
         </div>
-        <div className="w-full">
-          <SpanishCharBar french={game.language === "fr-FR"} />
-        </div>
+        {/* Flashcards hide the accent bar; Alt shortcuts still work in their fields. */}
+        {!flash && (
+          <div className="w-full">
+            <SpanishCharBar french={game.language === "fr-FR"} />
+          </div>
+        )}
       </div>
 
       <section className="mb-4 space-y-2">
