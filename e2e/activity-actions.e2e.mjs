@@ -146,9 +146,10 @@ try {
   await page.waitForURL(/\?new=1$/, { timeout: 20000 });
   log("Set Assignment: published and assigned to the class");
 
-  // Back on the activity: its assignment is listed; renaming again keeps it.
+  // Back on the activity: flashcards don't list their assignments; renaming again works.
   await page.goto(`${BASE}/play/preview/${gameId}`);
-  await page.getByTestId("activity-assignments").getByText("Segundo B").waitFor();
+  await page.getByTestId("activity-title").waitFor();
+  assert((await page.getByTestId("activity-assignments").count()) === 0, "flashcards hide the Assignments list");
   await page.getByTestId("action-rename").click();
   await page.getByTestId("rename-input").fill("Colores");
   await page.getByTestId("rename-save").click();

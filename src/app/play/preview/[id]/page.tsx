@@ -18,7 +18,7 @@ function recipientLabel(r: { type: string; classroom: { name: string } | null; l
 
 // Teacher preview: same engine as students, with the diagnostics panel; nothing is saved.
 // Every activity shows the bar under the game (Edit Content, Print Worksheet, Set Assignment,
-// Rename) and the teacher's assignments of it.
+// Rename). Other activities also list the teacher's assignments of it; flashcards don't.
 export default async function PreviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { user, teacher } = await requireTeacherPage();
@@ -70,7 +70,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
       role={user.role === "ADMIN" ? "ADMIN" : "TEACHER"}
       typeName={templateByKey(game.templateKey)?.name ?? "Activity"}
       status={row?.status as "DRAFT" | "PUBLISHED" | "ARCHIVED" | undefined}
-      assignments={assignments}
+      assignments={game.board === "flashcards" ? undefined : assignments}
       settings={settings}
     />
   );
