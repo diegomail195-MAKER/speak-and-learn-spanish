@@ -1,7 +1,7 @@
 # Graph Report - speak-and-learn-spanish  (2026-11-18)
 
 ## Corpus Check
-- 335 files · ~199,332 words
+- 335 files · ~199,320 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 8 file(s) not represented in the graph (top: .example 1, (none) 1, .vtt 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `dc0bdc2b`
+- Built from commit: `52a5dafd`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -130,16 +130,16 @@
 7. `react` - 66 edges
 8. `PageHeader()` - 58 edges
 9. `requireTeacherPage()` - 53 edges
-10. `Input()` - 48 edges
+10. `Panel()` - 48 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `main()` --calls--> `seedLibrary()`  [EXTRACTED]
-  prisma/seed.ts → src/lib/library/seed.ts
-- `GradeForm()` --indirect_call--> `createGrade()`  [INFERRED]
-  src/components/admin/GradeForm.tsx → src/lib/actions/library.ts
+- `GameEditorInner()` --indirect_call--> `swapItem()`  [INFERRED]
+  src/components/editor/GameEditor.tsx → src/components/editor/FlashcardParts.tsx
 - `NewResourceForm()` --indirect_call--> `addLibraryContent()`  [INFERRED]
   src/components/admin/ResourceForms.tsx → src/lib/actions/library.ts
-- `MetaForm()` --indirect_call--> `updateResourceMeta()`  [INFERRED]
+- `GradeForm()` --indirect_call--> `createGrade()`  [INFERRED]
+  src/components/admin/GradeForm.tsx → src/lib/actions/library.ts
+- `DeleteButton()` --indirect_call--> `deleteResource()`  [INFERRED]
   src/components/admin/ResourceForms.tsx → src/lib/actions/library.ts
 - `PublishButton()` --indirect_call--> `publishResource()`  [INFERRED]
   src/components/admin/ResourceForms.tsx → src/lib/actions/library.ts
@@ -548,15 +548,15 @@ Nodes (4): claude/natural-voice, git, deploymentEnabled, $schema
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `react` connect `Button` to `layout.ts`, `MyActivitiesBoard.tsx`, `library/types.ts`, `topics/[id]/page.tsx`, `classroom.ts`, `PageHeader`, `voices.ts`, `GameEditor.tsx`, `package.json`, `segments.ts`, `lib/videos.ts`, `FlashcardParts.tsx`, `autocorrect.ts`, `parts.tsx`, `plainText`, `AuthLayout`, `Players.tsx`, `TopicHero.tsx`, `useVoiceSession.ts`, `ActivitySettings.tsx`, `FlashcardsGame.tsx`, `session.ts`, `SpellBoard.tsx`, `TeacherShell.tsx`, `games/templates.ts`, `games/types.ts`, `CardPhotoForm.tsx`, `TopicLesson.tsx`, `dependencies`, `ResourcePlayer`, `preview/[id]/page.tsx`, `ImageEditor.tsx`, `ActivityList.tsx`, `TopicPlanEditor.tsx`, `VideoPlayer.tsx`, `classes/[id]/page.tsx`, `MatchBoard.tsx`?**
-  _High betweenness centrality (0.171) - this node is a cross-community bridge._
+  _High betweenness centrality (0.166) - this node is a cross-community bridge._
 - **Should `layout.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.062317429406037 - nodes in this community are weakly interconnected._
 - **Why does `next` connect `next` to `tts/index.ts`, `MyActivitiesBoard.tsx`, `Button`, `library/types.ts`, `commons.ts`, `topics/[id]/page.tsx`, `library/service.ts`, `classroom.ts`, `PageHeader`, `audit`, `search.ts`, `GameEditor.tsx`, `package.json`, `games/service.ts`, `lib/videos.ts`, `mediaUrl`, `verify.ts`, `HttpError`, `AuthLayout`, `TopicHero.tsx`, `storage/index.ts`, `assignments/page.tsx`, `db.ts`, `ActivitySettings.tsx`, `auth.ts`, `session.ts`, `TeacherShell.tsx`, `requireTeacher`, `TopicLesson.tsx`, `dependencies`, `@prisma/client`, `ResourcePlayer`, `preview/[id]/page.tsx`, `Badge`, `VideoForm`, `teacher/videos/page.tsx`, `ActivityList.tsx`, `TopicPlanEditor.tsx`, `classes/[id]/page.tsx`, `actions/tasks.ts`, `app/layout.tsx`, `next.config.ts`, `middleware.ts`?**
-  _High betweenness centrality (0.108) - this node is a cross-community bridge._
+  _High betweenness centrality (0.104) - this node is a cross-community bridge._
 - **Should `tts/index.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.06009615384615385 - nodes in this community are weakly interconnected._
 - **Why does `@prisma/client` connect `@prisma/client` to `library/service.ts`, `next`, `audit`, `package.json`, `games/service.ts`, `lib/videos.ts`, `mediaUrl`, `verify.ts`, `lextro.e2e.mjs`, `db.ts`, `photo-form.e2e.mjs`, `dependencies`, `Badge`, `ref_node_path`, `topic-lesson.e2e.mjs`, `voice.e2e.mjs`, `playwright`, `library.e2e.mjs`, `video-player.e2e.mjs`, `flashcards-printables.e2e.mjs`, `library/seed.ts`?**
-  _High betweenness centrality (0.096) - this node is a cross-community bridge._
+  _High betweenness centrality (0.084) - this node is a cross-community bridge._
 - **Should `MyActivitiesBoard.tsx` be split into smaller, more focused modules?**
   _Cohesion score 0.07117255504352278 - nodes in this community are weakly interconnected._
 - **Should `Button` be split into smaller, more focused modules?**

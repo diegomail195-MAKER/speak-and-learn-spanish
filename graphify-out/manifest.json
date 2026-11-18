@@ -42,9 +42,9 @@
     "semantic_hash": ""
   },
   "e2e/lets-practice.e2e.mjs": {
-    "mtime": 1795032694.818826,
-    "seen": 1795032757.418959,
-    "ast_hash": "3f0ca89637853dd166687c9e7496df6e",
+    "mtime": 1795033063.5356405,
+    "seen": 1795033087.0253863,
+    "ast_hash": "aa44de37cccc70f0d2d050552418f7fb",
     "semantic_hash": ""
   },
   "e2e/lextro.e2e.mjs": {
@@ -954,9 +954,9 @@
     "semantic_hash": ""
   },
   "src/components/editor/GameEditor.tsx": {
-    "mtime": 1795032694.8337164,
-    "seen": 1795032757.4190903,
-    "ast_hash": "0423872e8c4998cb5ea04a6f95f1b584",
+    "mtime": 1795033063.5347939,
+    "seen": 1795033087.0255396,
+    "ast_hash": "d7d5ec588c355f07bc8c787928945a82",
     "semantic_hash": ""
   },
   "src/components/editor/ImageEditor.tsx": {
@@ -996,9 +996,9 @@
     "semantic_hash": ""
   },
   "src/components/editor/i18n.tsx": {
-    "mtime": 1795032694.8337164,
-    "seen": 1795032757.4190955,
-    "ast_hash": "78255136ab8f042d9669a562d8db974d",
+    "mtime": 1795033063.5354302,
+    "seen": 1795033087.0255463,
+    "ast_hash": "dc0b6df2e1412089382457bee0054da5",
     "semantic_hash": ""
   },
   "src/components/editor/useAutocorrect.tsx": {

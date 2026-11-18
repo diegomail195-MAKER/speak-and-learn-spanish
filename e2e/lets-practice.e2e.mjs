@@ -66,12 +66,13 @@ try {
   await c2.getByRole("textbox", { name: "Frente: Texto" }).fill("rojo");
   await c2.getByRole("textbox", { name: "Reverso: Texto" }).fill("red");
   assert((await page.locator("ol > li button:has-text('🎤')").count()) === 0, "no 🎤 button on the card rows");
-  await page.getByTestId("paste-help").waitFor();
+  assert((await page.getByTestId("paste-help").count()) === 0, "flashcards show no paste hint");
+  assert((await page.getByTestId("autocorrect-help").count()) === 0, "flashcards show no autocorrect help");
   await page.getByTestId("create-practice").click();
   await page.getByTestId("practice-created").waitFor();
   await saved();
   await shot(page, "lp1-editor");
-  log("editor: no 🎤 per card, paste hint, Let's practice created");
+  log("editor: no 🎤 per card, no help lines, Let's practice created");
 
   // Assign it, then My Assignments shows it under Flashcards.
   // Done → the activity page → Set Assignment (publishes, then the assign form).
