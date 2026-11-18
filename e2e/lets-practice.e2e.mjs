@@ -61,7 +61,7 @@ try {
   await c1.locator("img").first().waitFor({ timeout: 15000 });
   log("pasted picture shows on card 1");
   await c1.getByRole("textbox", { name: "Reverso: Texto" }).fill("el perro");
-  await page.getByText("+ Añadir tarjeta").click();
+  await page.getByRole("button", { name: "Añadir tarjeta" }).click();
   const c2 = page.locator("ol > li").nth(1);
   await c2.getByRole("textbox", { name: "Frente: Texto" }).fill("rojo");
   await c2.getByRole("textbox", { name: "Reverso: Texto" }).fill("red");

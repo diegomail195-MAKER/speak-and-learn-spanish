@@ -36,7 +36,7 @@ try {
 
   // Header: "+ Create Activity" instead of "Voice Activities"
   assert((await page.getByRole("link", { name: "Voice Activities" }).count()) === 0, "Voice Activities removed from the menu");
-  assert((await page.getByRole("link", { name: "+ Create Activity" }).first().getAttribute("href")) === "/teacher/games/new", "Create Activity button");
+  assert((await page.getByRole("link", { name: "Create Activity" }).first().getAttribute("href")) === "/teacher/games/new", "Create Activity button");
   // Nav button and empty state
   await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "My Activities" }).click();
   await page.waitForURL(`${BASE}/teacher/my-activities`);
@@ -93,7 +93,7 @@ try {
   // (Flashcards publish from the activity page; the editor shows the new status after a reload.)
   assert((await page.request.post(`${BASE}/api/games/${gameId}/publish`)).ok(), "publish");
   await page.reload();
-  await page.waitForSelector("text=Published", { timeout: 15000 });
+  await page.waitForFunction(() => /Published|Publicada/.test(document.querySelector("[data-testid=publish-status]")?.textContent ?? ""), null, { timeout: 15000 });
   await front(page, 1).fill("amarillo");
   await waitSaved();
   assert((await page.locator("text=/otra pestaña|another tab/").count()) === 0, "no conflict after publishing");
@@ -111,7 +111,7 @@ try {
   await row(1).getByRole("button", { name: "Añadir imagen (Frente)" }).click();
   dlg = page.getByRole("dialog", { name: "Añadir imagen" });
   await dlg.getByRole("tab", { name: "Mis imágenes" }).click();
-  await dlg.locator("button[title]").first().click();
+  await dlg.locator(".grid button[title]").first().click();
   await dlg.waitFor({ state: "detached" });
   for (let i = 0; i < 20; i++) {
     server = await api(page, gameId);
@@ -123,7 +123,7 @@ try {
 
   // Link click right after typing: saved before leaving
   await front(page, 0).fill("morado");
-  await page.getByRole("link", { name: "← My Activities" }).click();
+  await page.getByTestId("editor-back").click();
   await page.waitForURL(`${BASE}/teacher/my-activities`);
   server = await api(page, gameId);
   assert(server.items[0].text === "morado", `link click saved first (got ${server.items[0].text})`);

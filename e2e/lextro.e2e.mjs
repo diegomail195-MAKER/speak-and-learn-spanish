@@ -209,7 +209,8 @@ try {
     assert(w[0].body.includes("Hi Ana,") && w[0].body.includes("My Classes") && w[0].body.includes(`${BASE}/teacher`), "welcome body wrong");
   });
   await teacher.goto(`${BASE}/teacher`);
-  await teacher.click("button:text-is('Sign out')");
+  await teacher.getByTestId("profile-button").click();
+  await teacher.getByRole("menuitem", { name: "Sign out" }).click();
   await teacher.waitForURL((u) => !u.pathname.startsWith("/teacher"));
   await signIn(teacher, temail);
   await check("6 · signing in again does not resend the welcome", async () => {
@@ -276,7 +277,8 @@ try {
   await check("7.2 · Roster: edit name, username and Login Type; new password shown once; Reset PIN", async () => {
     await teacher.goto(`${classUrl}/roster`);
     const row = teacher.locator("[data-testid=roster-row]:has-text('Carlos')");
-    await row.locator("button:text-is('Edit')").click();
+    await row.getByTestId("roster-more").click();
+    await teacher.getByRole("menuitem", { name: "Edit" }).click();
     await teacher.fill("input[name=firstName]", "Carlitos");
     await teacher.fill("input[name=username]", `carlitos${stamp % 1000}`);
     await teacher.selectOption("select[name=loginType]", "PASSWORD");
@@ -288,7 +290,9 @@ try {
     const html = await teacher.content();
     assert(!html.includes(diegoPin) || !html.match(new RegExp(`>${diegoPin}<`)), "roster shows a PIN");
     const eva = teacher.locator("[data-testid=roster-row]:has-text('Eva')");
-    await eva.locator("button:text-is('Reset PIN')").click();
+    await eva.getByTestId("roster-more").click();
+    await teacher.getByRole("menuitem", { name: "Reset PIN" }).click();
+    await teacher.getByTestId("confirm-action").click();
     const evaPin = (await teacher.locator("[role=status]:has-text('Eva') [data-testid=new-secret]").textContent()).trim();
     assert(/^\d{4}$/.test(evaPin), "reset PIN");
     listSecrets.Eva.secret = evaPin;

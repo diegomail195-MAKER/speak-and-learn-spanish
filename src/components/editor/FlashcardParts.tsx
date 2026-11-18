@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { EditorItem, FaceAudio, FaceData, Lang } from "@/lib/games/types";
 import type { TtsConfig } from "./AudioControl";
+import { IconButton } from "@/components/ui/IconButton";
 import { AudioField, playFaceAudio, stopFaceAudio } from "./AudioField";
 import { useUi } from "./i18n";
 import { ImageField, mediaSrc, uploadBlob } from "./ImageField";
@@ -24,6 +25,13 @@ export function swapItem(it: EditorItem): EditorItem {
       back: { text: it.text, imageAssetId: it.imageAssetId, imageAlt: it.data.imageAlt, audio: it.data.audio ?? null },
     },
   };
+}
+
+// Whether a mouse/touch press is in progress (set once for the page).
+let pointerIsDown = false;
+if (typeof window !== "undefined") {
+  window.addEventListener("pointerdown", () => (pointerIsDown = true), true);
+  window.addEventListener("pointerup", () => setTimeout(() => (pointerIsDown = false), 0), true);
 }
 
 /** One face of a card: text, picture and audio, in any combination. */
@@ -83,46 +91,50 @@ export function FaceEditor({
   const showAlt = !!face.imageAssetId && (!face.imageAlt?.trim() || altOpen);
   return (
     <div className={`min-w-0 ${className}`}>
-      {showLabel && <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted md:hidden">{label}</span>}
-      <div onPaste={onPaste} className="relative flex min-h-14 items-center gap-1.5 rounded-xl border border-line bg-card p-1.5 focus-within:border-sky focus-within:ring-2 focus-within:ring-sky/20">
+      {showLabel && <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted md:hidden">{label}</span>}
+      <div onPaste={onPaste} className="relative flex min-h-[88px] items-start gap-3 rounded-[10px] border border-line bg-card p-2 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
         {face.imageAssetId && (
-          <ImageField compact inline onSearch={onSearch} label={label} assetId={face.imageAssetId} alt={face.imageAlt} suggest={face.text} onChange={(a) => onChange({ ...face, imageAssetId: a?.id ?? null })} />
+          <ImageField compact onSearch={onSearch} label={label} assetId={face.imageAssetId} alt={face.imageAlt} suggest={face.text} onChange={(a) => onChange({ ...face, imageAssetId: a?.id ?? null })} />
         )}
-        <textarea
-          ref={textRef}
-          rows={1}
-          value={face.text ?? ""}
-          {...auto.props}
-          maxLength={200}
-          placeholder={t.text}
-          aria-label={`${label}: ${t.text}`}
-          lang={language === "es-419" ? "es" : language}
-          className="block min-h-10 min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-2 py-1.5 text-xl leading-8 focus:outline-none"
-        />
-        <AudioField
-          inline
-          audio={face.audio}
-          onChange={(a: FaceAudio | null) => onChange({ ...face, audio: a })}
-          defaultText={face.text ?? ""}
-          defaultLanguage={language}
-          tts={tts}
-          rate={rate}
-          label={label}
-        />
-        {!face.imageAssetId && (
-          <ImageField compact inline onSearch={onSearch} label={label} assetId={null} suggest={face.text} onChange={(a) => onChange({ ...face, imageAssetId: a?.id ?? null })} />
-        )}
-        {face.imageAssetId && !showAlt && (
-          <button
-            type="button"
-            onClick={() => (setAltOpen(true), setTimeout(() => altRef.current?.focus(), 0))}
-            className="shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-leaf hover:bg-leaf-soft"
-            title={`${t.altText}: ${face.imageAlt}`}
-            aria-label={`${t.edit} ${t.altText.toLowerCase()} (${label})`}
-          >
-            Alt ✓
-          </button>
-        )}
+        <div className="min-w-0 flex-1">
+          <textarea
+            ref={textRef}
+            rows={1}
+            value={face.text ?? ""}
+            {...auto.props}
+            maxLength={200}
+            placeholder={t.text}
+            aria-label={`${label}: ${t.text}`}
+            lang={language === "es-419" ? "es" : language}
+            className="block min-h-10 w-full resize-none overflow-hidden break-words bg-transparent px-2 py-1.5 text-lg font-semibold leading-7 text-ink focus:outline-none"
+          />
+          <div className="flex flex-wrap items-center gap-1 px-1 pt-1">
+            <AudioField
+              inline
+              audio={face.audio}
+              onChange={(a: FaceAudio | null) => onChange({ ...face, audio: a })}
+              defaultText={face.text ?? ""}
+              defaultLanguage={language}
+              tts={tts}
+              rate={rate}
+              label={label}
+            />
+            {!face.imageAssetId && (
+              <ImageField compact inline onSearch={onSearch} label={label} assetId={null} suggest={face.text} onChange={(a) => onChange({ ...face, imageAssetId: a?.id ?? null })} />
+            )}
+            {face.imageAssetId && !showAlt && (
+              <button
+                type="button"
+                onClick={() => (setAltOpen(true), setTimeout(() => altRef.current?.focus(), 0))}
+                className="inline-flex h-8 shrink-0 items-center rounded-md px-2 text-[11px] font-extrabold uppercase tracking-wide text-leaf hover:bg-leaf-soft"
+                title={`${t.altText}: ${face.imageAlt}`}
+                aria-label={`${t.edit} ${t.altText.toLowerCase()} (${label})`}
+              >
+                Alt ✓
+              </button>
+            )}
+          </div>
+        </div>
         <CorrectionNote notice={auto.notice} className="absolute -bottom-3 left-3 z-10" />
         {pasting && (
           <span role="status" className={`absolute -bottom-3 right-3 z-10 rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white shadow-soft ${pasting === "error" ? "bg-coral" : "bg-ink"}`}>
@@ -135,19 +147,29 @@ export function FaceEditor({
           value={face.imageAlt ?? ""}
           ref={altRef}
           onChange={(e) => onChange({ ...face, imageAlt: e.target.value })}
-          onBlur={() => setAltOpen(false)}
+          onBlur={() => {
+            // Folding the box moves what's below it: when the blur comes from a click, fold after
+            // the click so it lands on the button the teacher aimed at.
+            const fold = () => setTimeout(() => setAltOpen(false), 0);
+            if (pointerIsDown) window.addEventListener("click", fold, { once: true });
+            else fold();
+          }}
           maxLength={200}
           placeholder={`${t.altText} — ${t.altHint}`}
           title={t.altHint}
           aria-label={`${t.altText} (${label})`}
-          className="mt-1 h-7 w-full rounded-md border border-line bg-card px-2 text-xs"
+          className="mt-2 h-10 w-full rounded-lg border border-line bg-card px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
         />
       )}
     </div>
   );
 }
 
-/** Drag handle plus keyboard-friendly move / duplicate / delete buttons for a row. */
+/**
+ * The card's action bar: swap front/back (two-sided only), drag handle, move up, move down,
+ * duplicate, then delete after a separator. 44×44 buttons, named on hover and keyboard focus.
+ * The drag handle also moves the card with ↑ / ↓.
+ */
 export function RowControls({
   index,
   count,
@@ -156,6 +178,7 @@ export function RowControls({
   onDuplicate,
   onDelete,
   onDragStart,
+  onSwap,
 }: {
   index: number;
   count: number;
@@ -164,15 +187,18 @@ export function RowControls({
   onDuplicate: () => void;
   onDelete: () => void;
   onDragStart: () => void;
+  /** Swaps this card's front and back (two-sided flashcards). */
+  onSwap?: () => void;
 }) {
   const { t } = useUi();
-  const handle = useRef<HTMLButtonElement>(null);
-  const btn = "grid h-8 w-8 place-items-center rounded-full text-sm text-muted hover:bg-paper-2 hover:text-ink disabled:opacity-30";
+  const n = index + 1;
   return (
-    <div className="flex items-center gap-0.5 font-bold">
-      <button
-        ref={handle}
-        type="button"
+    <div role="group" aria-label={`${t.actionsFor} ${n}`} className="flex flex-wrap items-center gap-2" data-testid="row-controls">
+      {onSwap && <IconButton icon="swap" tone="lavender" label={`${t.swapOne} (${n})`} onClick={onSwap} data-testid="row-swap" />}
+      <IconButton
+        icon="grip"
+        tone="lavender"
+        label={`${t.move} (${n}) · ↑ ↓`}
         draggable
         onDragStart={(e) => {
           e.dataTransfer.effectAllowed = "move";
@@ -190,17 +216,14 @@ export function RowControls({
             onMove(1);
           }
         }}
-        className={`${btn} cursor-grab active:cursor-grabbing`}
-        aria-label={`${t.move} (${index + 1}). ↑ ↓`}
-        title={t.move}
+        className="cursor-grab active:cursor-grabbing"
         data-row-handle={index}
-      >
-        ⠿
-      </button>
-      <button type="button" onClick={() => onMove(-1)} disabled={index === 0} className={btn} aria-label={`${t.moveUp} (${index + 1})`} title={t.moveUp}>↑</button>
-      <button type="button" onClick={() => onMove(1)} disabled={index === count - 1} className={btn} aria-label={`${t.moveDown} (${index + 1})`} title={t.moveDown}>↓</button>
-      <button type="button" onClick={onDuplicate} disabled={!canDuplicate} className={btn} aria-label={`${t.duplicate} (${index + 1})`} title={t.duplicate}>⧉</button>
-      <button type="button" onClick={onDelete} className={`${btn} hover:bg-coral-soft hover:text-coral-dark`} aria-label={`${t.delete} (${index + 1})`} title={t.delete}>🗑</button>
+      />
+      <IconButton icon="arrowUp" tone="lavender" label={`${t.moveUp} (${n})`} onClick={() => onMove(-1)} disabled={index === 0} />
+      <IconButton icon="arrowDown" tone="lavender" label={`${t.moveDown} (${n})`} onClick={() => onMove(1)} disabled={index === count - 1} />
+      <IconButton icon="copy" tone="mango" label={`${t.duplicate} (${n})`} onClick={onDuplicate} disabled={!canDuplicate} />
+      <span aria-hidden className="mx-0.5 h-8 w-px bg-line" />
+      <IconButton icon="trash" tone="coral" label={`${t.delete} (${n})`} onClick={onDelete} />
     </div>
   );
 }

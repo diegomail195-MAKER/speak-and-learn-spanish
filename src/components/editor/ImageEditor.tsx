@@ -94,6 +94,7 @@ export function ImageEditor({
   onRemove,
   onReplace,
   busy,
+  progress,
   error,
 }: {
   src: string;
@@ -104,6 +105,8 @@ export function ImageEditor({
   onRemove?: () => void;
   onReplace?: () => void;
   busy?: boolean;
+  /** Upload progress 0–100 while the edited picture is sent. */
+  progress?: number | null;
   error?: string;
 }) {
   const { t } = useUi();
@@ -222,9 +225,15 @@ export function ImageEditor({
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-3">
           <span className="text-xs text-muted">{t.cropHint}</span>
-          {error && <span className="text-xs font-semibold text-coral-dark">{error}</span>}
+          {error && <span role="alert" className="text-xs font-semibold text-coral-dark" data-testid="image-upload-error">{error}</span>}
+          {busy && progress != null && (
+            <span className="flex items-center gap-2 text-xs font-bold text-ink-2" role="status" data-testid="image-upload-progress">
+              <span className="h-2 w-24 overflow-hidden rounded-full bg-paper-2"><span className="block h-full rounded-full bg-primary transition-[width]" style={{ width: `${progress}%` }} /></span>
+              {progress}%
+            </span>
+          )}
           <button type="button" onClick={onCancel} className="ml-auto rounded-full px-4 py-2 text-sm font-bold text-ink-2 hover:bg-paper-2">{t.cancel}</button>
-          <button type="button" onClick={apply} disabled={!img || busy} className="rounded-full bg-coral px-5 py-2 text-sm font-bold text-white hover:bg-coral-dark disabled:opacity-50">
+          <button type="button" onClick={apply} disabled={!img || busy} className="min-h-11 rounded-[10px] bg-primary px-5 text-sm font-bold text-white hover:bg-primary-dark disabled:opacity-50">
             {busy ? t.uploading : t.apply}
           </button>
         </div>

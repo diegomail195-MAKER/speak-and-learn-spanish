@@ -14,8 +14,8 @@ export function NavLinks({ links, tone = "coral", dark = false }: { links: Array
             key={l.href}
             href={l.href}
             aria-current={active ? "page" : undefined}
-            className={`whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-bold transition-colors ${
-              active ? (tone === "coral" ? "bg-ink text-white" : "bg-teal text-white") : tone === "teal" && dark ? "text-white/85 hover:bg-white/10" : "text-ink-2 hover:bg-paper-2"
+            className={`whitespace-nowrap inline-flex min-h-11 items-center rounded-[10px] px-3.5 text-[15px] font-semibold transition-colors ${
+              active ? (tone === "coral" ? "bg-primary-soft text-primary" : "bg-teal text-white") : tone === "teal" && dark ? "text-white/85 hover:bg-white/10" : "text-ink-2 hover:bg-paper-2"
             }`}
           >
             {l.label}

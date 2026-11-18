@@ -53,7 +53,7 @@ const ES = {
   done: "Listo",
   minMax: "mín. 1 · máx.",
   addFromLibrary: "Añadir desde la Biblioteca",
-  swapOne: "Intercambiar",
+  swapOne: "Intercambiar frente y reverso",
   add: "Añadir",
   of: "de",
   limitReached: "Llegaste al máximo de tarjetas.",
@@ -137,6 +137,17 @@ const ES = {
   practiceAccepted: "Otras respuestas que cuentan (separadas por comas)",
   activitySettings: "Activity settings",
   practiceHelp: "Después de las tarjetas, ¡Vamos a practicar! muestra las mismas tarjetas como preguntas y el estudiante responde con el micrófono.",
+  myActivities: "Mis actividades",
+  published: "Publicada",
+  draft: "Borrador",
+  archived: "Archivada",
+  helpTitle: "Consejos para escribir",
+  uploadFailedTitle: "No se pudo subir la imagen",
+  formats: "PNG, JPEG, GIF o WebP · hasta 4 MB",
+  tooBig: "La imagen pesa más de 4 MB. Elige una más pequeña.",
+  badType: "Solo se admiten imágenes PNG, JPEG, GIF o WebP.",
+  tryAgain: "Elegir otra",
+  actionsFor: "Acciones de la tarjeta",
 };
 type Dict = typeof ES;
 const EN: Dict = {
@@ -186,7 +197,7 @@ const EN: Dict = {
   done: "Done",
   minMax: "min 1 · max",
   addFromLibrary: "Add from Library",
-  swapOne: "Swap",
+  swapOne: "Swap front and back",
   add: "Add",
   of: "of",
   limitReached: "You reached the maximum number of cards.",
@@ -270,6 +281,17 @@ const EN: Dict = {
   practiceAccepted: "Other answers that count (separated by commas)",
   activitySettings: "Activity settings",
   practiceHelp: "After the cards, Let's practice! shows the same cards as questions and the student answers with the microphone.",
+  myActivities: "My Activities",
+  published: "Published",
+  draft: "Draft",
+  archived: "Archived",
+  helpTitle: "Typing tips",
+  uploadFailedTitle: "The image could not be uploaded",
+  formats: "PNG, JPEG, GIF or WebP · up to 4 MB",
+  tooBig: "This image is larger than 4 MB. Choose a smaller one.",
+  badType: "Only PNG, JPEG, GIF or WebP images are allowed.",
+  tryAgain: "Choose another",
+  actionsFor: "Card actions",
 };
 
 const Ctx = createContext<{ lang: UiLang; t: Dict; setLang: (l: UiLang) => void }>({ lang: "en", t: EN, setLang: () => undefined });

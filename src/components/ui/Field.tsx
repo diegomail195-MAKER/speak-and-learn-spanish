@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 
 export const inputClass =
-  "w-full rounded-xl border border-line bg-card px-3.5 py-2.5 text-[0.98rem] text-ink placeholder:text-muted/70 focus:border-sky focus:outline-none focus:ring-3 focus:ring-sky/20";
+  "w-full min-h-11 rounded-[10px] border border-line bg-card px-3.5 py-2.5 text-[0.98rem] text-ink placeholder:text-muted/70 focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/20";
 
 export function Label({ children, htmlFor, hint }: { children: ReactNode; htmlFor?: string; hint?: string }) {
   return (
@@ -23,7 +23,7 @@ export function Select(props: ComponentProps<"select">) {
 export function FormError({ message }: { message?: string | null }) {
   if (!message) return null;
   return (
-    <p role="alert" className="rounded-xl bg-coral-soft px-3.5 py-2.5 text-sm font-semibold text-coral-dark">
+    <p role="alert" className="rounded-[10px] bg-coral-soft px-3.5 py-2.5 text-sm font-semibold text-coral-dark">
       {message}
     </p>
   );

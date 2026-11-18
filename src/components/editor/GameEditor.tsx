@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select } from "@/components/ui/Field";
-import { Badge } from "@/components/ui/Panel";
+import { UiIcon } from "@/components/ui/icons";
 import { duplicateGame } from "@/lib/actions/games";
 import { maxItemsFor, templateOptions, type OptionDef, type TemplateDef } from "@/lib/games/templates";
 import { SPELL_TOKENS, type EditorGame, type EditorItem } from "@/lib/games/types";
@@ -544,9 +544,9 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
   );
 
   const langToggle = (
-    <div className="flex rounded-full bg-paper-2 p-0.5 text-sm font-bold" role="group" aria-label="Language / Idioma" data-testid="ui-lang">
+    <div className="inline-flex rounded-[10px] border border-line bg-card p-1 text-sm font-bold" role="group" aria-label="Language / Idioma" data-testid="ui-lang">
       {(["es", "en"] as const).map((l) => (
-        <button key={l} type="button" onClick={() => setUiLang(l)} aria-pressed={uiLang === l} className={`rounded-full px-3 py-1 ${uiLang === l ? "bg-card text-ink shadow-sm" : "text-muted"}`}>{l.toUpperCase()}</button>
+        <button key={l} type="button" onClick={() => setUiLang(l)} aria-pressed={uiLang === l} className={`h-9 min-w-11 rounded-lg px-3 ${uiLang === l ? "bg-primary-soft text-primary" : "text-muted hover:bg-paper-2"}`}>{l.toUpperCase()}</button>
       ))}
     </div>
   );
@@ -688,55 +688,96 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
         </div>
       )}
 
-      <div className="sticky top-0 z-20 -mx-5 mb-4 flex flex-wrap items-center gap-3 border-b border-line bg-paper/95 px-5 py-3 backdrop-blur">
-        <Link href="/teacher/my-activities" className="text-sm font-bold text-muted hover:text-ink">← My Activities</Link>
-        <Badge tone="sky">{template.name}</Badge>
-        <Badge tone={game.status === "PUBLISHED" ? "leaf" : "neutral"}>{game.status === "PUBLISHED" ? "Published" : game.status === "ARCHIVED" ? "Archived" : "Draft"}</Badge>
-        <span
-          data-testid="save-status"
-          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${save === "error" ? "bg-coral-soft text-coral-dark" : save === "saved" ? "bg-leaf-soft text-leaf" : "bg-paper-2 text-ink-2"}`}
-          aria-live="polite"
-          title={save === "error" ? saveError : savedAt ? savedAt.toLocaleTimeString() : undefined}
+      <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-2" data-testid="editor-header">
+        <Link
+          href="/teacher/my-activities"
+          data-testid="editor-back"
+          className="inline-flex h-11 items-center gap-2 rounded-[10px] border border-line bg-card px-3 text-[15px] font-semibold text-ink-2 hover:border-line-strong hover:bg-paper-2 hover:text-ink"
         >
-          {busy === "done" && save !== "saved" ? t.leaving : save === "saved" ? `✓ ${t.saved}` : save === "saving" ? t.saving : save === "dirty" ? t.unsaved : conflict ? `⚠ ${t.conflictStatus}` : `⚠ ${t.saveError}`}
-          {save === "error" && !conflict && (
-            <button type="button" onClick={saveDraft} className="underline">{t.retry}</button>
-          )}
+          <UiIcon name="arrowLeft" />
+          {t.myActivities}
+        </Link>
+        <span className="inline-flex h-9 items-center gap-2 rounded-lg bg-lavender px-3 text-[15px] font-bold text-plum" data-testid="activity-type">
+          <UiIcon name={flash ? "layers" : "clipboard"} />
+          {template.name}
         </span>
-        {/* Flashcards keep the bar clean: the settings, Set Assignment and publishing are on the activity page (Done). */}
-        {!flash && (
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            {langToggle}
-            <Button size="sm" variant="ghost" onClick={duplicate} disabled={!!busy}>{busy === "duplicate" ? "Duplicating…" : "Duplicate"}</Button>
-            <Button size="sm" variant="secondary" onClick={preview} disabled={!!busy}>Preview</Button>
-            <Button size="sm" onClick={doPublish} disabled={!!busy}>
-              {busy === "publish" ? "Publishing…" : game.status === "PUBLISHED" ? "Update published" : "Publish"}
-            </Button>
-            <Button size="sm" variant="voice" onClick={assign} disabled={!!busy}>{busy === "assign" ? "Publishing…" : "Assign"}</Button>
-          </div>
-        )}
+        <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:justify-end">
+          <span
+            className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-bold ${game.status === "PUBLISHED" ? "bg-leaf-soft text-leaf" : "bg-paper-2 text-ink-2"}`}
+            data-testid="publish-status"
+          >
+            {game.status === "PUBLISHED" && <UiIcon name="check" size={16} strokeWidth={2.5} />}
+            {game.status === "PUBLISHED" ? t.published : game.status === "ARCHIVED" ? t.archived : t.draft}
+          </span>
+          <span
+            data-testid="save-status"
+            data-state={conflict ? "conflict" : save}
+            className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-bold ${save === "error" ? "bg-coral-soft text-coral-dark" : save === "saved" ? "text-leaf" : "text-muted"}`}
+            aria-live="polite"
+            title={save === "error" ? saveError : savedAt ? savedAt.toLocaleTimeString() : undefined}
+          >
+            {save === "saved" && busy !== "done" && <UiIcon name="check" size={16} strokeWidth={2.5} />}
+            {save === "saving" && <span aria-hidden className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />}
+            {save === "error" && <UiIcon name="alert" size={16} />}
+            {busy === "done" && save !== "saved" ? t.leaving : save === "saved" ? t.saved : save === "saving" ? t.saving : save === "dirty" ? t.unsaved : conflict ? t.conflictStatus : t.saveError}
+            {save === "error" && !conflict && (
+              <button type="button" onClick={saveDraft} className="ml-1 inline-flex h-7 items-center gap-1 rounded-md bg-card px-2 text-xs font-bold text-coral-dark ring-1 ring-coral/40 hover:bg-white" data-testid="save-retry">
+                <UiIcon name="refresh" size={14} />
+                {t.retry}
+              </button>
+            )}
+          </span>
+          {/* Flashcards keep the bar clean: the settings, Set Assignment and publishing are on the activity page (Done). */}
+          {!flash && (
+            <div className="flex flex-wrap items-center gap-2">
+              {langToggle}
+              <Button size="sm" variant="ghost" onClick={duplicate} disabled={!!busy}>{busy === "duplicate" ? "Duplicating…" : "Duplicate"}</Button>
+              <Button size="sm" variant="secondary" onClick={preview} disabled={!!busy}>Preview</Button>
+              <Button size="sm" onClick={doPublish} disabled={!!busy}>
+                {busy === "publish" ? "Publishing…" : game.status === "PUBLISHED" ? "Update published" : "Publish"}
+              </Button>
+              <Button size="sm" variant="voice" onClick={assign} disabled={!!busy}>{busy === "assign" ? "Publishing…" : "Assign"}</Button>
+            </div>
+          )}
+        </div>
       </div>
 
-      <section className="mb-4 space-y-2">
-        <label htmlFor="game-title" className="block text-base font-bold text-ink-2">{t.title}</label>
-        <div className="relative">
-          <input
-            id="game-title"
-            value={game.title}
-            {...titleAuto.props}
-            maxLength={120}
-            placeholder={t.untitled}
-            lang={game.language === "es-419" ? "es" : game.language}
-            className="w-full rounded-xl border border-line bg-card px-4 py-3 font-display text-xl font-semibold focus:border-sky focus:outline-none focus:ring-3 focus:ring-sky/20"
-          />
-          <CorrectionNote notice={titleAuto.notice} className="absolute -bottom-3 right-4 z-10" />
+      <section className="mb-6 space-y-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <label htmlFor="game-title" className="shrink-0 text-base font-bold text-ink">
+            {t.title} <span aria-hidden className="text-coral">*</span>
+          </label>
+          <div className="relative min-w-0 flex-1 basis-64">
+            <input
+              id="game-title"
+              value={game.title}
+              {...titleAuto.props}
+              maxLength={120}
+              required
+              placeholder={t.untitled}
+              lang={game.language === "es-419" ? "es" : game.language}
+              className="h-12 w-full rounded-[10px] border border-line bg-card px-4 text-lg font-semibold text-ink focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/20"
+            />
+            <CorrectionNote notice={titleAuto.notice} className="absolute -bottom-3 right-4 z-10" />
+          </div>
+          {flash && (
+            <Button onClick={() => finishEditing()} disabled={!!busy} className="h-12 min-w-32" data-testid="editor-done">
+              <UiIcon name="check" />
+              {busy === "done" ? t.saving : t.done}
+            </Button>
+          )}
         </div>
-        {/* Flashcards skip the help lines; autocorrect and Ctrl+V pasting still work there. */}
+        {/* Flashcards skip the help lines; autocorrect and Ctrl+V pasting still work there. Other
+            activities keep the autocorrect explanation, folded so it doesn't push the form down. */}
         {!flash && (
-          <p className="flex items-start gap-1.5 text-sm text-muted" data-testid="autocorrect-help">
-            <span aria-hidden>✨</span>
-            <span><strong className="text-ink-2">{t.autoTitle}.</strong> {t.autoHelp}</span>
-          </p>
+          <details className="group rounded-[10px] border border-line bg-card px-4 text-sm text-ink-2 open:pb-3" data-testid="autocorrect-help">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 font-bold text-ink [&::-webkit-details-marker]:hidden">
+              <UiIcon name="help" className="text-muted" />
+              {t.helpTitle}
+              <UiIcon name="chevronDown" size={16} className="ml-auto text-muted transition-transform group-open:rotate-180" />
+            </summary>
+            <p><strong className="text-ink">{t.autoTitle}.</strong> {t.autoHelp}</p>
+          </details>
         )}
         {showInstructions ? (
           <div>
@@ -823,32 +864,40 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
           )}
 
           {flash && (
-            <div className="flex flex-wrap items-center gap-3 px-2">
-              <div role="radiogroup" aria-label={template.name} className="flex gap-5 text-base font-bold">
-                {(["two", "one"] as const).map((v) => (
-                  <label key={v} className="flex cursor-pointer items-center gap-1.5">
-                    <input type="radio" name="sides" checked={(options.sides ?? "two") === v} onChange={() => setOption("sides", v)} />
-                    {v === "two" ? t.twoSides : t.oneSide}
-                  </label>
-                ))}
+            <div className="flex flex-wrap items-center gap-2" data-testid="flash-toolbar">
+              <div role="radiogroup" aria-label={template.name} className="inline-flex rounded-[10px] border border-line bg-card p-1">
+                {(["two", "one"] as const).map((v) => {
+                  const on = (options.sides ?? "two") === v;
+                  return (
+                    <label key={v} className={`flex min-h-10 cursor-pointer items-center gap-2 rounded-lg px-3 text-[15px] font-semibold has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-primary ${on ? "bg-primary-soft text-primary" : "text-ink-2 hover:bg-paper-2"}`}>
+                      <input type="radio" name="sides" checked={on} onChange={() => setOption("sides", v)} className="h-4 w-4 accent-primary" />
+                      {v === "two" ? t.twoSides : t.oneSide}
+                    </label>
+                  );
+                })}
               </div>
-              <div className="ml-auto flex flex-col items-end gap-2">
-                {langToggle}
-                {twoSided && <Button size="sm" variant="secondary" onClick={swapAll}>⇄ {t.swap}</Button>}
-              </div>
-              {!twoSided && <p className="w-full text-xs text-muted">{t.backHiddenOne}</p>}
+              {twoSided && (
+                <>
+                  <span aria-hidden className="mx-1 hidden h-8 w-px bg-line sm:block" />
+                  <Button variant="secondary" onClick={swapAll} className="h-11" data-testid="swap-columns">
+                    <UiIcon name="swap" className="text-muted" />
+                    {t.swap}
+                  </Button>
+                </>
+              )}
+              <div className="ml-auto">{langToggle}</div>
+              {!twoSided && <p className="w-full text-sm text-muted">{t.backHiddenOne}</p>}
             </div>
           )}
 
+          <div className={flash ? "overflow-hidden rounded-xl border border-line bg-card" : ""}>
           {flash && twoSided && (
-            <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-3 px-2 text-lg font-bold text-ink-2 md:grid xl:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_auto]">
-              <span />
+            <div className="hidden grid-cols-2 gap-4 border-b border-line bg-paper-2 px-4 py-2.5 text-sm font-bold text-ink md:grid" aria-hidden="true">
               <span>{t.front}</span>
               <span>{t.back}</span>
             </div>
           )}
-
-          <ol className={flash ? "space-y-1" : "space-y-3"} aria-label={`${template.name}: ${game.items.length}`}>
+          <ol className={flash ? "divide-y divide-line" : "space-y-3"} aria-label={`${template.name}: ${game.items.length}`}>
             {game.items.map((it, i) => {
               const controls = (
                 <RowControls
@@ -859,6 +908,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                   onDuplicate={() => duplicateItem(i)}
                   onDelete={() => remove(i)}
                   onDragStart={() => setDragFrom(i)}
+                  onSwap={flash && twoSided ? () => setItem(i, swapItem) : undefined}
                 />
               );
               const rowKey = it.key ?? it.id ?? `new-${i}`;
@@ -878,9 +928,12 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                 const back = it.data.back ?? {};
                 const backLang = it.data.translationLanguage ?? (game.language === "es-419" ? "en-US" : "es-419");
                 return (
-                  <li key={rowKey} {...rowProps} className={`rounded-xl px-2 py-1 hover:bg-card ${dropMark} ${dragFrom === i ? "opacity-50" : ""}`} aria-label={`${t.card[0].toUpperCase()}${t.card.slice(1)} ${i + 1}`}>
-                    <div className={`grid items-start gap-x-3 gap-y-1 ${twoSided ? "md:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)_auto]" : "xl:grid-cols-[2.5rem_minmax(0,1fr)_auto]"} grid-cols-[2.5rem_minmax(0,1fr)]`}>
-                      <span className={`self-start text-right font-display text-lg font-semibold text-ink-2 ${twoSided ? "pt-8 md:pt-3.5" : "pt-3.5"}`}>{i + 1}.</span>
+                  <li key={rowKey} {...rowProps} className={`p-3 sm:p-4 ${dropMark} ${dragFrom === i ? "opacity-50" : ""}`} aria-label={`${t.card[0].toUpperCase()}${t.card.slice(1)} ${i + 1}`} data-testid="flash-row">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <span className="inline-grid h-8 min-w-8 place-items-center rounded-lg bg-paper-2 px-2 text-sm font-bold text-ink-2">{i + 1}</span>
+                      {controls}
+                    </div>
+                    <div className={`grid gap-3 ${twoSided ? "md:grid-cols-2 md:gap-4" : ""}`}>
                       <FaceEditor
                         label={t.front}
                         showLabel={twoSided}
@@ -893,7 +946,6 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                       />
                       {twoSided && (
                         <FaceEditor
-                          className="col-start-2 md:col-start-auto"
                           label={t.back}
                           showLabel
                           face={back}
@@ -904,12 +956,6 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                           onSearch={() => setPhotoForm({ index: i, slot: "back" })}
                         />
                       )}
-                      <div className={`col-start-2 flex flex-wrap items-center justify-end gap-1 self-start xl:col-span-1 xl:col-start-auto xl:pt-2 ${twoSided ? "md:col-span-2" : ""}`}>
-                        {twoSided && (
-                          <button type="button" onClick={() => setItem(i, swapItem)} className="rounded-full px-2 py-1 text-xs font-bold text-muted hover:bg-paper-2 hover:text-ink" aria-label={`${t.swapOne} ${i + 1}`} title={t.swapOne}>⇄</button>
-                        )}
-                        {controls}
-                      </div>
                     </div>
                   </li>
                 );
@@ -968,6 +1014,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
               );
             })}
           </ol>
+          </div>
 
           {lastDeleted && (
             <div role="status" className="sticky bottom-3 z-10 mx-auto flex w-fit items-center gap-3 rounded-full bg-ink px-4 py-2 text-sm text-white shadow-soft">
@@ -976,14 +1023,15 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
             </div>
           )}
 
-          <div className={`flex flex-wrap items-center gap-3 ${flash ? "pl-12" : ""}`}>
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               disabled={atMax}
               onClick={() => setGame((g) => (g.items.length >= maxItems ? g : { ...g, items: [...g.items, blankItem(template)] }))}
-              className={`${flash ? "rounded-full px-4 py-2 hover:bg-coral-soft" : "flex-1 rounded-xl2 border-2 border-dashed border-line py-4 hover:border-coral"} font-bold text-ink-2 hover:text-coral disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:bg-transparent disabled:hover:text-ink-2`}
+              className={`${flash ? "h-11 rounded-[10px] border border-dashed border-line-strong bg-card px-4" : "min-h-14 flex-1 rounded-xl2 border-2 border-dashed border-line"} inline-flex items-center justify-center gap-2 font-bold text-ink-2 hover:border-primary hover:bg-primary-soft hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:bg-transparent disabled:hover:text-ink-2`}
             >
-              + {flash ? t.addItem : `${t.add} ${noun}`}
+              <UiIcon name="plus" />
+              {flash ? t.addItem : `${t.add} ${noun}`}
             </button>
             <span className={`text-sm font-bold ${atMax ? "text-coral-dark" : "text-muted"}`} aria-live="polite">
               {game.items.length} {t.of} {maxItems}
@@ -992,7 +1040,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
             </span>
             {flash && (
               options.letsPractice ? (
-                <span className="ml-auto inline-flex flex-wrap items-center gap-2 rounded-full bg-teal-soft px-4 py-2 text-sm font-bold text-teal-dark" data-testid="practice-created">
+                <span className="ml-auto inline-flex min-h-11 flex-wrap items-center gap-2 rounded-[10px] bg-teal-soft px-4 py-2 text-sm font-bold text-teal-dark" data-testid="practice-created">
                   🎤 {t.practiceOn}
                   <button type="button" onClick={() => setEditPractice((v) => !v)} aria-expanded={editPractice} aria-controls="practice-editor" data-testid="practice-edit" className="rounded-full bg-white px-3 py-0.5 text-xs font-bold text-teal-dark hover:bg-teal hover:text-white">✏️ {t.practiceEdit}</button>
                   <button type="button" onClick={() => setOption("letsPractice", false)} className="rounded-full px-2 text-xs font-bold text-muted hover:bg-white hover:text-coral-dark">{t.practiceRemove}</button>
@@ -1003,12 +1051,12 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
                   onClick={() => setOption("letsPractice", true)}
                   data-testid="create-practice"
                   title={t.practiceHelp}
-                  className="ml-auto inline-flex items-center gap-2 rounded-full bg-coral px-4 py-2 font-bold text-white shadow-[0_2px_0_var(--color-coral-dark)] hover:bg-coral-dark"
+                  className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-[10px] border border-teal/40 bg-teal-soft px-4 py-1.5 font-bold text-teal-dark hover:bg-teal hover:text-white"
                 >
                   <span aria-hidden>🎤</span>
                   <span className="leading-tight text-left">
                     <span className="block">Let&apos;s practice</span>
-                    <span className="block text-[11px] font-semibold text-white/85">{t.practiceCreate}</span>
+                    <span className="block text-[11px] font-semibold opacity-80">{t.practiceCreate}</span>
                   </span>
                 </button>
               )
@@ -1061,13 +1109,6 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
 
           {flash && library?.list}
 
-          {flash && (
-            <div className="sticky bottom-0 z-20 -mx-5 mt-6 flex items-center justify-end gap-3 border-t border-line bg-paper/95 px-5 py-3 backdrop-blur">
-              <Button onClick={() => finishEditing()} disabled={!!busy} className="min-w-36" data-testid="editor-done">
-                {busy === "done" ? t.saving : t.done}
-              </Button>
-            </div>
-          )}
         </div>
 
         {!flash && <aside className="space-y-4">{settingsSections}</aside>}
