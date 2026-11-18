@@ -1,71 +1,91 @@
 import Link from "next/link";
+import { GRADE_FILTERS, type GradeFilter } from "@/components/library/gradeFilters";
+import { LibraryHeader } from "@/components/library/LibraryHeader";
 import { KindBadge, TopicCard } from "@/components/library/LibraryBits";
-import { PageHeader } from "@/components/ui/Panel";
+import { requireTeacherPage } from "@/lib/auth/guards";
+import { db } from "@/lib/db";
 import { libraryTopics } from "@/lib/library/service";
-import { GRADES, GRADE_LABEL, KINDS, KIND_LABEL, type Grade, type Kind } from "@/lib/library/types";
+import { KINDS, KIND_LABEL, type Grade, type Kind } from "@/lib/library/types";
 
 export const metadata = { title: "Library" };
 
-// Library: first by grade, then by topic or by type of resource. Published content only.
-export default async function LibraryPage({ searchParams }: { searchParams: Promise<{ grade?: string; type?: string }> }) {
+// The Library's content is tagged with two bands: Lower (K–2) and Upper (3–6), so 3–4 and 5–6
+// both show Upper content. Old links (?grade=LOWER / UPPER) keep working.
+const BAND: Record<GradeFilter, Grade | null> = { all: null, "k-2": "LOWER", "3-4": "UPPER", "5-6": "UPPER" };
+const LEGACY: Record<string, GradeFilter> = { LOWER: "k-2", UPPER: "3-4" };
+
+// Library: filter by grade, search a theme or an activity, or show My favorites. Published content only.
+export default async function LibraryPage({ searchParams }: { searchParams: Promise<{ grade?: string; type?: string; q?: string; fav?: string }> }) {
+  const { teacher } = await requireTeacherPage();
   const sp = await searchParams;
-  const grade = (GRADES as readonly string[]).includes(sp.grade ?? "") ? (sp.grade as Grade) : null;
+  const grade: GradeFilter = GRADE_FILTERS.some((f) => f.id === sp.grade) ? (sp.grade as GradeFilter) : (LEGACY[sp.grade ?? ""] ?? "all");
+  const band = BAND[grade];
   const type = (KINDS as readonly string[]).includes(sp.type ?? "") ? (sp.type as Kind) : null;
-  const topics = grade ? await libraryTopics({ grade }) : [];
+  const q = (sp.q ?? "").trim().slice(0, 80);
+  const fav = sp.fav === "1";
+  const [topics, favRows] = await Promise.all([
+    libraryTopics({ grade: band ?? undefined, q: q || undefined, favoritesOf: fav ? teacher.id : undefined }),
+    db.topicFavorite.findMany({ where: { teacherId: teacher.id }, select: { topicId: true } }),
+  ]);
+  const favorites = new Set(favRows.map((r) => r.topicId));
+  const keep = (extra: string) => {
+    const p = new URLSearchParams();
+    if (grade !== "all") p.set("grade", grade);
+    if (q) p.set("q", q);
+    if (fav) p.set("fav", "1");
+    if (extra) p.set("type", extra);
+    return `/teacher/library${p.size ? `?${p}` : ""}`;
+  };
+  const gradeQs = band ? `?grade=${band}` : "";
   const tab = (active: boolean) => `rounded-full px-4 py-2.5 font-bold ${active ? "bg-ink text-white" : "bg-card text-ink-2 ring-1 ring-line hover:bg-paper-2"}`;
 
   return (
     <>
-      <PageHeader eyebrow="LextroSpeak Library" title="Library" subtitle="Choose a grade, then browse by topic or by type of resource. Open any activity to try it, or assign a whole topic to your class." />
-      <nav aria-label="Grade" className="mb-6 grid gap-3 sm:grid-cols-2">
-        {GRADES.map((g) => (
-          <Link key={g} href={`/teacher/library?grade=${g}`} aria-current={grade === g ? "page" : undefined}
-            className={`rounded-[22px] p-5 shadow-pop transition ${grade === g ? "bg-ink text-white" : "bg-card hover:-translate-y-0.5"}`}>
-            <span className="block font-display text-2xl font-extrabold">{GRADE_LABEL[g].label}</span>
-            <span className={grade === g ? "text-white/80" : "text-muted"}>{GRADE_LABEL[g].grades}</span>
-          </Link>
+      <LibraryHeader grade={grade} q={q} fav={fav} />
+
+      <nav aria-label="Browse by" className="mb-5 flex flex-wrap gap-2">
+        <Link href={keep("")} className={tab(!type)}>Topics</Link>
+        {KINDS.map((k) => (
+          <Link key={k} href={keep(k)} className={tab(type === k)}>{KIND_LABEL[k].plural}</Link>
         ))}
       </nav>
-
-      {!grade ? (
-        <p className="rounded-[22px] border-2 border-dashed border-line p-8 text-center font-bold text-ink-2">Pick a grade to see its topics.</p>
+      {topics.length === 0 && (
+        <p className="rounded-[22px] border-2 border-dashed border-line p-8 text-center font-bold text-ink-2" data-testid="library-empty">
+          {fav ? "No favorites here yet. Tap the heart on a topic to save it." : q ? `No themes or activities match “${q}”.` : "No published content for this grade yet."}
+        </p>
+      )}
+      {!type ? (
+        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" data-testid="library-topics">
+          {topics.map((t) => (
+            <li key={t.id}>
+              <TopicCard
+                href={`/teacher/library/topics/${t.slug}${gradeQs}`}
+                studentViewHref={`/teacher/library/topics/${t.slug}/student-view${gradeQs}`}
+                topic={t}
+                kinds={t.resources.map((r) => r.resource.kind as Kind)}
+                favorite={{ topicId: t.id, on: favorites.has(t.id), refresh: fav }}
+              />
+            </li>
+          ))}
+        </ul>
       ) : (
-        <>
-          <nav aria-label="Browse by" className="mb-5 flex flex-wrap gap-2">
-            <Link href={`/teacher/library?grade=${grade}`} className={tab(!type)}>Topics</Link>
-            {KINDS.map((k) => (
-              <Link key={k} href={`/teacher/library?grade=${grade}&type=${k}`} className={tab(type === k)}>{KIND_LABEL[k].plural}</Link>
-            ))}
-          </nav>
-          {topics.length === 0 && <p className="text-muted">No published content for this grade yet.</p>}
-          {!type ? (
-            <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {topics.map((t) => (
-                <li key={t.id}>
-                  <TopicCard href={`/teacher/library/topics/${t.slug}?grade=${grade}`} studentViewHref={`/teacher/library/topics/${t.slug}/student-view?grade=${grade}`} topic={t} kinds={t.resources.map((r) => r.resource.kind as Kind)} />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="space-y-6">
-              {topics.filter((t) => t.resources.some((r) => r.resource.kind === type)).map((t) => (
-                <section key={t.id}>
-                  <h2 className="mb-2 font-display text-xl font-extrabold">{t.titleEs} <span className="text-base font-bold text-muted">· {t.titleEn}</span></h2>
-                  <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {t.resources.filter((r) => r.resource.kind === type).map((r) => (
-                      <li key={r.resource.id}>
-                        <Link href={`/teacher/library/resources/${r.resource.id}`} className="flex items-center justify-between gap-3 rounded-[20px] bg-card p-4 shadow-pop hover:-translate-y-0.5">
-                          <span className="font-bold">{r.resource.title}</span>
-                          <KindBadge kind={r.resource.kind as Kind} />
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ))}
-            </div>
-          )}
-        </>
+        <div className="space-y-6">
+          {topics.filter((t) => t.resources.some((r) => r.resource.kind === type)).map((t) => (
+            <section key={t.id}>
+              <h2 className="mb-2 font-display text-xl font-extrabold">{t.titleEs} <span className="text-base font-bold text-muted">· {t.titleEn}</span></h2>
+              <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {t.resources.filter((r) => r.resource.kind === type).map((r) => (
+                  <li key={r.resource.id}>
+                    <Link href={`/teacher/library/resources/${r.resource.id}`} className="flex items-center justify-between gap-3 rounded-[20px] bg-card p-4 shadow-pop hover:-translate-y-0.5">
+                      <span className="font-bold">{r.resource.title}</span>
+                      <KindBadge kind={r.resource.kind as Kind} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
     </>
   );

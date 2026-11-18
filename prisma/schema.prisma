@@ -155,6 +155,7 @@ model Teacher {
   assignments Assignment[]
   folders     ActivityFolder[]
   topicPlans  TopicPlan[]
+  favorites   TopicFavorite[]
 
   @@index([schoolId])
 }
@@ -779,6 +780,7 @@ model Topic {
   resources   TopicResource[]
   assignments Assignment[]
   plans       TopicPlan[]
+  favorites   TopicFavorite[]
 
   @@index([gradeId])
 }
@@ -927,4 +929,17 @@ model ActivityProgress {
 
   @@index([activityId, studentId])
   @@index([studentId])
+}
+
+// Library topics a teacher marked with the heart ("My favorites").
+model TopicFavorite {
+  teacherId String
+  topicId   String
+  createdAt DateTime @default(now())
+
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  topic   Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@id([teacherId, topicId])
+  @@index([topicId])
 }

@@ -11,13 +11,24 @@ import { fileIdsOf, safeContent, type AnyContent, type Kind } from "./types";
 
 export const publishedWhere = { status: "PUBLISHED" as const, currentVersionId: { not: null } };
 
-export async function libraryTopics(opts: { grade?: "LOWER" | "UPPER"; category?: string; q?: string; includeEmpty?: boolean } = {}) {
+export async function libraryTopics(opts: { grade?: "LOWER" | "UPPER"; category?: string; q?: string; includeEmpty?: boolean; favoritesOf?: string } = {}) {
   const resWhere: Prisma.LibraryResourceWhereInput = { ...publishedWhere, ...(opts.grade ? { grades: { has: opts.grade } } : {}) };
   const topics = await db.topic.findMany({
     where: {
       status: "PUBLISHED",
       ...(opts.category ? { category: opts.category } : {}),
-      ...(opts.q ? { OR: [{ titleEn: { contains: opts.q, mode: "insensitive" } }, { titleEs: { contains: opts.q, mode: "insensitive" } }] } : {}),
+      ...(opts.favoritesOf ? { favorites: { some: { teacherId: opts.favoritesOf } } } : {}),
+      // A theme (topic title, either language or its category) or an activity inside it.
+      ...(opts.q
+        ? {
+            OR: [
+              { titleEn: { contains: opts.q, mode: "insensitive" } },
+              { titleEs: { contains: opts.q, mode: "insensitive" } },
+              { category: { contains: opts.q, mode: "insensitive" } },
+              { resources: { some: { resource: { ...resWhere, title: { contains: opts.q, mode: "insensitive" } } } } },
+            ],
+          }
+        : {}),
     },
     orderBy: [{ sortOrder: "asc" }, { titleEn: "asc" }],
     include: { resources: { where: { resource: resWhere }, orderBy: { position: "asc" }, include: { resource: { select: { id: true, kind: true, title: true, grades: true } } } } },
