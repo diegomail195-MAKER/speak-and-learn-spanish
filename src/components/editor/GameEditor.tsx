@@ -731,14 +731,11 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
           />
           <CorrectionNote notice={titleAuto.notice} className="absolute -bottom-3 right-4 z-10" />
         </div>
-        <p className="flex items-start gap-1.5 text-sm text-muted" data-testid="autocorrect-help">
-          <span aria-hidden>✨</span>
-          <span><strong className="text-ink-2">{t.autoTitle}.</strong> {t.autoHelp}</span>
-        </p>
-        {flash && (
-          <p className="flex items-start gap-1.5 text-sm text-muted" data-testid="paste-help">
-            <span aria-hidden>📋</span>
-            <span>{t.pasteHint}</span>
+        {/* Flashcards skip the help lines; autocorrect and Ctrl+V pasting still work there. */}
+        {!flash && (
+          <p className="flex items-start gap-1.5 text-sm text-muted" data-testid="autocorrect-help">
+            <span aria-hidden>✨</span>
+            <span><strong className="text-ink-2">{t.autoTitle}.</strong> {t.autoHelp}</span>
           </p>
         )}
         {showInstructions ? (
