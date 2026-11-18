@@ -115,7 +115,7 @@ try {
   assert((await page.getByRole("heading", { name: "Library resources" }).count()) === 0, "no empty Library resources box");
   const tableWidth = await page.locator("ol").evaluate((el) => el.getBoundingClientRect().width);
   assert(tableWidth > 1000, `the card table takes the main width (${Math.round(tableWidth)}px)`);
-  await page.getByText("+ Add an item").waitFor();
+  await page.getByRole("button", { name: "Add an item" }).waitFor();
   await page.getByText("1 of 100").first().waitFor();
   log("compact editor: one row, clean bar, table", Math.round(tableWidth), "px wide");
 
@@ -375,7 +375,7 @@ try {
   assert(r.ok(), `100 cards saved (${r.status()})`);
   await page.reload();
   await page.getByText("100 of 100").first().waitFor();
-  assert(await page.getByRole("button", { name: /\+ Add an item/ }).isDisabled(), "Add an item disabled at 100");
+  assert(await page.getByRole("button", { name: /Add an item/ }).isDisabled(), "Add an item disabled at 100");
   const done100 = await page.getByTestId("editor-done").boundingBox();
   assert(done100 && done100.y + done100.height <= 900, "Done still visible with 100 cards");
   await page.goto(`${BASE}/play/preview/${gameId}`);

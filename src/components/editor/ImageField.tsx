@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { UiIcon } from "@/components/ui/icons";
 import { useUi } from "./i18n";
 import { ImageEditor, type EditStep } from "./ImageEditor";
 
@@ -35,13 +36,35 @@ function saveOrigin(id: string, o: Origin) {
 
 export const mediaSrc = (id: string | null | undefined) => (id ? `/api/media/${id}` : null);
 
-export async function uploadBlob(blob: Blob, name: string): Promise<Asset> {
+/** Images the server accepts (see /api/media): the type is checked again there from the bytes. */
+export const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+export const IMAGE_MAX_BYTES = 4 * 1024 * 1024;
+
+/** Uploads a picture. With onProgress, reports the percentage sent (0–100) while it uploads. */
+export async function uploadBlob(blob: Blob, name: string, onProgress?: (pct: number) => void): Promise<Asset> {
   const fd = new FormData();
   fd.append("file", new File([blob], name, { type: blob.type }));
-  const res = await fetch("/api/media", { method: "POST", body: fd });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error || `Upload failed (${res.status})`);
-  return json;
+  if (!onProgress) {
+    const res = await fetch("/api/media", { method: "POST", body: fd });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || `Upload failed (${res.status})`);
+    return json;
+  }
+  return new Promise<Asset>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/media");
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100));
+    xhr.onerror = () => reject(new Error("Upload failed: no connection"));
+    xhr.onload = () => {
+      let json: { error?: string } & Partial<Asset> = {};
+      try {
+        json = JSON.parse(xhr.responseText);
+      } catch {}
+      if (xhr.status >= 200 && xhr.status < 300) resolve(json as Asset);
+      else reject(new Error(json.error || `Upload failed (${xhr.status})`));
+    };
+    xhr.send(fd);
+  });
 }
 
 /**
@@ -76,6 +99,7 @@ export function ImageField({
   const [panel, setPanel] = useState<false | "search" | "upload">(false);
   const [editing, setEditing] = useState<{ src: string; name: string; local: boolean; file?: File; origin?: Origin | null } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState("");
   const src = mediaSrc(assetId);
 
@@ -95,7 +119,8 @@ export function ImageField({
     try {
       let b = blob;
       if (!b) b = editing.file ?? (await (await fetch(editing.src)).blob());
-      const a = await uploadBlob(b, name);
+      setProgress(0);
+      const a = await uploadBlob(b, name, setProgress);
       if (blob && history) {
         const root = editing.origin ?? (editing.local ? { file: editing.file, src: editing.src } : { origId: assetId ?? undefined });
         saveOrigin(a.id, { origId: root.origId, file: root.file, src: root.src, history });
@@ -107,6 +132,7 @@ export function ImageField({
       setError((e as Error).message);
     } finally {
       setBusy(false);
+      setProgress(null);
     }
   }
 
@@ -116,7 +142,7 @@ export function ImageField({
         <button
           type="button"
           onClick={() => openEditor(assetId!, src)}
-          className={`shrink-0 overflow-hidden rounded-lg border border-line bg-card ${inline ? "h-8 w-8" : "h-14 w-14"}`}
+          className={`shrink-0 overflow-hidden rounded-lg border border-line bg-paper ${inline ? "h-10 w-10" : "h-[72px] w-[72px] sm:h-20 sm:w-20"}`}
           title={t.edit}
           aria-label={`${t.edit}: ${label ?? t.addImage}`}
         >
@@ -159,7 +185,7 @@ export function ImageField({
         <button
           type="button"
           onClick={() => (onSearch ? onSearch() : setPanel("search"))}
-          className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-paper-2 hover:text-sky"
+          className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-lavender hover:text-plum"
           aria-label={`${t.searchWeb}${label ? ` (${label})` : ""}`}
           title={t.searchWeb}
         >
@@ -168,7 +194,7 @@ export function ImageField({
         <button
           type="button"
           onClick={() => setPanel("upload")}
-          className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-paper-2 hover:text-sky"
+          className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-lavender hover:text-plum"
           aria-label={`${t.addImage}${label ? ` (${label})` : ""}`}
           title={t.uploadImage}
         >
@@ -207,6 +233,7 @@ export function ImageField({
           src={editing.src}
           initial={editing.origin?.history}
           busy={busy}
+          progress={progress}
           error={error}
           onCancel={() => setEditing(null)}
           onRemove={editing.local ? undefined : () => (onChange(null), setEditing(null))}
@@ -237,6 +264,16 @@ function AddImagePanel({ initialTab, suggest, onClose, onPicked, onLocalFile }: 
   const fileRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [fileError, setFileError] = useState("");
+
+  /** Checks type and size here (the same limits as the server) before opening the editor. */
+  function takeFile(f: File | undefined) {
+    if (!f) return;
+    if (!IMAGE_TYPES.includes(f.type)) return setFileError(t.badType);
+    if (f.size > IMAGE_MAX_BYTES) return setFileError(t.tooBig);
+    setFileError("");
+    onLocalFile(f);
+  }
 
   useEffect(() => {
     // Is the provider configured? If not, show it clearly and open the upload tab.
@@ -291,7 +328,7 @@ function AddImagePanel({ initialTab, suggest, onClose, onPicked, onLocalFile }: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-ink/40 p-3 sm:p-8" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t.addImage} className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-[28px] bg-white shadow-[0_12px_40px_rgba(98,13,120,.18)] outline-none">
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t.addImage} className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_12px_40px_rgba(98,13,120,.18)] outline-none">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-3 border-b border-[#EADCF7] px-5 pb-4 pt-4 sm:px-6">
           <h2 className="font-display text-2xl font-extrabold text-[#620D78] sm:text-3xl">{t.addImage}</h2>
           <button type="button" onClick={onClose} className="ml-auto grid h-10 w-10 place-items-center rounded-full text-[#620D78] hover:bg-[#F3E8FF]" aria-label={t.close} title={t.close}>
@@ -346,15 +383,15 @@ function AddImagePanel({ initialTab, suggest, onClose, onPicked, onLocalFile }: 
                 <form className="flex flex-wrap gap-2" onSubmit={(e) => (e.preventDefault(), search(q, size))}>
                   <span className="relative flex min-w-0 flex-1 items-center">
                     <span className="pointer-events-none absolute left-3 text-muted"><svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="10.5" cy="10.5" r="6" /><path d="m15 15 5 5" /></svg></span>
-                    <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={100} placeholder="manzana, perro, rojo…" aria-label={t.search} autoFocus className="h-10 w-full rounded-full border border-line pl-10 pr-4 text-sm focus:border-sky focus:outline-none" />
+                    <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={100} placeholder="manzana, perro, rojo…" aria-label={t.search} autoFocus className="h-11 w-full rounded-xl border border-line pl-10 pr-4 text-sm focus:border-plum focus:outline-none focus:ring-2 focus:ring-lavender-2" />
                   </span>
-                  <select value={size} onChange={(e) => (setSize(e.target.value), q && search(q, e.target.value))} aria-label={t.size} className="h-10 rounded-full border border-line px-3 text-sm">
+                  <select value={size} onChange={(e) => (setSize(e.target.value), q && search(q, e.target.value))} aria-label={t.size} className="h-11 rounded-xl border border-line px-3 text-sm">
                     <option value="all">{t.sizeAll}</option>
                     <option value="small">{t.sizeSmall}</option>
                     <option value="medium">{t.sizeMedium}</option>
                     <option value="large">{t.sizeLarge}</option>
                   </select>
-                  <button className="h-10 rounded-full bg-ink px-5 text-sm font-bold text-white disabled:opacity-50" disabled={state === "busy"}>{state === "busy" ? "…" : t.search}</button>
+                  <button className="h-11 rounded-xl bg-plum px-5 text-sm font-bold text-white hover:bg-[#4d0a5f] disabled:opacity-50" disabled={state === "busy"}>{state === "busy" ? "…" : t.search}</button>
                 </form>
                 {error && <p className="mt-2 text-sm font-semibold text-coral-dark">{error}</p>}
                 <div className="mt-3 min-h-40 flex-1 overflow-y-auto rounded-xl bg-paper-2 p-2">
@@ -390,8 +427,7 @@ function AddImagePanel({ initialTab, suggest, onClose, onPicked, onLocalFile }: 
             onDrop={(e) => {
               e.preventDefault();
               setDragging(false);
-              const f = e.dataTransfer.files[0];
-              if (f) onLocalFile(f);
+              takeFile(e.dataTransfer.files[0]);
             }}
           >
             <div className="flex flex-col items-center">
@@ -402,13 +438,22 @@ function AddImagePanel({ initialTab, suggest, onClose, onPicked, onLocalFile }: 
               ) : (
                 <>
                   <button type="button" onClick={() => fileRef.current?.click()} className="mt-3 min-h-12 min-w-56 rounded-full bg-[#FFC928] px-8 text-lg font-extrabold text-[#620D78] shadow-[0_4px_0_#D9A20F] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#D9A20F] sm:text-xl" data-testid="choose-file">
-                    {t.chooseFile}
+                    <span className="inline-flex items-center gap-2"><UiIcon name="upload" size={22} strokeWidth={2.5} />{t.chooseFile}</span>
                   </button>
                   <p className="mt-3 font-bold text-[#620D78]">{t.dropHere}</p>
                 </>
               )}
-              <p className="mt-1 text-sm text-[#6b5a78]">PNG, JPEG, GIF, WebP · 4 MB</p>
-              <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={(e) => e.target.files?.[0] && onLocalFile(e.target.files[0])} />
+              <p className="mt-1 text-sm text-[#6b5a78]" data-testid="upload-formats">{t.formats}</p>
+              {fileError && (
+                <p role="alert" className="mt-3 flex max-w-sm items-start gap-2 rounded-lg border border-coral/40 bg-white px-3 py-2 text-left text-sm font-semibold text-coral-dark" data-testid="upload-error">
+                  <span aria-hidden>⚠</span>
+                  <span>
+                    <span className="block">{t.uploadFailedTitle}</span>
+                    <span className="block font-normal">{fileError}</span>
+                  </span>
+                </p>
+              )}
+              <input ref={fileRef} type="file" accept={IMAGE_TYPES.join(",")} className="hidden" onChange={(e) => (takeFile(e.target.files?.[0]), (e.target.value = ""))} />
             </div>
           </div>
         )}

@@ -42,7 +42,7 @@ try {
   const c1 = page.locator("ol > li").first();
   await c1.getByRole("textbox", { name: "Frente: Texto" }).fill("rojo");
   await c1.getByRole("textbox", { name: "Reverso: Texto" }).fill("red");
-  await page.getByText("+ Añadir tarjeta").click();
+  await page.getByRole("button", { name: "Añadir tarjeta" }).click();
   const c2 = page.locator("ol > li").nth(1);
   await c2.getByRole("textbox", { name: "Frente: Texto" }).fill("azul");
   await c2.getByRole("textbox", { name: "Reverso: Texto" }).fill("blue");

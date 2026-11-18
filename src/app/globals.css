@@ -1,19 +1,30 @@
 @import "tailwindcss";
 
-/* LextroSpeak — design tokens (from the approved LextroSpeak design).
-   Warm paper background, deep ink text, brand red for actions, Piñita's colors for topics,
-   teal for anything voice-related. */
+/* LextroSpeak — design tokens.
+   Cool gray page, white surfaces, 1px cool borders, deep ink text, blue for the main action.
+   Lavender, plum and mango are accents for the editor tools and the Add image modal only.
+   Piñita's colors (mint, berry, grape, sun…) stay for topics and learning materials. */
 @theme {
-  --color-paper: #fff8ec;
-  --color-paper-2: #fff1de;
-  --color-card: #ffffff;
-  --color-line: #eadfcb;
-  --color-ink: #1f2a44;
-  --color-ink-2: #4a5572;
-  --color-muted: #646c84;
+  --color-paper: #f7f8fa;      /* page background */
+  --color-paper-2: #f1f4f8;    /* subtle fills: table heads, hover, chips */
+  --color-card: #ffffff;       /* cards, fields, headers */
+  --color-line: #e2e6ec;       /* 1px borders */
+  --color-line-strong: #cbd2dc;
+  --color-ink: #172033;        /* main text */
+  --color-ink-2: #334155;
+  --color-muted: #64748b;      /* secondary text */
+  --color-primary: #2563eb;    /* main action */
+  --color-primary-dark: #1d4ed8;
+  --color-primary-soft: #eff6ff; /* selection, active nav */
+  --color-lavender: #f3e8ff;
+  --color-lavender-2: #e9d8fd;
+  --color-plum: #620d78;
+  --color-violet: #a43be0;
+  --color-mango: #ffc928;
+  --color-mango-soft: #ffe9a8;
   --color-coral: #d93a30;
   --color-coral-dark: #b32a22;
-  --color-coral-soft: #ffe3df;
+  --color-coral-soft: #fde2e0; /* delete actions, errors */
   --color-brand: #ff5a4e;
   --color-mint: #3dd6a3;
   --color-berry: #f2559a;
@@ -22,20 +33,32 @@
   --color-teal-dark: #0c625c;
   --color-teal-soft: #dcf1ee;
   --color-sun: #ffc93c;
-  --color-sun-soft: #fdf0d3;
-  --color-leaf: #2b8f55;
-  --color-leaf-soft: #dff2e5;
-  --color-sky: #2f86c9;
-  --color-sky-soft: #e1ebf8;
+  --color-sun-soft: #fef6dc;
+  --color-leaf: #15803d;       /* success */
+  --color-leaf-soft: #dcfce7;
+  --color-sky: #2563eb;
+  --color-sky-soft: #eff6ff;
+
+  /* Spacing scale for layout: 8 / 16 / 24 / 32 px (Tailwind 2 / 4 / 6 / 8). */
+  --spacing-s1: 8px;
+  --spacing-s2: 16px;
+  --spacing-s3: 24px;
+  --spacing-s4: 32px;
+  /* Controls: at least 44px tall; icon buttons 44×44 with 20px icons. */
+  --spacing-control: 44px;
 
   /* One typeface everywhere: Century Gothic (when installed), else Didact Gothic (temporary, OFL). */
   --font-gothic: "Century Gothic", "CenturyGothic", var(--font-gothic-fallback), "URW Gothic", sans-serif;
   --font-sans: var(--font-gothic);
   --font-display: var(--font-gothic);
 
-  --radius-xl2: 1.25rem;
+  /* Corners: 8–12px for controls and cards; up to 20px only for the Add image modal. */
+  --radius-ctl: 8px;
+  --radius-xl2: 12px;
+  --radius-modal: 20px;
   --radius-card: 28px;
-  --shadow-soft: 0 1px 0 rgba(31, 42, 68, 0.06), 0 6px 18px -8px rgba(31, 42, 68, 0.18);
+  --shadow-soft: 0 1px 2px rgba(23, 32, 51, 0.06), 0 4px 12px -6px rgba(23, 32, 51, 0.12);
+  --shadow-menu: 0 2px 4px rgba(23, 32, 51, 0.06), 0 12px 28px -8px rgba(23, 32, 51, 0.2);
   --shadow-pop: 0 6px 0 rgba(31, 42, 68, 0.1), 0 14px 28px rgba(31, 42, 68, 0.08);
 }
 
@@ -53,9 +76,18 @@ body {
    inside a bordered box that shows its own focus ring, where this outline covered the text). */
 @layer base {
   :focus-visible {
-    outline: 3px solid var(--color-sky);
+    outline: 3px solid var(--color-primary);
     outline-offset: 2px;
     border-radius: 6px;
+  }
+}
+
+/* Short, quiet transitions for interactive controls (removed under reduced motion below). */
+@layer base {
+  button, a, [role="menuitem"], [role="tab"] {
+    transition-property: background-color, border-color, color, box-shadow, opacity;
+    transition-duration: 120ms;
+    transition-timing-function: ease-out;
   }
 }
 

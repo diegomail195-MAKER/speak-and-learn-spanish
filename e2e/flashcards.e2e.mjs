@@ -149,7 +149,7 @@ try {
   log("player: visible face audio only →", playHeard.join(", "));
 
   // Keyboard reordering: add a second card "azul", move it up with the arrow key on its handle
-  await page.getByRole("button", { name: /\+ Añadir tarjeta/ }).click();
+  await page.getByRole("button", { name: /Añadir tarjeta/ }).click();
   const row2 = page.locator("ol > li").nth(1);
   await row2.getByRole("textbox", { name: "Frente: Texto" }).fill("azul");
   await page.locator("[data-row-handle='1']").focus();
@@ -218,9 +218,9 @@ try {
   assert(r.status() === 400, `101 cards refused by the server (${r.status()})`);
   await page.reload();
   await page.getByText("99 de 100").waitFor();
-  await page.getByRole("button", { name: /\+ Añadir tarjeta/ }).click();
+  await page.getByRole("button", { name: /Añadir tarjeta/ }).click();
   await page.getByText("100 de 100").waitFor();
-  assert(await page.getByRole("button", { name: /\+ Añadir tarjeta/ }).isDisabled(), "add disabled at 100");
+  assert(await page.getByRole("button", { name: /Añadir tarjeta/ }).isDisabled(), "add disabled at 100");
   assert(await page.getByRole("button", { name: "Duplicar (1)" }).isDisabled(), "duplicate disabled at 100");
   await waitSaved();
   const saved = await (await page.request.get(`${BASE}/api/games/${gameId}`)).json();

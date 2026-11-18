@@ -123,7 +123,7 @@ try {
 
   // ── Test 1: dashboard button → template gallery with filters and oral indicator ────
   await page.goto(`${BASE}/teacher`);
-  await page.click("a:text-is('+ Create Activity')");
+  await page.getByTestId("create-activity").click();
   await page.waitForSelector("h1:text-is('Choose an Activity Template')");
   const cards = page.locator("article");
   assert((await cards.count()) === 8, `gallery shows ${await cards.count()} templates, expected 8`);
@@ -164,7 +164,7 @@ try {
   await c1.locator("input[placeholder='La manzana.']").fill("amor");
   await c1.locator("select[aria-label='Answer language']").selectOption("es-419");
   await c1.getByRole("textbox", { name: "Back: Text" }).fill("love");
-  await page.click("text=+ Add an item");
+  await page.getByRole("button", { name: /Add an item/ }).click();
   const c2 = page.locator("li[aria-label='Card 2']");
   await c2.getByRole("button", { name: "Spoken answer (optional) (2)" }).click();
   await c2.locator("input[placeholder='¿Qué fruta es?']").fill("¿Qué fruta es?");
