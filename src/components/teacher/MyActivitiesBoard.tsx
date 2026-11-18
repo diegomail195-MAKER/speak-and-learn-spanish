@@ -7,7 +7,9 @@ import { PREVIEW_BG, TemplatePreview } from "@/components/editor/TemplatePreview
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { duplicateGame } from "@/lib/actions/games";
 import { createFolder, deleteFolder, emptyBin, moveFolder, moveGame, restoreGame, trashGame, updateFolder } from "@/lib/actions/folders";
-import { FOLDER_COLORS, folderColor } from "@/lib/folders";
+import { FOLDER_COLORS, folderColor, folderColorKey } from "@/lib/folders";
+import type { FolderSaveResult } from "@/lib/actions/folders";
+import { useFolderStrings, type FolderStrings } from "./folderStrings";
 
 export type BoardFolder = { id: string; name: string; color: string; count: number; subfolders: number; updatedAt: string };
 export type BoardActivity = {
@@ -22,6 +24,7 @@ export type BoardActivity = {
   updatedAt: string;
   lastPlayed: string | null;
   folderName: string | null;
+  folderColor: string | null;
 };
 export type BoardSort = { by: "name" | "modified" | "played"; dir: "asc" | "desc" };
 
@@ -30,13 +33,14 @@ type Props = {
   path: Array<{ id: string; name: string; color: string }>;
   folders: BoardFolder[];
   activities: BoardActivity[];
-  tree: Array<{ id: string; name: string; depth: number }>;
+  tree: FolderTree;
   sort: BoardSort;
   view: "large" | "small";
   q: string;
   bin: boolean;
 };
 
+type FolderTree = Array<{ id: string; name: string; color: string; depth: number }>;
 type Drag = { kind: "game" | "folder"; id: string };
 const DRAG_TYPE = "application/x-lextro-item";
 
@@ -56,6 +60,7 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
   const [over, setOver] = useState<string | null>(null);
   const [dialog, setDialog] = useState<null | { mode: "new" } | { mode: "edit"; folder: BoardFolder }>(null);
   const drag = useRef<Drag | null>(null);
+  const t = useFolderStrings();
 
   const keep = { folder: folder?.id, sort: sort.by === "modified" && sort.dir === "desc" ? null : sort.by, dir: sort.by === "modified" && sort.dir === "desc" ? null : sort.dir, view: view === "small" ? "small" : null };
 
@@ -154,7 +159,7 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {!bin && <Button size="sm" variant="secondary" onClick={() => setDialog({ mode: "new" })}>+ New folder</Button>}
+          {!bin && <Button size="sm" variant="secondary" onClick={() => setDialog({ mode: "new" })}>{t.newFolderButton}</Button>}
           {!bin && <ButtonLink size="sm" variant="secondary" href={href({ bin: "1", view: keep.view })}><TrashIcon className="h-4 w-4" /> Recycle Bin</ButtonLink>}
           <form action="/teacher/my-activities" className="flex">
             {keep.view && <input type="hidden" name="view" value={keep.view} />}
@@ -218,21 +223,21 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
                 <div className="relative" {...dropProps(f.id)}>
                   <Link href={href({ ...keep, folder: f.id })} className="block">
                     <FolderShape color={f.color} small={view === "small"}>
-                      <span className="block font-display text-lg font-semibold uppercase leading-tight">{f.name}</span>
-                      <span className="block text-xs text-ink/70">
+                      <span className="line-clamp-2 break-words pr-12 font-display text-lg font-semibold uppercase leading-tight">{f.name}</span>
+                      <span className="block text-xs opacity-85">
                         {f.count} {f.count === 1 ? "activity" : "activities"}
                         {f.subfolders ? ` · ${f.subfolders} ${f.subfolders === 1 ? "folder" : "folders"}` : ""}
                       </span>
                     </FolderShape>
                   </Link>
-                  <div className="absolute bottom-3 right-3">
-                  <Menu label={`Options for folder ${f.name}`}>
+                  <div className="absolute bottom-2 right-2">
+                  <Menu label={t.options(f.name)} glyph="⋯" size="lg" testId="folder-menu">
                     {(close) => (
                       <>
-                        <MenuItem onClick={() => (close(), setDialog({ mode: "edit", folder: f }))}>Rename or change colour</MenuItem>
+                        <MenuItem onClick={() => (close(), setDialog({ mode: "edit", folder: f }))}>{t.editFolder}</MenuItem>
                         <MoveMenu tree={tree} exclude={f.id} current={folder?.id ?? null} onPick={(t) => (close(), moveTo({ kind: "folder", id: f.id }, t))} />
                         <MenuItem danger onClick={() => { close(); if (window.confirm(`Delete the folder “${f.name}”? Its activities and folders move to ${folder ? `“${folder.name}”` : "My Activities"}.`)) run(() => deleteFolder({ id: f.id }), f.id); }}>
-                          Delete folder
+                          {t.deleteFolder}
                         </MenuItem>
                       </>
                     )}
@@ -271,7 +276,7 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
                       <Link href={openHref(a)} className="block truncate font-display font-semibold hover:text-coral" draggable={false}>{a.title || "Untitled activity"}</Link>
                     )}
                     <span className="block truncate text-xs text-muted">{a.template}{view === "large" ? ` · ${a.items} ${a.items === 1 ? "card" : "cards"}` : ""}</span>
-                    {a.folderName && <span className="block truncate text-xs text-muted">📁 {a.folderName}</span>}
+                    {a.folderName && <span className="flex min-w-0 items-center gap-1 text-xs text-muted"><FolderGlyph color={a.folderColor} size="xs" /><span className="truncate">{a.folderName}</span></span>}
                   </div>
                   <Menu label={`Options for ${a.title || "Untitled activity"}`}>
                     {(close) =>
@@ -313,13 +318,19 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
 
       {dialog && (
         <FolderDialog
-          title={dialog.mode === "new" ? "New folder" : "Edit folder"}
+          key={dialog.mode === "edit" ? dialog.folder.id : "new"}
+          t={t}
+          mode={dialog.mode}
           initial={dialog.mode === "edit" ? dialog.folder : undefined}
           onClose={() => setDialog(null)}
-          onSave={(name, color) => {
+          onSave={async (name, color) => {
             const d = dialog;
-            setDialog(null);
-            run(() => (d.mode === "new" ? createFolder({ name, color, parentId: folder?.id ?? null }) : updateFolder({ id: d.folder.id, name, color })));
+            const res = d.mode === "new" ? await createFolder({ name, color, parentId: folder?.id ?? null }) : await updateFolder({ id: d.folder.id, name, color });
+            if (res.ok) {
+              setDialog(null);
+              router.refresh();
+            }
+            return res;
           }}
         />
       )}
@@ -329,23 +340,27 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
 
 /* ---------- pieces ---------- */
 
+/** Folder tile: a solid tab and body in the folder's colour, with text in a colour that reads on it. */
 function FolderShape({ color, small, children }: { color: string; small?: boolean; children: ReactNode }) {
   const c = folderColor(color);
   return (
-    <div className="group relative pt-3 transition-transform hover:-translate-y-0.5 [[data-over]_&]:scale-105 [[data-over]_&]:drop-shadow-lg">
-      <span className="absolute left-0 top-0 h-5 w-2/5 rounded-t-lg" style={{ background: c.tab }} aria-hidden />
-      <div className={`relative rounded-b-xl rounded-tr-xl px-4 py-3 ${small ? "h-20" : "h-28"} [[data-over]_&]:ring-4 [[data-over]_&]:ring-ink/60`} style={{ background: c.fill, boxShadow: `inset 0 3px 0 ${c.tab}` }}>
+    <div data-folder-color={c.key} className="group relative pt-3 transition-transform motion-safe:hover:-translate-y-0.5 [[data-over]_&]:scale-105 [[data-over]_&]:drop-shadow-lg">
+      <span className="absolute left-0 top-0 h-5 w-2/5 rounded-t-lg" style={{ background: `color-mix(in srgb, ${c.hex} 80%, black)` }} aria-hidden />
+      <div className={`relative rounded-b-xl rounded-tr-xl px-4 py-3 ${small ? "h-24" : "h-28"} [[data-over]_&]:ring-4 [[data-over]_&]:ring-ink/60`} style={{ background: c.hex, color: c.on }}>
         {children}
       </div>
     </div>
   );
 }
 
-function FolderGlyph({ color }: { color: string }) {
+/** Small folder icon in the folder's colour (title, preview, Move to…, search results). */
+function FolderGlyph({ color, size = "md" }: { color: string | null | undefined; size?: "xs" | "md" | "lg" }) {
   const c = folderColor(color);
+  const cls = size === "xs" ? "h-3.5 w-4 shrink-0" : size === "lg" ? "h-12 w-16 shrink-0" : "h-7 w-9 shrink-0";
   return (
-    <svg viewBox="0 0 32 24" className="h-7 w-9" aria-hidden>
-      <path d="M2 4a2 2 0 0 1 2-2h8l3 3h13a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill={c.fill} stroke={c.tab} strokeWidth="2" />
+    <svg viewBox="0 0 32 24" className={cls} aria-hidden data-folder-color={c.key}>
+      <path d="M2 4a2 2 0 0 1 2-2h8l3 3h13a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill={c.hex} />
+      <path d="M2 8h28" stroke={`color-mix(in srgb, ${c.hex} 75%, black)`} strokeWidth="1.5" />
     </svg>
   );
 }
@@ -358,7 +373,7 @@ function TrashIcon({ className = "" }: { className?: string }) {
   );
 }
 
-function Menu({ label, className = "", children }: { label: string; className?: string; children: (close: () => void) => ReactNode }) {
+function Menu({ label, className = "", glyph = "⋮", size = "md", testId, children }: { label: string; className?: string; glyph?: string; size?: "md" | "lg"; testId?: string; children: (close: () => void) => ReactNode }) {
   const [open, setOpen] = useState(false);
   // Opens upwards when there isn't room below (cards at the bottom of the screen).
   const [up, setUp] = useState(false);
@@ -376,13 +391,13 @@ function Menu({ label, className = "", children }: { label: string; className?: 
   }, [open]);
   return (
     <div ref={ref} className={`relative ${className}`}>
-      <button type="button" aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={(e) => {
+      <button type="button" aria-label={label} title={label} data-testid={testId} aria-haspopup="menu" aria-expanded={open} onClick={(e) => {
           e.preventDefault();
           const r = ref.current?.getBoundingClientRect();
           setUp(!!r && window.innerHeight - r.bottom < 340 && r.top > window.innerHeight - r.bottom);
           setOpen((o) => !o);
-        }} className="grid h-9 w-9 place-items-center rounded-lg border border-ink/15 bg-card/80 text-lg font-bold leading-none hover:bg-card">
-        ⋮
+        }} className={`grid place-items-center rounded-lg border border-ink/15 bg-card/90 font-bold leading-none text-ink hover:bg-card ${size === "lg" ? "h-11 w-11 text-xl" : "h-9 w-9 text-lg"}`}>
+        {glyph}
       </button>
       {open && (
         <div role="menu" className={`absolute right-0 z-40 w-60 rounded-xl border border-line bg-card p-1.5 text-sm shadow-soft ${up ? "bottom-full mb-1" : "top-full mt-1"}`}>
@@ -409,7 +424,7 @@ function MenuLink({ href: to, hint, children }: { href: string; hint?: string; c
   );
 }
 
-function MoveMenu({ tree, current, exclude, onPick }: { tree: Array<{ id: string; name: string; depth: number }>; current: string | null; exclude?: string; onPick: (folderId: string | null) => void }) {
+function MoveMenu({ tree, current, exclude, onPick }: { tree: FolderTree; current: string | null; exclude?: string; onPick: (folderId: string | null) => void }) {
   const [open, setOpen] = useState(false);
   // A folder can't move into itself or its subfolders.
   const hide = new Set<string>();
@@ -432,7 +447,7 @@ function MoveMenu({ tree, current, exclude, onPick }: { tree: Array<{ id: string
         <div className="max-h-56 overflow-y-auto border-y border-line py-1">
           {current !== null && <MenuItem onClick={() => onPick(null)}>My Activities (top)</MenuItem>}
           {tree.filter((f) => !hide.has(f.id) && f.id !== current).map((f) => (
-            <MenuItem key={f.id} onClick={() => onPick(f.id)} style={{ paddingLeft: 12 + f.depth * 14 }}>📁 {f.name}</MenuItem>
+            <MenuItem key={f.id} onClick={() => onPick(f.id)} style={{ paddingLeft: 12 + f.depth * 14 }}><span className="flex min-w-0 items-center gap-2"><FolderGlyph color={f.color} size="xs" /><span className="min-w-0 truncate">{f.name}</span></span></MenuItem>
           ))}
           {tree.length === 0 && <p className="px-3 py-2 text-xs text-muted">No folders yet. Use “+ New folder”.</p>}
         </div>
@@ -441,43 +456,178 @@ function MoveMenu({ tree, current, exclude, onPick }: { tree: Array<{ id: string
   );
 }
 
-function FolderDialog({ title, initial, onClose, onSave }: { title: string; initial?: { name: string; color: string }; onClose: () => void; onSave: (name: string, color: string) => void }) {
+/**
+ * New folder / Edit folder. The dialog stays open while saving and after an error, so nothing the
+ * teacher typed or picked is lost; the button is disabled while a save is running (no double
+ * submit). Old folders with no valid colour open with the default colour selected.
+ */
+function FolderDialog({
+  t,
+  mode,
+  initial,
+  onClose,
+  onSave,
+}: {
+  t: FolderStrings;
+  mode: "new" | "edit";
+  initial?: { name: string; color: string };
+  onClose: () => void;
+  onSave: (name: string, color: string) => Promise<FolderSaveResult>;
+}) {
   const [name, setName] = useState(initial?.name ?? "");
-  const [color, setColor] = useState(initial?.color ?? "sky");
+  const [color, setColor] = useState<string>(folderColorKey(initial?.color));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [nameError, setNameError] = useState("");
+  const busy = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const title = mode === "new" ? t.newFolder : t.editFolder;
+  const c = folderColor(color);
+
+  // Esc closes (not while saving); Tab stays inside the dialog; focus goes back where it was.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const savingRef = useRef(saving);
+  savingRef.current = saving;
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", esc);
-    return () => window.removeEventListener("keydown", esc);
-  }, [onClose]);
+    const before = document.activeElement as HTMLElement | null;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !savingRef.current) closeRef.current();
+      if (e.key !== "Tab" || !formRef.current) return;
+      const els = Array.from(formRef.current.querySelectorAll<HTMLElement>("input:not([disabled]):not([type=radio]), input[type=radio]:checked, button:not([disabled])"));
+      if (!els.length) return;
+      const first = els[0];
+      const last = els[els.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      before?.focus?.({ preventScroll: true });
+    };
+  }, []);
+
+  async function submit() {
+    if (busy.current) return;
+    const n = name.trim();
+    if (!n) {
+      setNameError(t.nameRequired);
+      nameRef.current?.focus();
+      return;
+    }
+    busy.current = true;
+    setSaving(true);
+    setError("");
+    setNameError("");
+    try {
+      const res = await onSave(n, color);
+      if (!res.ok) {
+        if (res.code === "name") {
+          setNameError(n.length > 60 ? t.nameTooLong : t.nameRequired);
+          nameRef.current?.focus();
+        } else setError(res.code === "not_found" ? t.notFound : res.code === "color" ? t.badColour : t.failed);
+      }
+    } catch {
+      setError(t.failed);
+    } finally {
+      busy.current = false;
+      setSaving(false);
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-ink/40 p-4" onMouseDown={(e) => e.target === e.currentTarget && !saving && onClose()}>
       <form
+        ref={formRef}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
-        className="w-full max-w-sm rounded-xl2 bg-card p-5 shadow-soft"
+        aria-labelledby="folder-dialog-title"
+        aria-busy={saving || undefined}
+        data-testid="folder-dialog"
+        noValidate
+        className="w-full max-w-md rounded-xl2 border border-line bg-card p-6 text-ink shadow-menu"
         onSubmit={(e) => {
           e.preventDefault();
-          if (name.trim()) onSave(name.trim(), color);
+          void submit();
         }}
       >
-        <h2 className="font-display text-xl font-semibold">{title}</h2>
-        <label className="mt-4 block text-sm font-bold" htmlFor="folder-name">Name</label>
-        <input id="folder-name" autoFocus required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} placeholder="Colores, Grade 2, Unit 1…" className="mt-1 h-11 w-full rounded-xl border border-line px-3" />
+        <h2 id="folder-dialog-title" className="font-display text-xl font-semibold">{title}</h2>
+
+        <label className="mt-4 block text-sm font-bold" htmlFor="folder-name">{t.name}</label>
+        <input
+          ref={nameRef}
+          id="folder-name"
+          autoFocus
+          maxLength={60}
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            if (nameError && e.target.value.trim()) setNameError("");
+          }}
+          placeholder={t.namePlaceholder}
+          aria-invalid={nameError ? true : undefined}
+          aria-describedby={nameError ? "folder-name-error" : undefined}
+          className={`mt-2 h-11 w-full rounded-ctl border bg-card px-3 text-ink placeholder:text-muted ${nameError ? "border-coral" : "border-line focus:border-primary"}`}
+        />
+        {nameError && <p id="folder-name-error" className="mt-1 text-sm font-semibold text-coral-dark">{nameError}</p>}
+
         <fieldset className="mt-4">
-          <legend className="text-sm font-bold">Colour</legend>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {FOLDER_COLORS.map((c) => (
-              <label key={c.key} className="cursor-pointer" title={c.label}>
-                <input type="radio" name="color" value={c.key} checked={color === c.key} onChange={() => setColor(c.key)} className="peer sr-only" aria-label={c.label} />
-                <span className="block h-9 w-9 rounded-full ring-offset-2 peer-checked:ring-4 peer-checked:ring-ink peer-focus-visible:ring-4 peer-focus-visible:ring-sky" style={{ background: c.fill, boxShadow: `inset 0 0 0 3px ${c.tab}` }} />
-              </label>
-            ))}
+          <legend className="text-sm font-bold">
+            {t.colour}: <span className="font-semibold text-muted">{t.colourName(c)}</span>
+          </legend>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {FOLDER_COLORS.map((o) => {
+              const label = t.colourName(o);
+              const on = color === o.key;
+              return (
+                <label key={o.key} className="group relative grid h-11 w-11 cursor-pointer place-items-center rounded-full" data-testid={`swatch-${o.key}`}>
+                  <input type="radio" name="folder-color" value={o.key} checked={on} onChange={() => setColor(o.key)} className="peer sr-only" aria-label={label} />
+                  <span
+                    aria-hidden
+                    className="grid h-9 w-9 place-items-center rounded-full inset-ring inset-ring-ink/15 outline-offset-2 transition-transform peer-checked:outline-2 peer-checked:outline-ink peer-checked:outline-solid peer-focus-visible:ring-[3px] peer-focus-visible:ring-primary peer-focus-visible:ring-offset-[5px] peer-focus-visible:ring-offset-card motion-safe:group-hover:scale-105"
+                    style={{ background: o.hex }}
+                  >
+                    {on && (
+                      <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke={o.on} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4.5 10.5l3.5 3.5 7.5-8" />
+                      </svg>
+                    )}
+                  </span>
+                  <span aria-hidden className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100 peer-focus-visible:opacity-100">
+                    {label}
+                  </span>
+                </label>
+              );
+            })}
           </div>
         </fieldset>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-          <Button type="submit" size="sm">{initial ? "Save" : "Create folder"}</Button>
+
+        <div className="mt-4">
+          <p className="text-sm font-bold">{t.preview}</p>
+          <div className="mt-2 flex min-w-0 items-center gap-4 rounded-xl border border-line bg-paper px-4 py-3" data-testid="folder-preview" data-folder-color={c.key}>
+            <FolderGlyph color={color} size="lg" />
+            <span className={`min-w-0 break-words font-display text-lg font-semibold uppercase leading-tight ${name.trim() ? "text-ink" : "text-muted"}`}>{name.trim() || t.previewEmpty}</span>
+          </div>
+        </div>
+
+        {error && (
+          <p role="alert" className="mt-4 rounded-ctl bg-coral-soft px-3 py-2 text-sm font-semibold text-coral-dark">
+            {error}
+          </p>
+        )}
+
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>{t.cancel}</Button>
+          <Button type="submit" disabled={saving} aria-disabled={saving || undefined}>
+            {saving ? (mode === "new" ? t.creating : t.saving) : mode === "new" ? t.create : t.save}
+          </Button>
         </div>
       </form>
     </div>
