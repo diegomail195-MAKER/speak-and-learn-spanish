@@ -336,6 +336,9 @@ const topicSchema = z.object({
   titleEs: z.string().trim().min(2, "Write the Spanish title.").max(80),
   category: z.string().trim().min(2, "Write a category.").max(40),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#FF9F5A"),
+  description: z.string().trim().max(200, "Keep the description under 200 characters.").default(""),
+  // Thumbnail: a built-in LextroSpeak illustration ("topic:animals", "animals:perro"…).
+  art: z.string().trim().max(60).regex(/^[a-z]+:[a-z0-9-]+$|^$/, "Choose a thumbnail.").default(""),
 });
 
 function slugify(s: string) {
