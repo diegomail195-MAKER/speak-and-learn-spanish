@@ -249,6 +249,32 @@ export function ContentEditor({ resourceId, kind, initial }: { resourceId: strin
         <Button type="button" variant="secondary" size="sm" onClick={() => ops.add({ es: "", en: "" })}>+ Add line</Button>
       </div>
     );
+  } else if (kind === "SPEAKING") {
+    const sp = c as ContentFor<"SPEAKING">;
+    const ops = listOps(sp.prompts, (prompts) => set({ prompts } as Partial<AnyContent>));
+    body = (
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="sins" hint="optional">Instructions</Label>
+          <Input id="sins" value={sp.instructions} maxLength={400} placeholder="Di cada frase en voz alta. · Say each phrase out loud." onChange={(e) => set({ instructions: e.target.value } as Partial<AnyContent>)} />
+        </div>
+        <p className="text-sm text-muted">Students hear the phrase, then say it. The app checks what it hears; answers it can&apos;t decide go to the teacher&apos;s Review queue.</p>
+        {sp.prompts.map((pr, i) => (
+          <div key={i} data-testid="speaking-row" className="flex flex-wrap items-start gap-3 rounded-2xl border border-line p-3">
+            <span className="mt-2 w-6 text-sm font-bold text-muted">{i + 1}</span>
+            <div className="grid min-w-56 flex-1 gap-2">
+              <Input aria-label={`Phrase to say ${i + 1}`} placeholder="Phrase to say · Spanish (Me llamo Ana)" value={pr.say} maxLength={160} onChange={(e) => ops.update(i, { say: e.target.value })} />
+              <Input aria-label={`Meaning ${i + 1}`} placeholder="Meaning · English (My name is Ana)" value={pr.meaning} maxLength={160} onChange={(e) => ops.update(i, { meaning: e.target.value })} />
+              <Input aria-label={`Other accepted answers ${i + 1}`} placeholder="Also accepted (a; b)" defaultValue={pr.accepted.join("; ")} maxLength={600}
+                onBlur={(e) => ops.update(i, { accepted: e.target.value.split(";").map((x) => x.trim()).filter(Boolean).slice(0, 8) })} />
+            </div>
+            <div className="w-72"><ImagePicker value={pr.image} onChange={(image) => ops.update(i, { image })} label={`Prompt ${i + 1} picture`} /></div>
+            <RowTools i={i} n={sp.prompts.length} move={ops.move} remove={() => ops.remove(i)} />
+          </div>
+        ))}
+        <Button type="button" variant="secondary" size="sm" onClick={() => ops.add({ say: "", meaning: "", image: {}, accepted: [] })}>+ Add phrase</Button>
+      </div>
+    );
   } else if (kind === "LISTENING") {
     const l = c as ContentFor<"LISTENING">;
     body = (

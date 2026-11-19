@@ -33,7 +33,9 @@ export function LibraryPicker({ items, excludeIds = [], onAdd, label = "Add from
     const r = await onAdd(picked);
     if (r && r.error) return setError(r.error);
     close();
-    router.refresh();
+    // Only a server-side add (topic or activity) needs fresh data; picks kept in a form don't, and
+    // a refresh still running when that form submits could hold back its redirect.
+    if (r) router.refresh();
   });
 
   return (

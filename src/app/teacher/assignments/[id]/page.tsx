@@ -35,7 +35,7 @@ async function VideoResults({ id }: { id: string }) {
         subtitle={<>{rows.length} students · {videos.length} video{videos.length === 1 ? "" : "s"} · {a.dueAt ? `due ${a.dueAt.toLocaleString("en-US")}` : "no due date"}</>}
         actions={<Actions a={a} />}
       />
-      <Panel className="overflow-x-auto">
+      <Panel className="relative overflow-x-auto">
         {rows.length === 0 ? (
           <EmptyState title="No students receive this assignment" body="The selected groups have no students yet." />
         ) : (
@@ -112,7 +112,7 @@ export default async function AssignmentResults({ params, searchParams }: { para
         actions={<Actions a={a} />}
       />
       {isNew && <AssignedBanner students={rows.length} repeat={typeof (owned.settings as { practiceMissed?: boolean })?.practiceMissed === "boolean" ? (owned.settings as { practiceMissed: boolean }).practiceMissed : null} />}
-      <Panel className="mb-6 overflow-x-auto">
+      <Panel className="relative mb-6 overflow-x-auto">
         <h2 className="mb-3 font-display text-xl font-semibold">Students</h2>
         {rows.length === 0 ? (
           <EmptyState title="No students receive this assignment" body="The selected groups have no students yet." />

@@ -11,13 +11,13 @@ export const GRADE_LABEL: Record<Grade, { label: string; short: string; grades: 
   UPPER: { label: "Upper Elementary", short: "Upper", grades: "Grades 3–6 · ages 8–12" },
 };
 
-export const KINDS = ["VIDEO", "SONG", "GAME", "FLASHCARDS", "PRINTABLE", "WORKSHEET", "LISTENING"] as const;
+export const KINDS = ["VIDEO", "SONG", "GAME", "FLASHCARDS", "PRINTABLE", "WORKSHEET", "LISTENING", "SPEAKING"] as const;
 export type Kind = (typeof KINDS)[number];
 /**
  * Types offered when creating or filtering content. Printables were merged into Worksheet (same
  * content); PRINTABLE stays readable for old data but is shown, filtered and created as Worksheet.
  */
-export const ACTIVE_KINDS = ["VIDEO", "SONG", "GAME", "FLASHCARDS", "WORKSHEET", "LISTENING"] as const satisfies readonly Kind[];
+export const ACTIVE_KINDS = ["VIDEO", "SONG", "GAME", "FLASHCARDS", "WORKSHEET", "LISTENING", "SPEAKING"] as const satisfies readonly Kind[];
 /** The category a kind is shown under (Printable → Worksheet). */
 export const displayKind = <K extends string>(k: K): K | "WORKSHEET" => (k === "PRINTABLE" ? "WORKSHEET" : k);
 /** Kinds stored under one shown category (Worksheet also finds old Printables). */
@@ -30,6 +30,7 @@ export const KIND_LABEL: Record<Kind, { label: string; plural: string; verb: str
   PRINTABLE: { label: "Worksheet", plural: "Worksheets", verb: "Open", color: "#FF9F5A", icon: "book" },
   WORKSHEET: { label: "Worksheet", plural: "Worksheets", verb: "Open", color: "#FF9F5A", icon: "book" },
   LISTENING: { label: "Listening", plural: "Listening", verb: "Listen", color: "#7C6CF2", icon: "songs" },
+  SPEAKING: { label: "Speaking", plural: "Speaking", verb: "Speak", color: "#8BC34A", icon: "mic" },
 };
 
 export const GAME_TYPES = ["MEMORY", "MATCH", "LISTEN", "QUIZ"] as const;
@@ -72,6 +73,26 @@ export const question = z.object({
 });
 export type Question = z.infer<typeof question>;
 
+/** One say-it-aloud prompt: the Spanish the student says, what it means, a picture and other accepted answers. */
+export const speakingPrompt = z.object({
+  say: text(160),
+  meaning: text(160),
+  image: imageRef,
+  accepted: z.array(text(160)).max(8).default([]),
+});
+export type SpeakingPrompt = z.infer<typeof speakingPrompt>;
+
+/** What a student said for one Speaking prompt (stored with their progress, read in Review). */
+export const speakingResult = z.object({
+  say: z.string().max(160),
+  transcript: z.string().max(300).default(""),
+  outcome: z.enum(["CORRECT", "INCORRECT", "UNCERTAIN"]),
+  tries: z.number().int().min(0).max(5).default(1),
+  /** The teacher's decision after review. */
+  teacher: z.enum(["CORRECT", "INCORRECT"]).optional(),
+});
+export type SpeakingResult = z.infer<typeof speakingResult>;
+
 export const contentSchemas = {
   FLASHCARDS: z.object({ instructions: text(400), cards: z.array(flashcard).max(60).default([]), link: linkRef.nullish() }),
   GAME: z.object({
@@ -96,6 +117,7 @@ export const contentSchemas = {
   }),
   // An audio recording to listen to (uploaded file or link), with an optional transcript.
   LISTENING: z.object({ file: fileRef.nullish(), transcript: text(4000), link: linkRef.nullish() }),
+  SPEAKING: z.object({ instructions: text(400), prompts: z.array(speakingPrompt).max(30).default([]), link: linkRef.nullish() }),
 } satisfies Record<Kind, z.ZodTypeAny>;
 
 export type ContentFor<K extends Kind> = z.infer<(typeof contentSchemas)[K]>;
@@ -168,6 +190,12 @@ export function publishProblem(kind: Kind, content: AnyContent): string | null {
     case "LISTENING": {
       const c = content as ContentFor<"LISTENING">;
       return c.file ? null : "Upload an audio file or paste a link.";
+    }
+    case "SPEAKING": {
+      const c = content as ContentFor<"SPEAKING">;
+      if (c.prompts.length < 1) return "Add at least one phrase to say.";
+      if (c.prompts.some((p) => !p.say)) return "Every prompt needs the Spanish phrase the student says.";
+      return null;
     }
   }
 }

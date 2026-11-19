@@ -5,13 +5,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { VideoPlayer as PlatformVideoPlayer } from "@/components/video/VideoPlayer";
 import { Art, Icon, Pinita } from "@/components/ui/Art";
 import type { PlayVideo } from "@/lib/videos";
-import { DOCX_MIME, GAME_TYPE_LABEL, embedFor, libraryFileUrl, publicUrl, type AnyContent, type ContentFor, type ImageRef, type Kind, type Pair } from "@/lib/library/types";
+import { DOCX_MIME, GAME_TYPE_LABEL, embedFor, libraryFileUrl, publicUrl, type AnyContent, type ContentFor, type ImageRef, type Kind, type Pair, type SpeakingResult } from "@/lib/library/types";
+import { SpeakingPlayer } from "./SpeakingPlayer";
 
 // Players for LextroSpeak library activities: flashcards, games (Memory, Picture Match,
 // Listen & Find, Quiz), songs, videos and printables. The same components run in the
 // admin preview, the teacher's "Preview Task" and the student's task.
 
-export type Done = (score: number, total: number) => void;
+export type Done = (score: number, total: number, details?: SpeakingResult[]) => void;
 
 // ---------- speech (device voice, Latin American Spanish first) ----------
 let cachedVoice: SpeechSynthesisVoice | null | undefined;
@@ -562,6 +563,7 @@ export function ResourcePlayer({ kind, content, title, onDone, focus = false, co
     : kind === "SONG" ? !!(content as ContentFor<"SONG">).file || (content as ContentFor<"SONG">).lyrics.length > 0
     : kind === "VIDEO" ? !!(content as ContentFor<"VIDEO">).file || !!(content as ContentFor<"VIDEO">).youtubeId
     : kind === "LISTENING" ? !!(content as ContentFor<"LISTENING">).file
+    : kind === "SPEAKING" ? (content as ContentFor<"SPEAKING">).prompts.length > 0
     : !!(content as ContentFor<"PRINTABLE">).file || !!(content as ContentFor<"PRINTABLE">).sheet?.words.length;
   if (link?.url && !hasNative) return <LinkPlayer url={link.url} title={title} onDone={onDone} focus={focus} />;
   switch (kind) {
@@ -572,5 +574,6 @@ export function ResourcePlayer({ kind, content, title, onDone, focus = false, co
     case "PRINTABLE":
     case "WORKSHEET": return <PrintablePlayer content={content as ContentFor<"PRINTABLE">} title={title} onDone={onDone} />;
     case "LISTENING": return <ListeningPlayer content={content as ContentFor<"LISTENING">} onDone={onDone} />;
+    case "SPEAKING": return <SpeakingPlayer content={content as ContentFor<"SPEAKING">} onDone={onDone} />;
   }
 }

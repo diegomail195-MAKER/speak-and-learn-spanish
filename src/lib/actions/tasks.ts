@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { ownedClassroom } from "@/lib/access";
 import { audit } from "@/lib/audit";
 import { requireStudent, requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { activityForStudent } from "@/lib/library/service";
+import { speakingResult, type SpeakingResult } from "@/lib/library/types";
 import { dedupeRecipients } from "@/lib/tasks";
 
 const taskSchema = z.object({
@@ -82,11 +84,21 @@ export async function createTopicTask(input: unknown): Promise<TaskResult> {
 }
 
 /** Student progress on an assigned library activity (only for their own tasks). */
-export async function recordActivityProgress(input: { assignmentId: string; activityId: string; score?: number; total?: number }) {
+export async function recordActivityProgress(input: { assignmentId: string; activityId: string; score?: number; total?: number; details?: SpeakingResult[] }) {
   const { student } = await requireStudent();
-  const d = z.object({ assignmentId: z.string(), activityId: z.string(), score: z.number().int().min(0).max(1000).optional(), total: z.number().int().min(0).max(1000).optional() }).parse(input);
+  const d = z
+    .object({
+      assignmentId: z.string(),
+      activityId: z.string(),
+      score: z.number().int().min(0).max(1000).optional(),
+      total: z.number().int().min(0).max(1000).optional(),
+      // Speaking steps: what was said for each prompt (the teacher's decision is never accepted from here).
+      details: z.array(speakingResult.omit({ teacher: true })).max(30).optional(),
+    })
+    .parse(input);
   const { act } = await activityForStudent(student, d.assignmentId, d.activityId);
-  await db.activityProgress.create({ data: { activityId: act.id, studentId: student.id, completedAt: new Date(), score: d.score ?? null, total: d.total ?? null } });
+  const details = d.details?.length ? (d.details as Prisma.InputJsonValue) : undefined;
+  await db.activityProgress.create({ data: { activityId: act.id, studentId: student.id, completedAt: new Date(), score: d.score ?? null, total: d.total ?? null, details } });
   revalidatePath(`/learn/tasks/${d.assignmentId}`);
   return { ok: true };
 }

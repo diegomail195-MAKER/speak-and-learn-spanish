@@ -5,7 +5,9 @@ import { Icon } from "@/components/ui/Art";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { Badge, EmptyState, Panel } from "@/components/ui/Panel";
-import { createLevel, deleteGroup } from "@/lib/actions/classroom";
+import { CoTeacherForm } from "@/components/teacher/CoTeacherForm";
+import { classroomAccessWhere } from "@/lib/access";
+import { createLevel, deleteGroup, removeCoTeacher, setClassArchived } from "@/lib/actions/classroom";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { classTasks } from "@/lib/class-progress";
 import { db } from "@/lib/db";
@@ -15,14 +17,17 @@ export default async function ClassPage({ params, searchParams }: { params: Prom
   const { q = "" } = await searchParams;
   const { teacher } = await requireTeacherPage();
   const c = await db.classroom.findFirst({
-    where: { id, teacherId: teacher.id },
+    where: { id, ...classroomAccessWhere(teacher.id) },
     include: {
+      teacher: { select: { id: true, user: { select: { displayName: true, email: true } } } },
+      coTeachers: { orderBy: { addedAt: "asc" }, include: { teacher: { select: { id: true, user: { select: { displayName: true, email: true } } } } } },
       levels: { orderBy: { sortOrder: "asc" }, include: { groups: { orderBy: { name: "asc" }, include: { _count: { select: { memberships: true } } } } } },
       students: { orderBy: [{ firstName: "asc" }, { lastInitial: "asc" }], select: { id: true, firstName: true, lastInitial: true, active: true } },
     },
   });
   if (!c) notFound();
-  const tasks = await classTasks(c.id, teacher.id);
+  const tasks = await classTasks(c.id);
+  const isOwner = c.teacherId === teacher.id;
   const needle = q.trim().toLowerCase();
   const students = needle ? c.students.filter((s) => `${s.firstName} ${s.lastInitial}`.toLowerCase().includes(needle)) : c.students;
   const overall = (sid: string) => {
@@ -35,7 +40,9 @@ export default async function ClassPage({ params, searchParams }: { params: Prom
       <Link href="/teacher/classes" className="text-sm font-bold text-sky hover:underline">‹ My Classes</Link>
       <div className="mb-6 mt-2 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-4xl font-bold tracking-tight">{c.name}</h1>
+          <h1 className="font-display text-4xl font-bold tracking-tight [overflow-wrap:anywhere]">{c.name}</h1>
+          {c.archivedAt && <p className="mt-1"><Badge tone="neutral">Archived {c.archivedAt.toLocaleDateString("en-US")}</Badge></p>}
+          {!isOwner && <p className="mt-1 text-sm font-bold text-ink-2">Co-teaching · owner: {c.teacher.user.displayName}</p>}
           <p className="mt-1 font-bold text-muted">
             {c.students.length} Total Students · class code{" "}
             <span className="rounded-md bg-teal-soft px-2 py-0.5 font-mono font-bold tracking-widest text-teal-dark">{c.code}</span>
@@ -43,7 +50,7 @@ export default async function ClassPage({ params, searchParams }: { params: Prom
         </div>
         <div className="flex flex-wrap gap-2">
           <AddStudentsMenu classroomId={c.id} />
-          <ButtonLink href={`/teacher/tasks/assign?classroomId=${c.id}`}>Assign Task</ButtonLink>
+          {!c.archivedAt && <ButtonLink href={`/teacher/tasks/assign?classroomId=${c.id}`}>Assign topic</ButtonLink>}
         </div>
       </div>
 
@@ -59,7 +66,7 @@ export default async function ClassPage({ params, searchParams }: { params: Prom
         </Link>
       </div>
 
-      <Panel className="mb-6 overflow-x-auto p-0 sm:p-0">
+      <Panel className="relative mb-6 overflow-x-auto p-0 sm:p-0">
         {c.students.length === 0 ? (
           <div className="p-6">
             <EmptyState title="No students yet" body="Use Add Students to add one student, paste a list, or create a group." />
@@ -140,6 +147,44 @@ export default async function ClassPage({ params, searchParams }: { params: Prom
             <Button size="md" variant="secondary">Add level</Button>
           </form>
         </details>
+      </Panel>
+
+      <Panel className="mt-6" >
+        <div data-testid="class-teachers">
+          <h2 className="font-display text-2xl font-bold">Teachers</h2>
+          <p className="text-sm text-muted">Co-teachers see this class, its students and groups, assign topics and follow progress. Only the owner adds or removes them and archives the class.</p>
+          <ul className="mt-3 divide-y divide-line">
+            <li className="flex flex-wrap items-center gap-2 py-2.5">
+              <span className="font-bold">{c.teacher.user.displayName}</span>
+              <span className="text-sm text-muted">{c.teacher.user.email}</span>
+              <Badge tone="sky">Owner</Badge>
+            </li>
+            {c.coTeachers.map((ct) => (
+              <li key={ct.teacherId} className="flex flex-wrap items-center gap-2 py-2.5" data-testid="coteacher">
+                <span className="font-bold">{ct.teacher.user.displayName}</span>
+                <span className="text-sm text-muted">{ct.teacher.user.email}</span>
+                <Badge tone="teal">Co-teacher</Badge>
+                {isOwner && (
+                  <form action={removeCoTeacher} className="ml-auto">
+                    <input type="hidden" name="classroomId" value={c.id} />
+                    <input type="hidden" name="teacherId" value={ct.teacherId} />
+                    <Button size="sm" variant="secondary">Remove</Button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+          {isOwner && (
+            <div className="mt-4 flex flex-wrap items-start justify-between gap-4 border-t border-line pt-4">
+              <CoTeacherForm classroomId={c.id} />
+              <form action={setClassArchived}>
+                <input type="hidden" name="classroomId" value={c.id} />
+                <input type="hidden" name="archive" value={c.archivedAt ? "0" : "1"} />
+                <Button size="md" variant="secondary" data-testid="archive-class">{c.archivedAt ? "Restore class" : "Archive class"}</Button>
+              </form>
+            </div>
+          )}
+        </div>
       </Panel>
     </>
   );

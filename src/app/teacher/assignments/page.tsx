@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { assignmentsForTeacherWhere } from "@/lib/access";
+import { openAssignmentWhere } from "@/lib/dashboard/teacher";
 import { DeleteAssignmentButton } from "@/components/teacher/DeleteAssignmentButton";
 import { ButtonLink } from "@/components/ui/Button";
 import { Badge, EmptyState, PageHeader } from "@/components/ui/Panel";
@@ -12,7 +14,7 @@ export const metadata = { title: "My Assignments" };
 
 type Kind = keyof typeof KIND_LABEL;
 const KINDS: readonly Kind[] = ACTIVE_KINDS;
-const ICON: Record<Kind, string> = { VIDEO: "🎬", SONG: "🎵", GAME: "🎮", FLASHCARDS: "🃏", PRINTABLE: "📝", WORKSHEET: "📝", LISTENING: "🎧" };
+const ICON: Record<Kind, string> = { VIDEO: "🎬", SONG: "🎵", GAME: "🎮", FLASHCARDS: "🃏", PRINTABLE: "📝", WORKSHEET: "📝", LISTENING: "🎧", SPEAKING: "🎤" };
 
 function recipientLabel(r: { type: string; classroom: { name: string } | null; level: { name: string } | null; group: { name: string; level: { name: string } } | null; student: { firstName: string; lastInitial: string } | null }) {
   if (r.type === "CLASSROOM") return r.classroom?.name ?? "Class";
@@ -21,11 +23,11 @@ function recipientLabel(r: { type: string; classroom: { name: string } | null; l
   return `${r.student?.firstName} ${r.student?.lastInitial}`.trim();
 }
 
-export default async function AssignmentsPage({ searchParams }: { searchParams: Promise<{ kind?: string }> }) {
+export default async function AssignmentsPage({ searchParams }: { searchParams: Promise<{ kind?: string; open?: string }> }) {
   const sp = await searchParams;
   const { teacher } = await requireTeacherPage();
   const list = await db.assignment.findMany({
-    where: { teacherId: teacher.id },
+    where: sp.open === "1" ? { AND: [assignmentsForTeacherWhere(teacher.id), openAssignmentWhere()] } : assignmentsForTeacherWhere(teacher.id),
     include: {
       game: { select: { title: true, templateKey: true, _count: { select: { items: true } }, items: { where: { imageAssetId: { not: null } }, orderBy: { position: "asc" }, take: 1, select: { imageAssetId: true } } } },
       video: { select: { title: true, youtubeId: true } },
@@ -63,6 +65,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams: 
       due: a.dueAt ? `due ${a.dueAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "no due date",
       completed: a.gameId ? a._count.attempts : null,
       active: a.active,
+      mine: a.teacherId === teacher.id,
     };
   });
 
@@ -75,7 +78,8 @@ export default async function AssignmentsPage({ searchParams }: { searchParams: 
     <>
       <PageHeader
         eyebrow="Assignments"
-        title="My Assignments"
+        title={sp.open === "1" ? "Active assignments" : "My Assignments"}
+        subtitle={sp.open === "1" ? <Link href="/teacher/assignments" className="ws-link">Show all assignments</Link> : undefined}
         actions={<ButtonLink href="/teacher/tasks/assign" variant="voice">Assign a task</ButtonLink>}
       />
       {rows.length === 0 ? (
@@ -132,9 +136,11 @@ export default async function AssignmentsPage({ searchParams }: { searchParams: 
                         {r.completed !== null && <span className="pr-10 text-xs font-bold text-teal-dark">{r.completed} completed · See results →</span>}
                       </span>
                     </Link>
-                    <span className="absolute bottom-2 right-2">
-                      <DeleteAssignmentButton id={r.id} title={r.title} />
-                    </span>
+                    {r.mine && (
+                      <span className="absolute bottom-2 right-2">
+                        <DeleteAssignmentButton id={r.id} title={r.title} />
+                      </span>
+                    )}
                   </li>
                 );
               })}

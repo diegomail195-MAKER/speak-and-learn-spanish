@@ -12,7 +12,7 @@ const key = z.string().regex(/^[rg]:[\w-]{1,64}$/);
 /**
  * Saves a teacher's lesson order for a Library topic: the steps in order (library resources of the
  * topic and the teacher's own published activities) and the library resources they removed.
- * With a class, it is the setup confirmed for that class (only the teacher who owns the class);
+ * With a class, it is the setup confirmed for that class (a class the teacher owns or co-teaches);
  * assigning the topic to that class uses it. Assignments already made keep their own copy of the
  * order and their progress.
  */
@@ -25,7 +25,7 @@ export async function saveTopicPlan(input: { topicId: string; steps: string[]; h
     try {
       await ownedClassroom(teacher.id, d.classroomId);
     } catch {
-      return { ok: false, error: "You can only set up your own classes." };
+      return { ok: false, error: "You can only set up classes you teach." };
     }
   }
   const topic = await db.topic.findFirst({ where: { id: d.topicId, status: "PUBLISHED" }, select: { id: true, slug: true } });

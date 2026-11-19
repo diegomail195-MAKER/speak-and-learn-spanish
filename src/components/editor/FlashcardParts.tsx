@@ -135,7 +135,8 @@ export function FaceEditor({
           value={face.imageAlt ?? ""}
           ref={altRef}
           onChange={(e) => onChange({ ...face, imageAlt: e.target.value })}
-          onBlur={() => setAltOpen(false)}
+          // Closing waits a moment: the field collapsing on blur must not move a button the pointer is pressing.
+          onBlur={() => setTimeout(() => setAltOpen(false), 200)}
           maxLength={200}
           placeholder={`${t.altText} — ${t.altHint}`}
           title={t.altHint}

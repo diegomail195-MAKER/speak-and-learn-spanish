@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { assignmentsForTeacherWhere } from "@/lib/access";
 import { notFound } from "next/navigation";
 import { KindBadge } from "@/components/library/LibraryBits";
 import { Art } from "@/components/ui/Art";
@@ -19,7 +20,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
   const { new: isNew } = await searchParams;
   const { teacher } = await requireTeacherPage();
   const t = await db.assignment.findFirst({
-    where: { id, teacherId: teacher.id, topicId: { not: null } },
+    where: { id, topicId: { not: null }, ...assignmentsForTeacherWhere(teacher.id) },
     include: {
       topic: true,
       recipients: {
@@ -91,7 +92,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
         </Panel>
       </div>
 
-      <Panel className="mt-6 overflow-x-auto">
+      <Panel className="relative mt-6 overflow-x-auto">
         <h2 className="font-display text-xl font-extrabold">Progress</h2>
         <table className="mt-3 w-full min-w-[600px] text-left text-sm">
           <thead className="bg-sky-soft">
