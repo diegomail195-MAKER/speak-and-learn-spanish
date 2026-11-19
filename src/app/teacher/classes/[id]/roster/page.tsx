@@ -37,7 +37,7 @@ export default async function RosterPage({ params, searchParams }: { params: Pro
         <Link href={`/teacher/classes/${classroom.id}/print`} className="inline-flex items-center gap-1.5 font-bold text-sky hover:underline"><Icon name="printables" /> Print Access Instructions</Link>
       </div>
       <p className="mb-3 text-sm text-muted">Passwords and PINs are stored encrypted and are never shown. Use <strong>Reset</strong> to give a student a new one.</p>
-      <Panel className="overflow-x-auto p-0 sm:p-0">
+      <Panel className="relative overflow-x-auto p-0 sm:p-0">
         {students.length === 0 ? (
           <div className="p-6"><EmptyState title={q ? "No student matches" : "No students yet"} /></div>
         ) : (

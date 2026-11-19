@@ -92,7 +92,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
         </Panel>
       </div>
 
-      <Panel className="mt-6 overflow-x-auto">
+      <Panel className="relative mt-6 overflow-x-auto">
         <h2 className="font-display text-xl font-extrabold">Progress</h2>
         <table className="mt-3 w-full min-w-[600px] text-left text-sm">
           <thead className="bg-sky-soft">

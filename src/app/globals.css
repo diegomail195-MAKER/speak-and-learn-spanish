@@ -369,6 +369,8 @@ button.topic-access:hover, a.topic-access:hover { background: #EDE5FA; }
 }
 @media (prefers-reduced-motion: reduce) { .topic-row, .topic-access { transition: none; } }
 
+/* In the components layer so Tailwind utilities (lg:hidden, w-11…) can override these classes. */
+@layer components {
 /* ---------- Workspaces (Platform Admin / Teacher View) ----------
    Cool grey background, white surfaces, #172033 text, #E2E6EC borders, #2563EB primary actions.
    The warm tokens are re-pointed inside .ws so the existing pages share the same palette. */
@@ -385,8 +387,6 @@ button.topic-access:hover, a.topic-access:hover { background: #EDE5FA; }
   background: var(--color-paper);
   color: var(--color-ink);
 }
-.ws .btn-primary { background: var(--ws-blue); box-shadow: 0 2px 0 var(--ws-blue-dark); }
-.ws .btn-primary:hover { background: var(--ws-blue-dark); }
 .ws :focus-visible { outline-color: var(--ws-blue); }
 .ws-nav {
   display: flex; align-items: center; gap: 14px; min-height: 48px; padding: 0 14px; border-radius: 10px;
@@ -415,6 +415,8 @@ button.topic-access:hover, a.topic-access:hover { background: #EDE5FA; }
 .ws-icon-btn:hover { background: #f1f4f8; }
 
 /* Surfaces and controls used by the dashboards */
+/* Grid items default to min-width:auto, so one long unbreakable title (e.g. a truncated class name) would widen the whole page on phones. */
+#ws-main .grid > * { min-width: 0; }
 .ws-card { background: #fff; border: 1px solid #e2e6ec; border-radius: 14px; }
 .ws-h1 { font-family: var(--font-display); font-size: clamp(28px, 4vw, 40px); line-height: 1.1; font-weight: 800; color: #172033; letter-spacing: -0.01em; overflow-wrap: anywhere; }
 .ws-h2 { font-family: var(--font-display); font-size: 24px; line-height: 1.2; font-weight: 800; color: #172033; }
@@ -448,6 +450,10 @@ button.topic-access:hover, a.topic-access:hover { background: #EDE5FA; }
 .ws-table td { padding: 12px 14px; border-bottom: 1px solid #eef1f5; vertical-align: middle; }
 .ws-table tr:last-child td { border-bottom: 0; }
 .ws-skeleton { background: linear-gradient(90deg, #eef1f5 0%, #f7f8fa 50%, #eef1f5 100%); background-size: 200% 100%; animation: ws-shimmer 1.2s linear infinite; border-radius: 10px; }
-@keyframes ws-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 .ws-progress { height: 10px; border-radius: 9999px; background: #e2e6ec; overflow: hidden; }
 .ws-progress > span { display: block; height: 100%; border-radius: 9999px; background: var(--ws-blue); }
+}
+@keyframes ws-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+/* Primary buttons inside the workspaces are blue (unlayered, so they win over bg-coral). */
+.ws .btn-primary { background: var(--ws-blue); box-shadow: 0 2px 0 var(--ws-blue-dark); }
+.ws .btn-primary:hover { background: var(--ws-blue-dark); }

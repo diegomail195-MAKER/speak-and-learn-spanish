@@ -44,7 +44,7 @@ export default async function ContentList({ searchParams }: { searchParams: Prom
       {items.length === 0 ? (
         <EmptyState title="Nothing here yet" action={<ButtonLink href="/admin/content/new">Add Content</ButtonLink>} />
       ) : (
-        <Panel className="overflow-x-auto p-0 sm:p-0">
+        <Panel className="relative overflow-x-auto p-0 sm:p-0">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-sky-soft"><tr><th className="px-3 py-3">Title</th><th className="px-3 py-3">Type</th><th className="px-3 py-3">Topics</th><th className="px-3 py-3">Grades</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Tasks</th><th className="px-3 py-3"><span className="sr-only">Actions</span></th></tr></thead>
             <tbody className="divide-y divide-line">

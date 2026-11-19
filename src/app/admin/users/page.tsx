@@ -87,7 +87,7 @@ async function Users({ me, q, role, school, page }: { me: string; q?: string; ro
         {users.length === 0 ? (
           <Empty title="No users match" />
         ) : (
-          <div className="-mx-4 overflow-x-auto sm:mx-0">
+          <div className="relative -mx-4 overflow-x-auto sm:mx-0">
             <table className="ws-table min-w-[860px]" data-testid="users-table">
               <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>School</th><th>Joined</th><th><span className="sr-only">Actions</span></th></tr></thead>
               <tbody>
@@ -168,7 +168,7 @@ async function Schools({ q, page }: { q?: string; page: number }) {
         {schools.length === 0 ? (
           <Empty title="No schools match" />
         ) : (
-          <div className="-mx-4 overflow-x-auto sm:mx-0">
+          <div className="relative -mx-4 overflow-x-auto sm:mx-0">
             <table className="ws-table min-w-[760px]" data-testid="schools-table">
               <thead><tr><th>Name</th><th>Teachers</th><th>Classes</th><th>Students</th><th>Created</th></tr></thead>
               <tbody>

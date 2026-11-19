@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useState } from "react";
 import { Art } from "@/components/ui/Art";
 import { Button } from "@/components/ui/Button";
 import { FormError, Input, Label, Select } from "@/components/ui/Field";
@@ -23,6 +24,19 @@ const THUMBNAILS = [
  */
 export function TopicForm({ topic, grades, library, categories = [] }: { topic?: { id: string; titleEn: string; titleEs: string; category: string; color: string; gradeId: string | null; description: string; art: string; language?: string }; categories?: string[]; grades: GradeOpt[]; library?: PickItem[] }) {
   const [state, action, pending] = useActionState(topic ? updateTopic : createTopic, undefined);
+  const router = useRouter();
+  const created = state?.topicId;
+  useEffect(() => {
+    if (!created) return;
+    const url = `/admin/topics/${created}`;
+    router.push(url);
+    // If the client navigation doesn't start (it can stay queued behind the action's revalidation),
+    // open the topic with a normal page load.
+    const t = window.setTimeout(() => {
+      if (!window.location.pathname.endsWith(created)) window.location.assign(url);
+    }, 1500);
+    return () => window.clearTimeout(t);
+  }, [created, router]);
   const [picked, setPicked] = useState<string[]>([]);
   const [art, setArt] = useState(topic?.art || "topic:greetings");
   const [color, setColor] = useState(topic?.color ?? "#FF9F5A");
@@ -101,7 +115,7 @@ export function TopicForm({ topic, grades, library, categories = [] }: { topic?:
         {!topic && (
           <Button name="intent" value="draft" variant="secondary" disabled={pending} data-testid="save-topic-draft">Save as draft</Button>
         )}
-        <Button name="intent" value="publish" disabled={pending}>{pending ? "Saving…" : topic ? "Save topic" : "Create topic"}</Button>
+        <Button name="intent" value="publish" disabled={pending}>{pending || created ? "Saving…" : topic ? "Save topic" : "Create topic"}</Button>
         {!topic && <p className="basis-full text-sm text-muted">“Create topic” publishes it for teachers. “Save as draft” keeps it in Platform Admin until you review and publish it.</p>}
         <FormError message={state?.error} />
         {state?.message && <p role="status" className="text-sm font-bold text-leaf">{state.message}</p>}

@@ -66,7 +66,7 @@ export default async function ClassPage({ params, searchParams }: { params: Prom
         </Link>
       </div>
 
-      <Panel className="mb-6 overflow-x-auto p-0 sm:p-0">
+      <Panel className="relative mb-6 overflow-x-auto p-0 sm:p-0">
         {c.students.length === 0 ? (
           <div className="p-6">
             <EmptyState title="No students yet" body="Use Add Students to add one student, paste a list, or create a group." />

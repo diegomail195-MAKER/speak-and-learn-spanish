@@ -14,7 +14,7 @@ import { GAME_TYPES, GRADES, KINDS, UPLOAD_FOR, displayKind, emptyContent, parse
 // Administrator-only operations on the content library. Every action starts with requireAdmin(),
 // so a teacher or student calling them directly gets 403.
 
-export type LibState = { error?: string; ok?: boolean; message?: string } | undefined;
+export type LibState = { error?: string; ok?: boolean; message?: string; topicId?: string } | undefined;
 
 const ids = (form: FormData, name: string) => form.getAll(name).map(String).filter(Boolean);
 
@@ -367,7 +367,9 @@ export async function createTopic(_: LibState, form: FormData): Promise<LibState
   });
   await audit(user.schoolId, user.id, "topic.create", "Topic", t.id, { resourceIds, status, title: t.titleEs });
   revalidateLibrary();
-  redirect(`/admin/topics/${t.id}`);
+  // The form opens the new topic itself (router.push): a redirect from this action, followed by
+  // the layout revalidation, could leave the client transition pending.
+  return { ok: true, topicId: t.id };
 }
 
 export async function updateTopic(_: LibState, form: FormData): Promise<LibState> {

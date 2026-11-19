@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { DashLoading } from "@/components/dashboard/Loading";
 import { AdminTopicRow } from "@/components/admin/AdminTopicRow";
 import { Card, Empty, PageTitle, StatCard, TopicThumb } from "@/components/dashboard/DashBits";
 import { LocalTime } from "@/components/dashboard/LocalTime";
@@ -13,7 +15,7 @@ export const metadata = { title: "Platform Admin" };
 
 // Platform Admin › Overview: real counts (each opens its list), the latest topics with Preview and
 // Edit, drafts ready to publish and the latest content changes.
-export default async function AdminOverview({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
+async function AdminOverviewContent({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
   await requireAdminPage();
   const sp = await searchParams;
   const [published, drafts, resources, schools, topics, ready, changes] = await Promise.all([
@@ -22,7 +24,7 @@ export default async function AdminOverview({ searchParams }: { searchParams: Pr
     db.libraryResource.count({ where: publishedWhere }),
     db.school.count(),
     adminTopics({ q: sp.q, status: sp.status }, { take: 6 }),
-    topicsReadyToPublish(3),
+    topicsReadyToPublish(2),
     recentContentChanges(5),
   ]);
   const filtered = !!(sp.q || sp.status);
@@ -126,5 +128,15 @@ export default async function AdminOverview({ searchParams }: { searchParams: Pr
         </div>
       </div>
     </>
+  );
+}
+
+// The data part streams in behind a loading state (a loading.tsx at this level would hold back
+// server-action results on the other admin pages).
+export default function AdminOverview(props: { searchParams: Promise<{ q?: string; status?: string }> }) {
+  return (
+    <Suspense fallback={<DashLoading />}>
+      <AdminOverviewContent {...props} />
+    </Suspense>
   );
 }

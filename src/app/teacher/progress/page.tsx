@@ -65,7 +65,7 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
           {students.length === 0 ? (
             <Empty title="No students in this class yet" />
           ) : (
-            <div className="-mx-4 overflow-x-auto sm:mx-0">
+            <div className="relative -mx-4 overflow-x-auto sm:mx-0">
               <table className="ws-table min-w-[560px]">
                 <thead>
                   <tr>

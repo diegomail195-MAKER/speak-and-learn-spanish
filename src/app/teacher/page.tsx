@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { DashLoading } from "@/components/dashboard/Loading";
 import { Card, Empty, PageTitle, Progress, StatCard } from "@/components/dashboard/DashBits";
 import { LocalTime } from "@/components/dashboard/LocalTime";
 import { TopicRow } from "@/components/library/TopicRow";
@@ -16,7 +18,7 @@ const STATUS_CLS: Record<string, string> = { Open: "ws-pill-active", Overdue: "b
 
 // Teacher View › Dashboard: the teacher's classes (owned and co-taught), open assignments with
 // completion, and a short selection of published Library topics.
-export default async function Dashboard() {
+async function DashboardContent() {
   const { user, teacher } = await requireTeacherPage();
   const [school, stats, classes, assignments, topics, favRows] = await Promise.all([
     db.school.findUniqueOrThrow({ where: { id: user.schoolId }, select: { name: true } }),
@@ -62,18 +64,18 @@ export default async function Dashboard() {
           {classes.length === 0 ? (
             <Empty title="No classes yet" body="Create a class to get a sign-in code for your students." action={<Link href="/teacher/classes" className="ws-btn ws-btn-primary">Create a class</Link>} />
           ) : (
-            <ul className="grid gap-3 sm:grid-cols-2">
+            <ul className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
               {classes.slice(0, 6).map((c) => (
                 <li key={c.id} className="flex items-center gap-3 rounded-xl border border-[#E2E6EC] bg-white p-3" data-testid="class-card">
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-[#F1F4F8] text-[#3D4759]"><WsIcon name="board" /></span>
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-[#F1F4F8] text-[#3D4759]"><WsIcon name="board" /></span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-display text-lg font-extrabold" title={c.name}>{c.name}</p>
-                    <p className="flex items-center gap-1.5 text-[15px] text-[#3D4759]">
-                      <WsIcon name="users" className="h-4 w-4" /> {c._count.students} student{c._count.students === 1 ? "" : "s"}
-                      {c.teacher.id !== teacher.id && <span className="ml-1 text-sm text-[#5B6577]">· co-teaching</span>}
+                    <p className="truncate font-display text-lg font-extrabold leading-tight" title={c.name}>{c.name}</p>
+                    <p className="flex items-center gap-1.5 whitespace-nowrap text-[15px] text-[#3D4759]">
+                      <WsIcon name="users" className="h-4 w-4 shrink-0" /> {c._count.students} student{c._count.students === 1 ? "" : "s"}
                     </p>
+                    {c.teacher.id !== teacher.id && <p className="truncate text-xs font-bold text-[#0F766E]">Co-teaching</p>}
                   </div>
-                  <Link href={`/teacher/classes/${c.id}`} className="ws-link inline-flex min-h-11 shrink-0 items-center border-l border-[#E2E6EC] pl-3 text-[15px]" aria-label={`Manage class ${c.name}`}>Manage class</Link>
+                  <Link href={`/teacher/classes/${c.id}`} className="ws-link inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-l border-[#E2E6EC] pl-3 text-[15px]" aria-label={`Manage class ${c.name}`}>Manage class</Link>
                 </li>
               ))}
             </ul>
@@ -124,5 +126,15 @@ export default async function Dashboard() {
         )}
       </Card>
     </>
+  );
+}
+
+// The data part streams in behind a loading state (a loading.tsx at this level would hold back
+// server-action results on the other teacher pages).
+export default function Dashboard() {
+  return (
+    <Suspense fallback={<DashLoading />}>
+      <DashboardContent />
+    </Suspense>
   );
 }

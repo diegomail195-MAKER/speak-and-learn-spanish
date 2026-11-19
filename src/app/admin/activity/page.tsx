@@ -34,7 +34,7 @@ export default async function ActivityLog({ searchParams }: { searchParams: Prom
         {entries.length === 0 ? (
           <Empty title="Nothing recorded yet" />
         ) : (
-          <div className="-mx-4 overflow-x-auto sm:mx-0">
+          <div className="relative -mx-4 overflow-x-auto sm:mx-0">
             <table className="ws-table min-w-[720px]" data-testid="activity-table">
               <thead><tr><th>Date</th><th>Author</th><th>Change</th><th>Action</th></tr></thead>
               <tbody>
