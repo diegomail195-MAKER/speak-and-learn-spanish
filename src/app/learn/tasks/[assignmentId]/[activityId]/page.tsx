@@ -11,6 +11,8 @@ export default async function StudentActivityPage({ params }: { params: Promise<
   try {
     data = await activityForStudent(student, assignmentId, activityId);
   } catch (e) {
+    // A later step than the student's current one: back to the lesson, which resumes where they are.
+    if (e instanceof HttpError && e.status === 403) redirect(`/learn/tasks/${assignmentId}`);
     if (e instanceof HttpError) notFound();
     throw e;
   }

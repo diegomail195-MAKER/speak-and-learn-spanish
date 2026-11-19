@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { KindBadge } from "@/components/library/LibraryBits";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
-import { KINDS, KIND_LABEL, type Kind } from "@/lib/library/types";
+import { ACTIVE_KINDS, KIND_LABEL, displayKind, type Kind } from "@/lib/library/types";
 
 export type PickItem = { id: string; title: string; kind: string; status: string };
 type AddResult = { error?: string; message?: string } | undefined | void;
@@ -24,7 +24,7 @@ export function LibraryPicker({ items, excludeIds = [], onAdd, label = "Add from
   const [error, setError] = useState<string>();
   const [pending, start] = useTransition();
   const excluded = useMemo(() => new Set(excludeIds), [excludeIds]);
-  const shown = items.filter((i) => !excluded.has(i.id) && (!kind || i.kind === kind) && (!q.trim() || i.title.toLowerCase().includes(q.trim().toLowerCase())));
+  const shown = items.filter((i) => !excluded.has(i.id) && (!kind || displayKind(i.kind) === kind) && (!q.trim() || i.title.toLowerCase().includes(q.trim().toLowerCase())));
 
   const open = () => { setPicked([]); setError(undefined); dialog.current?.showModal(); };
   const close = () => dialog.current?.close();
@@ -47,7 +47,7 @@ export function LibraryPicker({ items, excludeIds = [], onAdd, label = "Add from
               <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by title" aria-label="Search the library" className="min-w-48 flex-1" />
               <Select value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Type of content" className="w-44">
                 <option value="">All types</option>
-                {KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k].label}</option>)}
+                {ACTIVE_KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k].label}</option>)}
               </Select>
             </div>
           </div>

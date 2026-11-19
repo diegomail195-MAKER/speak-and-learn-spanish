@@ -347,6 +347,20 @@ export function GamePlayer({ content, onDone }: { content: ContentFor<"GAME">; o
   );
 }
 
+// ---------- Listening ----------
+export function ListeningPlayer({ content, onDone }: { content: ContentFor<"LISTENING">; onDone?: Done }) {
+  return (
+    <div className="mx-auto max-w-2xl">
+      {content.file && (
+        <audio controls src={libraryFileUrl(content.file.fileId)} onEnded={() => onDone?.(1, 1)} className="mb-5 w-full" data-testid="listening-audio">
+          Your browser can’t play this audio.
+        </audio>
+      )}
+      {content.transcript && <p className="whitespace-pre-line rounded-[22px] bg-card p-5 text-lg leading-relaxed" data-testid="listening-transcript">{content.transcript}</p>}
+    </div>
+  );
+}
+
 // ---------- Song ----------
 export function SongPlayer({ content, onDone }: { content: ContentFor<"SONG">; onDone?: Done }) {
   const [line, setLine] = useState(-1);
@@ -547,6 +561,7 @@ export function ResourcePlayer({ kind, content, title, onDone, focus = false, co
     : kind === "GAME" ? (content as ContentFor<"GAME">).pairs.length > 0 || (content as ContentFor<"GAME">).questions.length > 0
     : kind === "SONG" ? !!(content as ContentFor<"SONG">).file || (content as ContentFor<"SONG">).lyrics.length > 0
     : kind === "VIDEO" ? !!(content as ContentFor<"VIDEO">).file || !!(content as ContentFor<"VIDEO">).youtubeId
+    : kind === "LISTENING" ? !!(content as ContentFor<"LISTENING">).file
     : !!(content as ContentFor<"PRINTABLE">).file || !!(content as ContentFor<"PRINTABLE">).sheet?.words.length;
   if (link?.url && !hasNative) return <LinkPlayer url={link.url} title={title} onDone={onDone} focus={focus} />;
   switch (kind) {
@@ -556,5 +571,6 @@ export function ResourcePlayer({ kind, content, title, onDone, focus = false, co
     case "VIDEO": return <VideoPlayer content={content as ContentFor<"VIDEO">} title={title} onDone={onDone} continueHref={continueHref} />;
     case "PRINTABLE":
     case "WORKSHEET": return <PrintablePlayer content={content as ContentFor<"PRINTABLE">} title={title} onDone={onDone} />;
+    case "LISTENING": return <ListeningPlayer content={content as ContentFor<"LISTENING">} onDone={onDone} />;
   }
 }

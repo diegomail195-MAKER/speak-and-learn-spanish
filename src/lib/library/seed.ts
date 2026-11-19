@@ -61,14 +61,14 @@ export async function seedLibrary(db: PrismaClient) {
         content: { gameType: "LISTEN", instructions: "Listen to the word and tap the right picture.", pairs, questions: [] },
       },
       {
-        kind: "PRINTABLE",
+        kind: "WORKSHEET",
         title: "Picture Dictionary",
         description: "Diccionario ilustrado · every word in Spanish and English.",
         grades: ["LOWER", "UPPER"],
         content: { file: null, sheet: { style: "dictionary", heading: `${t.es} · ${t.title}`, words: pairs } },
       },
       {
-        kind: "PRINTABLE",
+        kind: "WORKSHEET",
         title: "Connect & Color",
         description: "Une con una línea · draw a line from each picture to its word.",
         grades: ["LOWER"],

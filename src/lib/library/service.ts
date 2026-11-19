@@ -4,6 +4,7 @@ import { assignmentsForStudentWhere } from "@/lib/access";
 import { HttpError } from "@/lib/auth/guards";
 import type { SessionUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import { assertStepOpen } from "./sequenceServer";
 import { fileIdsOf, safeContent, type AnyContent, type Kind } from "./types";
 
 // Reads for the library. Published content is what teachers browse and assign; drafts and the
@@ -53,13 +54,17 @@ export async function resourceForPreview(user: SessionUser, resourceId: string, 
   return { kind: r.kind as Kind, title: r.currentVersion.title, content: safeContent(r.kind as Kind, r.currentVersion.content) as AnyContent, resource: r };
 }
 
-/** An assigned activity, only for a student who received the task. Returns the pinned version. */
+/**
+ * An assigned activity, only for a student who received the task, and only in the lesson's order
+ * (finished steps and the first unfinished one). Returns the pinned version.
+ */
 export async function activityForStudent(student: { id: string; classroomId: string; schoolId: string }, assignmentId: string, activityId: string) {
   const act = await db.assignmentActivity.findFirst({
     where: { id: activityId, assignmentId, assignment: assignmentsForStudentWhere(student) },
     include: { version: true, resource: { select: { kind: true } }, game: { select: { id: true, title: true, templateKey: true } }, assignment: { select: { id: true, title: true } } },
   });
   if (!act) throw new HttpError(404, "Not found");
+  await assertStepOpen(student, assignmentId, act.id);
   // The next activity of the same task, for "Continue" (student focus mode).
   const next = await db.assignmentActivity.findFirst({ where: { assignmentId, position: { gt: act.position } }, orderBy: { position: "asc" }, select: { id: true } });
   const title = act.version?.title ?? act.game?.title ?? "Activity";

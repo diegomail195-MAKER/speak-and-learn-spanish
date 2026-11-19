@@ -44,7 +44,7 @@ export interface HeroData {
   videos: HeroVideo[];
   /** Items of each category, in the topic's order. */
   items: Record<HeroCategoryKey, HeroItem[]>;
-  /** Printables and worksheets: not one of the five categories, still listed under them. */
+  /** Worksheets and listening: not one of the five categories, still listed under them. */
   more: HeroItem[];
 }
 

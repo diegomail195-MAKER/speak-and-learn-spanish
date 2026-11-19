@@ -1,7 +1,7 @@
 // What the guided Topic lesson says, in Spanish then English. Shared by the lesson player (what to
 // show and say) and the server (which clips to create with the natural voices).
 
-export type LessonKind = "VIDEO" | "SONG" | "GAME" | "FLASHCARDS" | "PRINTABLE" | "WORKSHEET" | "SPEAKING";
+export type LessonKind = "VIDEO" | "SONG" | "GAME" | "FLASHCARDS" | "PRINTABLE" | "WORKSHEET" | "LISTENING" | "SPEAKING";
 export type Line = { es: string; en: string };
 
 export const LESSON = {

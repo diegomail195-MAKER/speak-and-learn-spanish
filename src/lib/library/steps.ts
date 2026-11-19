@@ -29,8 +29,9 @@ export const STEP_LABEL: Record<StepKind, string> = {
   SONG: "Music video",
   GAME: "Game",
   FLASHCARDS: "Flashcards",
-  PRINTABLE: "Printable",
+  PRINTABLE: "Worksheet",
   WORKSHEET: "Worksheet",
+  LISTENING: "Listening",
   SPEAKING: "Speaking",
 };
 
@@ -39,15 +40,18 @@ export const STEP_LABEL: Record<StepKind, string> = {
  * skipped), then library resources published later that they didn't remove. `removed` are the
  * library resources the teacher took out (they can add them back).
  */
-export async function teacherTopicSteps(teacher: { id: string; schoolId: string }, topicId: string, grade?: "LOWER" | "UPPER" | null) {
-  const [links, plan] = await Promise.all([
+export async function teacherTopicSteps(teacher: { id: string; schoolId: string }, topicId: string, grade?: "LOWER" | "UPPER" | null, classroomId?: string | null) {
+  const [links, plans] = await Promise.all([
     db.topicResource.findMany({
       where: { topicId, resource: { ...publishedWhere, ...(grade ? { grades: { has: grade } } : {}) } },
       orderBy: { position: "asc" },
       include: { resource: { select: { id: true, kind: true, title: true, grades: true, currentVersion: { select: { title: true, content: true } } } } },
     }),
-    db.topicPlan.findUnique({ where: { teacherId_topicId: { teacherId: teacher.id, topicId } } }),
+    // The class's confirmed setup when there is one, otherwise the teacher's default order.
+    db.topicPlan.findMany({ where: { teacherId: teacher.id, topicId, classroomId: { in: classroomId ? ["", classroomId] : [""] } } }),
   ]);
+  const classPlan = classroomId ? plans.find((p) => p.classroomId === classroomId) : undefined;
+  const plan = classPlan ?? plans.find((p) => p.classroomId === "");
   const library = new Map<string, TopicStep>(
     links.map(({ resource: r }) => [
       `r:${r.id}`,
@@ -71,7 +75,7 @@ export async function teacherTopicSteps(teacher: { id: string; schoolId: string 
   }
   for (const [k, s] of library) if (!seen.has(k) && !hidden.has(k)) steps.push(s);
   const removed = [...library.values()].filter((s) => hidden.has(s.key) && !seen.has(s.key));
-  return { steps, removed, saved: !!plan };
+  return { steps, removed, saved: !!plan, classSaved: classPlan ? classPlan.updatedAt : null };
 }
 
 /** What an assignment step is: a pinned library version or a teacher's activity. */

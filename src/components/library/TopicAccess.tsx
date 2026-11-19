@@ -24,8 +24,8 @@ export function KindPicture({ kind }: { kind: string }) {
 }
 
 /**
- * One category access in a topic row. One resource → a link to it; several of the same type →
- * a small menu with their titles.
+ * One category access in a teacher's topic row: a preview of the resources (nothing is recorded).
+ * One resource → a link to its preview; several of the same type → a small menu with their titles.
  */
 export function TopicAccess({ kind, items, topic }: { kind: string; items: AccessItem[]; topic: string }) {
   const label = KIND_ACCESS_LABEL[kind] ?? kind;
@@ -55,7 +55,7 @@ export function TopicAccess({ kind, items, topic }: { kind: string; items: Acces
 
   if (items.length === 1) {
     return (
-      <Link href={items[0].href} className="topic-access" aria-label={`${label}: ${items[0].title} (${topic})`} title={items[0].title} data-testid="topic-access" data-kind={kind}>
+      <Link href={items[0].href} className="topic-access" aria-label={`Preview ${label}: ${items[0].title} (${topic})`} title={items[0].title} data-testid="topic-access" data-kind={kind}>
         {inner}
       </Link>
     );
@@ -68,7 +68,7 @@ export function TopicAccess({ kind, items, topic }: { kind: string; items: Acces
         aria-haspopup="true"
         aria-expanded={open}
         aria-controls={menuId}
-        aria-label={`${label}: ${items.length} (${topic})`}
+        aria-label={`Preview ${label}: ${items.length} resources (${topic})`}
         onClick={() => setOpen((o) => !o)}
         data-testid="topic-access"
         data-kind={kind}

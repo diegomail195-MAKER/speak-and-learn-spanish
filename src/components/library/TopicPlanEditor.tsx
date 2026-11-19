@@ -8,7 +8,7 @@ import { KIND_ICON_3D } from "@/lib/library/kindIcons";
 export type PlanItem = { key: string; kind: string; title: string };
 
 const ICON = KIND_ICON_3D;
-const LABEL: Record<string, string> = { VIDEO: "Video", GAME: "Game", FLASHCARDS: "Flashcards", SONG: "Music video", SPEAKING: "Speaking", PRINTABLE: "Printable", WORKSHEET: "Worksheet" };
+const LABEL: Record<string, string> = { VIDEO: "Video", GAME: "Game", FLASHCARDS: "Flashcards", SONG: "Music video", SPEAKING: "Speaking", PRINTABLE: "Worksheet", WORKSHEET: "Worksheet", LISTENING: "Listening" };
 const PURPLE = "#620D78";
 
 function KindIcon({ kind }: { kind: string }) {
@@ -25,7 +25,7 @@ function KindIcon({ kind }: { kind: string }) {
  * or arrow keys on the handle). Remove a step, or add the teacher's own activities and removed
  * library items back. Saved per teacher; the five category icons keep their fixed order.
  */
-export function TopicPlanEditor({ topicId, initial, removed, own }: { topicId: string; initial: PlanItem[]; removed: PlanItem[]; own: PlanItem[] }) {
+export function TopicPlanEditor({ topicId, classroom = null, initial, removed, own }: { topicId: string; classroom?: { id: string; name: string } | null; initial: PlanItem[]; removed: PlanItem[]; own: PlanItem[] }) {
   const router = useRouter();
   const [items, setItems] = useState(initial);
   const [hidden, setHidden] = useState(removed);
@@ -95,10 +95,10 @@ export function TopicPlanEditor({ topicId, initial, removed, own }: { topicId: s
 
   const save = () =>
     start(async () => {
-      const r = await saveTopicPlan({ topicId, steps: items.map((i) => i.key), hidden: hidden.map((h) => h.key) });
+      const r = await saveTopicPlan({ topicId, steps: items.map((i) => i.key), hidden: hidden.map((h) => h.key), classroomId: classroom?.id });
       if (!r.ok) return setStatus(r.error);
       setDirty(false);
-      setStatus("Saved. New assignments of this topic follow this order.");
+      setStatus(classroom ? `Confirmed for ${classroom.name}. Assigning this topic to ${classroom.name} uses this setup.` : "Saved. New assignments of this topic follow this order.");
       router.refresh();
     });
 
@@ -147,8 +147,8 @@ export function TopicPlanEditor({ topicId, initial, removed, own }: { topicId: s
       </ol>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={save} disabled={saving || !dirty} className="inline-flex h-11 items-center rounded-full px-6 font-bold text-white disabled:opacity-50" style={{ background: PURPLE }} data-testid="plan-save">
-          {saving ? "Saving…" : "Save order"}
+        <button type="button" onClick={save} disabled={saving || (!dirty && !classroom)} className="inline-flex h-11 items-center rounded-full px-6 font-bold text-white disabled:opacity-50" style={{ background: PURPLE }} data-testid="plan-save">
+          {saving ? "Saving…" : classroom ? `Confirm for ${classroom.name}` : "Save order"}
         </button>
         <p role="status" aria-live="polite" className="text-sm font-bold text-ink-2" data-testid="plan-status">{status || (dirty ? "Unsaved changes" : "")}</p>
       </div>
