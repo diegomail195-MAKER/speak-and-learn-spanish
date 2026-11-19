@@ -26,7 +26,10 @@ async function ownGame(teacherId: string, id: string) {
   return g;
 }
 
-const done = () => revalidatePath("/teacher/my-activities");
+const done = () => {
+  revalidatePath("/teacher/my-activities");
+  revalidatePath("/admin/my-activities");
+};
 
 export async function createFolder(input: { name: string; color: string; parentId: string | null }) {
   const { teacher } = await requireTeacher();

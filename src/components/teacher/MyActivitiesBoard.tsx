@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type DragEvent, type ReactNode } from "react";
 import { PREVIEW_BG, TemplatePreview } from "@/components/editor/TemplatePreview";
 import { Button, ButtonLink } from "@/components/ui/Button";
+import { setCommunityShared } from "@/lib/actions/community";
 import { duplicateGame } from "@/lib/actions/games";
 import { createFolder, deleteFolder, emptyBin, moveFolder, moveGame, restoreGame, trashGame, updateFolder } from "@/lib/actions/folders";
 import { FOLDER_COLORS, folderColor } from "@/lib/folders";
@@ -22,7 +23,11 @@ export type BoardActivity = {
   updatedAt: string;
   lastPlayed: string | null;
   folderName: string | null;
+  /** Shared with the Community. */
+  shared: boolean;
 };
+/** Where the board lives: Teacher View or Platform Admin. Both show the same activities. */
+export type MyActivitiesBase = "/teacher/my-activities" | "/admin/my-activities";
 export type BoardSort = { by: "name" | "modified" | "played"; dir: "asc" | "desc" };
 
 type Props = {
@@ -35,20 +40,22 @@ type Props = {
   view: "large" | "small";
   q: string;
   bin: boolean;
+  base?: MyActivitiesBase;
 };
 
 type Drag = { kind: "game" | "folder"; id: string };
 const DRAG_TYPE = "application/x-lextro-item";
 
 /** Builds a My Activities URL that keeps the current view settings. */
-function href(p: Record<string, string | null | undefined>) {
+function boardHref(base: MyActivitiesBase, p: Record<string, string | null | undefined>) {
   const u = new URLSearchParams();
   for (const [k, v] of Object.entries(p)) if (v) u.set(k, v);
   const s = u.toString();
-  return `/teacher/my-activities${s ? `?${s}` : ""}`;
+  return `${base}${s ? `?${s}` : ""}`;
 }
 
-export function MyActivitiesBoard({ folder, path, folders, activities, tree, sort, view, q, bin }: Props) {
+export function MyActivitiesBoard({ folder, path, folders, activities, tree, sort, view, q, bin, base = "/teacher/my-activities" }: Props) {
+  const href = (p: Record<string, string | null | undefined>) => boardHref(base, p);
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState("");
@@ -71,6 +78,14 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
         if (hide) setHidden((h) => { const n = new Set(h); n.delete(hide); return n; });
       }
       router.refresh();
+    });
+  }
+
+  /** Shares an activity with the Community, or takes it out. The activity itself doesn't change. */
+  function share(gameId: string, shared: boolean) {
+    run(async () => {
+      const r = await setCommunityShared({ gameId, shared });
+      if (!r.ok) throw new Error(r.error);
     });
   }
 
@@ -156,7 +171,9 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
         <div className="flex flex-wrap items-center gap-2">
           {!bin && <Button size="sm" variant="secondary" onClick={() => setDialog({ mode: "new" })}>+ New folder</Button>}
           {!bin && <ButtonLink size="sm" variant="secondary" href={href({ bin: "1", view: keep.view })}><TrashIcon className="h-4 w-4" /> Recycle Bin</ButtonLink>}
-          <form action="/teacher/my-activities" className="flex">
+          {!bin && <ButtonLink size="sm" variant="secondary" href={`${base}/community`} data-testid="community-button"><CommunityIcon className="h-4 w-4" /> Community</ButtonLink>}
+          {!bin && <ButtonLink size="sm" href="/teacher/games/new" data-testid="create-activity-button">+ Create activity</ButtonLink>}
+          <form action={base} className="flex">
             {keep.view && <input type="hidden" name="view" value={keep.view} />}
             <input name="q" defaultValue={q} placeholder="Search my activities…" aria-label="Search my activities" className="h-9 w-48 rounded-l-full border border-line bg-card px-4 text-sm sm:w-56" />
             <button className="h-9 rounded-r-full border border-l-0 border-line bg-paper-2 px-3 text-sm font-bold" aria-label="Search">⌕</button>
@@ -257,6 +274,11 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
                   )}
                   {a.status === "PUBLISHED" && <span className="absolute left-2 top-2 rounded-full bg-leaf px-2 py-0.5 text-[11px] font-bold text-white">Published</span>}
                   {a.status === "DRAFT" && <span className="absolute left-2 top-2 rounded-full bg-card/90 px-2 py-0.5 text-[11px] font-bold text-ink-2">Draft</span>}
+                  {a.shared && !bin && (
+                    <span data-testid="community-badge" className="absolute left-2 top-8 rounded-full bg-sky px-2 py-0.5 text-[11px] font-bold text-white" title="Shared with the Community">
+                      Community
+                    </span>
+                  )}
                   {a.assignments > 0 && (
                     <span data-testid="assigned-badge" className="absolute right-2 top-2 rounded-full bg-teal px-2 py-0.5 text-[11px] font-bold text-white" title={`Assigned ${a.assignments} time${a.assignments === 1 ? "" : "s"}`}>
                       ✓ Assigned{a.assignments > 1 ? ` ×${a.assignments}` : ""}
@@ -292,6 +314,11 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
                             <input type="hidden" name="gameId" value={a.id} />
                             <MenuItem type="submit">Duplicate</MenuItem>
                           </form>
+                          {a.shared ? (
+                            <MenuItem onClick={() => (close(), share(a.id, false))}>Remove from Community</MenuItem>
+                          ) : (
+                            <MenuItem onClick={() => (close(), share(a.id, true))} title="Every teacher can copy it and adapt their copy. Your activity stays yours.">Share to Community</MenuItem>
+                          )}
                           <MoveMenu tree={tree} current={q ? "" : folder?.id ?? null} onPick={(t) => (close(), moveTo({ kind: "game", id: a.id }, t))} />
                           <MenuItem danger onClick={() => (close(), run(() => trashGame({ gameId: a.id }), a.id))}>Move to Recycle Bin</MenuItem>
                         </>
@@ -346,6 +373,15 @@ function FolderGlyph({ color }: { color: string }) {
   return (
     <svg viewBox="0 0 32 24" className="h-7 w-9" aria-hidden>
       <path d="M2 4a2 2 0 0 1 2-2h8l3 3h13a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill={c.fill} stroke={c.tab} strokeWidth="2" />
+    </svg>
+  );
+}
+
+export function CommunityIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3 20a6 6 0 0 1 12 0M16 4.5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 6" />
     </svg>
   );
 }

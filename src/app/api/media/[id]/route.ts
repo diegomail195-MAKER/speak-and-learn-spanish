@@ -1,14 +1,18 @@
 import { handle } from "@/lib/api";
 import { HttpError, requireUser } from "@/lib/auth/guards";
+import { isCommunityImage } from "@/lib/community";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 
-// Streams (or, with remote storage, redirects to) a private media file to signed-in users of the same school, with byte ranges so
+// Streams (or, with remote storage, redirects to) a private media file to signed-in users of the same school
+// (plus Community card pictures for teachers), with byte ranges so
 // videos and audio can seek without downloading the whole file.
 export const GET = handle(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
   const user = await requireUser();
   const { id } = await ctx.params;
-  const asset = await db.mediaAsset.findFirst({ where: { id, schoolId: user.schoolId } });
+  let asset = await db.mediaAsset.findFirst({ where: { id, schoolId: user.schoolId } });
+  // Teachers and the admin also see the card pictures of Community activities from other schools.
+  if (!asset && user.role !== "STUDENT" && (await isCommunityImage(id))) asset = await db.mediaAsset.findFirst({ where: { id, kind: "IMAGE" } });
   if (!asset) throw new HttpError(404, "Not found");
   const store = storage();
   // ?direct=1 on a picture: send the bytes from this site instead of redirecting, so printables

@@ -8,6 +8,7 @@ import { WorkspaceFrame, type Workspace, type WsLink } from "./WorkspaceFrame";
 const ADMIN_LINKS: WsLink[] = [
   { href: "/admin", label: "Overview", icon: "home", exact: true },
   { href: "/admin/library", label: "Content Library", icon: "book" },
+  { href: "/admin/my-activities", label: "My Activities", icon: "bolt" },
   { href: "/admin/topics", label: "Topics", icon: "layers" },
   { href: "/admin/content", label: "Resources", icon: "file" },
   { href: "/admin/users", label: "Users & Schools", icon: "users" },
