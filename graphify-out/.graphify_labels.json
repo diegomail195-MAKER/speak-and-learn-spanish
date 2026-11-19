@@ -1,1 +1,26 @@
-{"0": "Reproductor de juegos y sesión de voz", "1": "Componentes UI y páginas de profesor", "2": "Esquema de base de datos (migraciones)", "3": "Editor de juegos (campos de audio/imagen)", "4": "Servicio de juegos y feedback", "5": "Evaluación de pronunciación", "6": "API, guards y rate limit", "7": "Micrófono y detección de voz (VAD)", "8": "Acciones de aula, tareas y categorías", "9": "Plantillas y galería de plantillas", "10": "Sesión de usuario", "11": "Validación y subida de medios", "12": "Búsqueda de imágenes y filtro seguro", "13": "Dependencias (package.json)", "14": "Autenticación y emails", "15": "Formularios de contraseña", "16": "Segmentación de texto", "17": "Almacenamiento y API de medios", "18": "Videos (servicio y API)", "19": "Texto a voz (TTS) y voces", "20": "Configuración TypeScript", "21": "Campo de texto en español", "22": "Tests e2e de plantillas", "23": "Páginas de login y contraseña", "24": "Tests e2e de seguridad y videos", "25": "Shells y layouts de profesor/alumno", "26": "Portada, privacidad y logo", "27": "Test e2e de videos", "28": "Reproductor de video", "29": "Tests e2e de flashcards", "30": "Scripts de package.json", "31": "Reconocimiento de voz (STT)", "32": "Dependencias de desarrollo", "33": "Corrector de español", "34": "Locutor del cliente (speaker)", "35": "Selector de alumno", "36": "Configuración ESLint", "37": "Generación de TTS", "38": "Layout raíz", "39": "Configuración Next.js", "40": "Middleware", "41": "Configuración PostCSS", "42": "20261025013059_spelling_name/migration.sql", "43": "20261025013801_support_and_endings/migration.sql", "44": "20261025014837_ends_question/migration.sql", "45": "20261025015628_game_language_default/migration.sql", "46": "20261025031956_templates_v2/migration.sql", "47": "Drivers de almacenamiento", "48": "Script de arranque de Graphify", "49": "compilerOptions", "50": "dependencies", "51": "webhook.ts", "52": "\"public\".\"School\"", "53": "audit", "54": "VideoPlayer.tsx", "55": "games.ts", "56": "ActivitySettings.tsx", "57": "templates.e2e.mjs", "58": "topic-lesson.e2e.mjs", "59": "voice.e2e.mjs", "60": "VideoForm.tsx", "61": "ref_node_fs", "62": "playwright", "63": "preview/[id]/page.tsx", "64": "library.e2e.mjs", "65": "video-player.e2e.mjs", "66": "AlphabetExplorer.tsx", "67": "roster.ts", "68": "automatic.ts", "69": "\"TopicPlan\"", "70": "flashcards-printables.e2e.mjs", "71": "games/types.ts", "72": "attempts/service.ts", "73": "flashcards.e2e.mjs", "74": "\"public\".\"MediaAsset\"", "75": "\"public\".\"User\"", "76": "appUrl", "77": "scripts", "78": "\"public\".\"Game\"", "79": "library/seed.ts", "80": "sample/route.ts", "81": "StorageDriver", "82": "lets-practice.e2e.mjs", "83": "library-header.e2e.mjs", "84": "eslint.config.mjs", "85": "build-accent-maps.mjs", "86": "topic-hero.e2e.mjs", "87": "\"public\".\"Topic\"", "88": "youtubeIdFrom", "89": "activity-actions.e2e.mjs", "90": "app/layout.tsx", "91": "email.ts", "92": "html-to-image", "93": "templateByKey", "94": "vercel.json", "95": "DeleteAssignmentButton.tsx", "96": "graphify-setup.sh", "97": "postcss.config.mjs", "98": "\"Assignment\"", "99": "20261025013059_spelling_name/migration.sql", "100": "20261025013801_support_and_endings/migration.sql", "101": "20261025014837_ends_question/migration.sql", "102": "20261025015628_game_language_default/migration.sql", "103": "20261025031956_templates_v2/migration.sql", "104": "20261116200000_assignment_settings/migration.sql", "105": "20261119000000_topic_description/migration.sql"}
+{
+  "5": "Evaluación de pronunciación",
+  "7": "Micrófono y detección de voz (VAD)",
+  "8": "Acciones de aula, tareas y categorías",
+  "13": "Dependencias (package.json)",
+  "16": "Segmentación de texto",
+  "20": "Configuración TypeScript",
+  "22": "Tests e2e de plantillas",
+  "28": "Reproductor de video",
+  "29": "Tests e2e de flashcards",
+  "30": "Scripts de package.json",
+  "32": "Dependencias de desarrollo",
+  "33": "Corrector de español",
+  "36": "Configuración ESLint",
+  "38": "Layout raíz",
+  "39": "Configuración Next.js",
+  "40": "Middleware",
+  "41": "Configuración PostCSS",
+  "42": "20261025013059_spelling_name/migration.sql",
+  "43": "20261025013801_support_and_endings/migration.sql",
+  "44": "20261025014837_ends_question/migration.sql",
+  "45": "20261025015628_game_language_default/migration.sql",
+  "46": "20261025031956_templates_v2/migration.sql",
+  "47": "Drivers de almacenamiento",
+  "48": "Script de arranque de Graphify"
+}

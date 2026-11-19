@@ -1,10 +1,12 @@
 # Graph Report - speak-and-learn-spanish  (2026-11-19)
 
 ## Corpus Check
-- cluster-only mode — file stats not available
+- 347 files · ~208,578 words
+- Verdict: corpus is large enough that graph structure adds value.
+- Unclassified: 8 file(s) not represented in the graph (top: .example 1, (none) 1, .vtt 1)
 
 ## Summary
-- 2269 nodes · 6999 edges · 106 communities (92 shown, 14 thin omitted)
+- 2271 nodes · 7001 edges · 102 communities (86 shown, 16 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 55 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
@@ -14,519 +16,491 @@
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- Reproductor de juegos y sesión de voz
-- Componentes UI y páginas de profesor
-- Esquema de base de datos (migraciones)
-- Editor de juegos (campos de audio/imagen)
-- Servicio de juegos y feedback
+- parts.tsx
+- PageHeader
+- 20261025012814_init/migration.sql
+- GameEditor.tsx
+- games/service.ts
 - Evaluación de pronunciación
-- API, guards y rate limit
+- layout.ts
 - Micrófono y detección de voz (VAD)
 - Acciones de aula, tareas y categorías
-- Plantillas y galería de plantillas
-- Sesión de usuario
-- Validación y subida de medios
-- Búsqueda de imágenes y filtro seguro
+- games/templates.ts
+- topics/[id]/page.tsx
+- HttpError
+- commons.ts
 - Dependencias (package.json)
-- Autenticación y emails
-- Formularios de contraseña
+- db.ts
+- Button
 - Segmentación de texto
-- Almacenamiento y API de medios
-- Videos (servicio y API)
-- Texto a voz (TTS) y voces
+- MyActivitiesBoard.tsx
+- next
+- tts/index.ts
 - Configuración TypeScript
-- Campo de texto en español
+- library/types.ts
 - Tests e2e de plantillas
-- Páginas de login y contraseña
-- Tests e2e de seguridad y videos
-- Shells y layouts de profesor/alumno
-- Portada, privacidad y logo
-- Test e2e de videos
+- library.ts
+- flow.e2e.mjs
+- AuthLayout
+- useVoiceSession.ts
+- ref_node_path
 - Reproductor de video
 - Tests e2e de flashcards
 - Scripts de package.json
-- Reconocimiento de voz (STT)
+- stt/index.ts
 - Dependencias de desarrollo
 - Corrector de español
-- Locutor del cliente (speaker)
-- Selector de alumno
+- AudioField.tsx
+- webhook.ts
 - Configuración ESLint
-- Generación de TTS
+- ImageField.tsx
 - Layout raíz
 - Configuración Next.js
 - Middleware
 - Configuración PostCSS
-- 20261025013059_spelling_name/migration.sql
-- 20261025013801_support_and_endings/migration.sql
-- 20261025014837_ends_question/migration.sql
-- 20261025015628_game_language_default/migration.sql
-- 20261025031956_templates_v2/migration.sql
 - Drivers de almacenamiento
 - Script de arranque de Graphify
-- compilerOptions
-- dependencies
-- webhook.ts
+- autocorrect.ts
+- Players.tsx
+- lextro.e2e.mjs
+- lessonData.ts
+- assignments/[id]/page.tsx
+- TopicLesson.tsx
+- 20261113220000_laxtrospeak_library/migration.sql
+- plainText
+- TopicHero.tsx
+- actions/videos.ts
+- google.ts
+- FlashcardsGame.tsx
+- photo-form.e2e.mjs
+- TopicRow.tsx
 - "public"."School"
-- audit
-- VideoPlayer.tsx
-- games.ts
-- ActivitySettings.tsx
-- templates.e2e.mjs
+- roster.ts
+- ref_node_fs
 - topic-lesson.e2e.mjs
 - voice.e2e.mjs
-- VideoForm.tsx
-- ref_node_fs
 - playwright
-- preview/[id]/page.tsx
 - library.e2e.mjs
 - video-player.e2e.mjs
-- AlphabetExplorer.tsx
-- roster.ts
-- automatic.ts
+- GroupForm.tsx
 - "TopicPlan"
 - flashcards-printables.e2e.mjs
-- games/types.ts
-- attempts/service.ts
-- flashcards.e2e.mjs
+- preview/[id]/page.tsx
+- DiagramBoard.tsx
 - "public"."MediaAsset"
 - "public"."User"
-- appUrl
-- scripts
-- "public"."Game"
 - library/seed.ts
-- sample/route.ts
-- StorageDriver
+- SpellBoard.tsx
+- "public"."Game"
+- teacher/library/page.tsx
+- VideoForm
+- games.ts
+- ActivityList.tsx
 - lets-practice.e2e.mjs
 - library-header.e2e.mjs
-- eslint.config.mjs
-- build-accent-maps.mjs
+- TopicPlanEditor.tsx
 - topic-hero.e2e.mjs
+- build-accent-maps.mjs
 - "public"."Topic"
-- youtubeIdFrom
+- resources/[id]/page.tsx
+- checkout/route.ts
+- [slug]/page.tsx
+- Button.tsx
 - activity-actions.e2e.mjs
-- app/layout.tsx
-- email.ts
+- vitest
 - html-to-image
-- templateByKey
 - vercel.json
-- DeleteAssignmentButton.tsx
-- graphify-setup.sh
-- postcss.config.mjs
 
 ## God Nodes (most connected - your core abstractions)
 1. `next` - 125 edges
 2. `HttpError` - 103 edges
 3. `db` - 98 edges
 4. `Button()` - 90 edges
-5. `requireTeacher()` - 85 edges
-6. `audit()` - 85 edges
+5. `audit()` - 85 edges
+6. `requireTeacher()` - 85 edges
 7. `react` - 69 edges
 8. `PageHeader()` - 56 edges
 9. `requireTeacherPage()` - 55 edges
-10. `Panel()` - 48 edges
+10. `Input()` - 48 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `AssignForm()` --indirect_call--> `createAssignment()`  [INFERRED]
-  src/components/teacher/AssignForm.tsx → src/lib/actions/assignments.ts
-- `AddStudentForm()` --indirect_call--> `createStudent()`  [INFERRED]
-  src/components/teacher/StudentForms.tsx → src/lib/actions/classroom.ts
-- `RosterRow()` --indirect_call--> `resetStudentPin()`  [INFERRED]
-  src/components/teacher/RosterRow.tsx → src/lib/actions/classroom.ts
-- `ResetPinButton()` --indirect_call--> `resetStudentPin()`  [INFERRED]
-  src/components/teacher/StudentForms.tsx → src/lib/actions/classroom.ts
-- `RosterRow()` --indirect_call--> `updateRosterStudent()`  [INFERRED]
-  src/components/teacher/RosterRow.tsx → src/lib/actions/classroom.ts
+- `main()` --calls--> `seedLibrary()`  [EXTRACTED]
+  prisma/seed.ts → src/lib/library/seed.ts
+- `GradeForm()` --indirect_call--> `createGrade()`  [INFERRED]
+  src/components/admin/GradeForm.tsx → src/lib/actions/library.ts
+- `NewResourceForm()` --indirect_call--> `addLibraryContent()`  [INFERRED]
+  src/components/admin/ResourceForms.tsx → src/lib/actions/library.ts
+- `MetaForm()` --indirect_call--> `updateResourceMeta()`  [INFERRED]
+  src/components/admin/ResourceForms.tsx → src/lib/actions/library.ts
+- `PublishButton()` --indirect_call--> `publishResource()`  [INFERRED]
+  src/components/admin/ResourceForms.tsx → src/lib/actions/library.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (106 total, 14 thin omitted)
+## Communities (102 total, 16 thin omitted)
 
-### Community 0 - "Reproductor de juegos y sesión de voz"
-Cohesion: 0.05
-Nodes (67): GET(), maxDuration, GET, POST, schema, metadata, StudentAlphabet(), metadata (+59 more)
-
-### Community 1 - "Componentes UI y páginas de profesor"
-Cohesion: 0.06
-Nodes (69): DownloadIcon(), GearIcon(), icon, PER_PAGE, PER_PAGE_DEFAULT, PrintablesViewer(), PrinterIcon(), Scaled() (+61 more)
-
-### Community 2 - "Esquema de base de datos (migraciones)"
-Cohesion: 0.09
-Nodes (50): metadata, MyActivitiesPage(), Search, Boxes(), C, Diagram(), Flashcards(), Generic() (+42 more)
-
-### Community 3 - "Editor de juegos (campos de audio/imagen)"
+### Community 0 - "parts.tsx"
 Cohesion: 0.11
-Nodes (41): AdminGrades(), metadata, AdminHome(), metadata, Actions(), AssignedBanner(), AssignmentResults(), fmtTime() (+33 more)
+Nodes (34): BoxesBoard(), openBox(), runReview(), sleep(), State, SequenceBoard(), sleep(), COLORS (+26 more)
 
-### Community 4 - "Servicio de juegos y feedback"
-Cohesion: 0.12
-Nodes (40): BoxesBoard(), openBox(), runReview(), sleep(), State, DiagramBoard(), drop(), finishIfDone() (+32 more)
-
-### Community 5 - "Evaluación de pronunciación"
-Cohesion: 0.10
-Nodes (42): useVoiceSession(), audioUrlsIn(), scoreTurn(), say(), AnswerSpec, CARRIERS, cleanTyped(), ENGLISH (+34 more)
-
-### Community 6 - "API, guards y rate limit"
-Cohesion: 0.08
-Nodes (38): AudioControl(), browserPreview(), generate(), TtsConfig, AudioDefaults, AudioDefaultsContext, AudioField(), audioLanguages() (+30 more)
-
-### Community 7 - "Micrófono y detección de voz (VAD)"
-Cohesion: 0.10
-Nodes (41): CardsBoard(), advance(), play(), clockText(), Face(), FlashcardsGame(), IconArrow(), IconFull() (+33 more)
-
-### Community 8 - "Acciones de aula, tareas y categorías"
-Cohesion: 0.11
-Nodes (32): ContentList(), metadata, STATUS, ManageActivities(), metadata, AdminTopics(), metadata, GameLibraryPanel() (+24 more)
-
-### Community 9 - "Plantillas y galería de plantillas"
-Cohesion: 0.10
-Nodes (36): EditResource(), AddContent(), metadata, ART_OPTIONS, ContentEditor(), FilePicker(), ImagePicker(), listOps() (+28 more)
-
-### Community 10 - "Sesión de usuario"
-Cohesion: 0.10
-Nodes (39): POST, ownedClassroom(), ownedGroup(), ownedLevel(), ownedStudent(), AssignState, createAssignment(), schema (+31 more)
-
-### Community 11 - "Validación y subida de medios"
-Cohesion: 0.13
-Nodes (40): addLibraryContent(), addResourcesToGame(), addResourcesToTopic(), addToTopic(), archiveResource(), createGrade(), createResource(), createTopic() (+32 more)
-
-### Community 12 - "Búsqueda de imágenes y filtro seguro"
+### Community 1 - "PageHeader"
 Cohesion: 0.09
-Nodes (30): POST, El, SHORTCUTS, skipKey(), useAutocorrect(), AccentMap, afterInput(), Correction (+22 more)
+Nodes (46): AddContent(), metadata, AdminGrades(), metadata, AdminHome(), metadata, metadata, NewAssignment() (+38 more)
 
-### Community 13 - "Dependencias (package.json)"
-Cohesion: 0.12
-Nodes (24): metadata, MyActivities(), metadata, MyProgress(), StudentActivityPage(), metadata, MyVideos(), ActivityMaterials() (+16 more)
-
-### Community 14 - "Autenticación y emails"
-Cohesion: 0.09
-Nodes (11): ListenOutcome, MicSession, Utterance, DEFAULT_VAD, rmsDb(), run(), Vad, VadConfig (+3 more)
-
-### Community 15 - "Formularios de contraseña"
-Cohesion: 0.11
-Nodes (26): PUT, POST, GET, done, POST, start, Ctx, PUT (+18 more)
-
-### Community 16 - "Segmentación de texto"
-Cohesion: 0.15
-Nodes (33): DraftPreview(), ResourcePreview(), BackLink(), Celebrate(), ConnectSheet(), Done, FlashcardsPlayer(), GamePlayer() (+25 more)
-
-### Community 17 - "Almacenamiento y API de medios"
-Cohesion: 0.11
-Nodes (27): AdminInvitePage(), dynamic, metadata, ForgotPasswordPage(), metadata, LoginPage(), metadata, dynamic (+19 more)
-
-### Community 18 - "Videos (servicio y API)"
-Cohesion: 0.10
-Nodes (28): metadata, stepTitle(), FavoriteButton(), KindDot(), SPEAKING_LABEL, TopicCard(), AccessItem, KindPicture() (+20 more)
-
-### Community 19 - "Texto a voz (TTS) y voces"
-Cohesion: 0.09
-Nodes (31): FaceEditor(), Ctx, Dict, EN, ES, UiLang, UiLangProvider(), useUi() (+23 more)
-
-### Community 20 - "Configuración TypeScript"
-Cohesion: 0.12
-Nodes (29): metadata, StudentTask(), metadata, StudentViewPage(), EyeIcon(), KindIcon(), LABEL, MediaThumb() (+21 more)
-
-### Community 21 - "Campo de texto en español"
-Cohesion: 0.10
-Nodes (24): BAND, LEGACY, LibraryPage(), metadata, metadata, TopicLessonPage(), AssignTaskPage(), metadata (+16 more)
-
-### Community 22 - "Tests e2e de plantillas"
-Cohesion: 0.08
-Nodes (28): FlashcardsGameProps, GamePlayer(), PlayerProps, postJson(), StudentPlay(), Diagnostic, Feedback, Input (+20 more)
-
-### Community 23 - "Páginas de login y contraseña"
-Cohesion: 0.16
-Nodes (23): react, GradeForm(), S, StudentPicker(), ConfirmEmailForm(), Roster, GameOption, Option (+15 more)
-
-### Community 24 - "Tests e2e de seguridad y videos"
-Cohesion: 0.12
-Nodes (27): POST, GET, BLOCKED_WORDS, hasBlockedWords(), isSafeAnnotation(), Likelihood, normalize(), NORMALIZED (+19 more)
-
-### Community 25 - "Shells y layouts de profesor/alumno"
-Cohesion: 0.15
-Nodes (12): nextConfig, securityHeaders, next, zod, POST, body, start, LT_LANG (+4 more)
-
-### Community 26 - "Portada, privacidad y logo"
-Cohesion: 0.12
-Nodes (28): LANG_TONE, LanguageTools(), markSelection(), Props, SHORT, SpanishField(), accept(), check() (+20 more)
-
-### Community 27 - "Test e2e de videos"
-Cohesion: 0.09
-Nodes (30): devDependencies, eslint@^9, eslint-config-next@15.5.29, nspell@^2.1.5, playwright@^1.63.0, tailwindcss@^4, @tailwindcss/postcss@^4, tsx@^4.20.5 (+22 more)
-
-### Community 28 - "Reproductor de video"
+### Community 2 - "20261025012814_init/migration.sql"
 Cohesion: 0.15
 Nodes (28): AssignmentRecipient_assignmentId_idx, AssignmentRecipient_classroomId_idx, AssignmentRecipient_groupId_idx, AssignmentRecipient_levelId_idx, AssignmentRecipient_studentId_idx, Classroom_code_key, Classroom_schoolId_idx, Classroom_teacherId_idx (+20 more)
 
-### Community 29 - "Tests e2e de flashcards"
-Cohesion: 0.14
-Nodes (26): TopicPage(), Branch(), Carousel(), onKey(), page(), Categories(), CategoryPanel(), Cover() (+18 more)
-
-### Community 30 - "Scripts de package.json"
+### Community 3 - "GameEditor.tsx"
 Cohesion: 0.09
-Nodes (17): ADMIN_EMAIL, assert(), check(), confirmEmail(), consoleErrors, db, desktop, emails() (+9 more)
+Nodes (38): TtsConfig, AudioField(), playFaceAudio(), stopFaceAudio(), DiagramPoints(), Point, FaceEditor(), onPaste() (+30 more)
 
-### Community 31 - "Reconocimiento de voz (STT)"
+### Community 4 - "games/service.ts"
+Cohesion: 0.13
+Nodes (32): POST, schema, CARDS, GET(), maxDuration, PlayPage(), EditGame(), metadata (+24 more)
+
+### Community 5 - "Evaluación de pronunciación"
+Cohesion: 0.11
+Nodes (41): useVoiceSession(), audioUrlsIn(), scoreTurn(), say(), AnswerSpec, CARRIERS, cleanTyped(), ENGLISH (+33 more)
+
+### Community 6 - "layout.ts"
+Cohesion: 0.06
+Nodes (69): DownloadIcon(), GearIcon(), icon, PER_PAGE, PER_PAGE_DEFAULT, PrintablesViewer(), PrinterIcon(), Scaled() (+61 more)
+
+### Community 7 - "Micrófono y detección de voz (VAD)"
+Cohesion: 0.09
+Nodes (11): ListenOutcome, MicSession, Utterance, DEFAULT_VAD, rmsDb(), run(), Vad, VadConfig (+3 more)
+
+### Community 8 - "Acciones de aula, tareas y categorías"
 Cohesion: 0.08
-Nodes (10): COLORS, db, stamp, db, errors, stamp, db, errors (+2 more)
+Nodes (54): zod, POST, Ctx, GET, PUT, POST, LT_LANG, POST (+46 more)
 
-### Community 32 - "Dependencias de desarrollo"
+### Community 9 - "games/templates.ts"
 Cohesion: 0.13
-Nodes (20): DiagramPoints(), Point, RowControls(), FONT_SAMPLE, FontPreview(), blankItem(), Category, contentSnapshot() (+12 more)
+Nodes (18): metadata, NewGame(), CreateButton(), FEATURED, Oral(), TemplateGallery(), WIDE, PREVIEW_BG (+10 more)
 
-### Community 33 - "Corrector de español"
-Cohesion: 0.14
-Nodes (17): Home(), metadata, Privacy(), ClassLogin(), metadata, metadata, StudentStart(), metadata (+9 more)
+### Community 10 - "topics/[id]/page.tsx"
+Cohesion: 0.10
+Nodes (41): ContentList(), metadata, STATUS, ManageActivities(), metadata, AdminTopics(), metadata, Home() (+33 more)
 
-### Community 34 - "Locutor del cliente (speaker)"
-Cohesion: 0.14
-Nodes (24): ActivityProgress_activityId_studentId_idx, ActivityProgress_studentId_idx, AdminInvite_email_idx, AssignmentActivity_assignmentId_idx, AssignmentActivity_resourceId_idx, EmailLog_userId_idx, EmailVerificationToken_userId_idx, LibraryFile_storageKey_key (+16 more)
+### Community 11 - "HttpError"
+Cohesion: 0.09
+Nodes (50): POST, body, POST, POST, PUT, GET, POST, start (+42 more)
 
-### Community 35 - "Selector de alumno"
-Cohesion: 0.17
-Nodes (21): POST, schema, metadata, PlayPage(), phrasesFor(), practiceCardClips(), practicePhraseClips(), buildPlayGame() (+13 more)
+### Community 12 - "commons.ts"
+Cohesion: 0.06
+Nodes (59): cache, CardFace, CardPhotoForm(), LANG, Photo, PhotoBox(), upload(), SearchPanel() (+51 more)
 
-### Community 36 - "Configuración ESLint"
+### Community 13 - "Dependencias (package.json)"
+Cohesion: 0.08
+Nodes (32): devDependencies, dictionary-en@^4.0.0, eslint@^9, eslint-config-next@15.5.29, nspell@^2.1.5, playwright@^1.63.0, tailwindcss@^4, @tailwindcss/postcss@^4 (+24 more)
+
+### Community 14 - "db.ts"
+Cohesion: 0.09
+Nodes (52): server-only, metadata, escapeHtml(), forgotSchema, FormState, hashToken(), loginSchema, requestPasswordReset() (+44 more)
+
+### Community 15 - "Button"
 Cohesion: 0.12
-Nodes (11): errors, stamp, addGroup(), addLevel(), addStudent(), addImage(), fx(), stamp (+3 more)
+Nodes (42): react, GradeForm(), MetaFields(), NewResourceForm(), ForgotPasswordForm(), Notice(), ResetPasswordForm(), TeacherSignInForm() (+34 more)
 
-### Community 37 - "Generación de TTS"
-Cohesion: 0.17
-Nodes (14): AdminLayout(), LearnLayout(), TeacherLayout(), NavLinks(), LINKS, TeacherShell(), VerifyBanner(), Avatar() (+6 more)
-
-### Community 38 - "Layout raíz"
-Cohesion: 0.17
-Nodes (21): GET, PROBES, API(), CommonsPhoto, CommonsStats, dropReason(), fetchCommonsImage(), FILE_HOSTS() (+13 more)
-
-### Community 39 - "Configuración Next.js"
-Cohesion: 0.19
-Nodes (17): POST, POST, GET, POST, POST, EXT, FileGroup, LIBRARY_MAX_BYTES (+9 more)
-
-### Community 40 - "Middleware"
+### Community 16 - "Segmentación de texto"
 Cohesion: 0.12
-Nodes (20): metadata, NewGame(), CreateButton(), FEATURED, Oral(), TemplateGallery(), WIDE, PREVIEW_BG (+12 more)
+Nodes (29): LANG_TONE, LanguageTools(), markSelection(), Props, SHORT, SpanishField(), accept(), check() (+21 more)
 
-### Community 41 - "Configuración PostCSS"
-Cohesion: 0.16
-Nodes (18): cache, CardFace, CardPhotoForm(), LANG, Photo, PhotoBox(), upload(), SearchPanel() (+10 more)
+### Community 17 - "MyActivitiesBoard.tsx"
+Cohesion: 0.09
+Nodes (50): metadata, MyActivitiesPage(), Search, Boxes(), C, Diagram(), Flashcards(), Generic() (+42 more)
 
-### Community 42 - "20261025013059_spelling_name/migration.sql"
-Cohesion: 0.22
-Nodes (15): acceptAdminInvite(), acceptSchema, confirmEmail(), VerifyState, grantAdmin(), hashToken(), sendVerificationLink(), tokenRe (+7 more)
+### Community 18 - "next"
+Cohesion: 0.07
+Nodes (41): next, @prisma/client, POST, POST, POST, GET, POST, schema (+33 more)
 
-### Community 43 - "20261025013801_support_and_endings/migration.sql"
-Cohesion: 0.17
-Nodes (14): EditGroupPage(), metadata, metadata, NewGroupPage(), metadata, PrintAccess(), AddListPage(), metadata (+6 more)
+### Community 19 - "tts/index.ts"
+Cohesion: 0.10
+Nodes (35): GET, ensureAudio(), VoiceChoice, azure(), azureSsml(), escapeXml(), gateway(), gatewayPart() (+27 more)
 
-### Community 44 - "20261025014837_ends_question/migration.sql"
-Cohesion: 0.19
-Nodes (19): escapeHtml(), forgotSchema, FormState, hashToken(), loginSchema, requestPasswordReset(), resetPassword(), resetSchema (+11 more)
-
-### Community 45 - "20261025015628_game_language_default/migration.sql"
-Cohesion: 0.13
-Nodes (13): assert(), backOf(), box(), db, errors, fake, form(), item() (+5 more)
-
-### Community 46 - "20261025031956_templates_v2/migration.sql"
-Cohesion: 0.22
-Nodes (15): POST, POST, POST, POST, GET, GET, POST, HttpError (+7 more)
-
-### Community 47 - "Drivers de almacenamiento"
-Cohesion: 0.20
-Nodes (16): b64(), fetchGoogleImage(), googleMissing(), GooglePhoto, googleProvider(), httpsUrl(), privateAddress(), Provider (+8 more)
-
-### Community 48 - "Script de arranque de Graphify"
-Cohesion: 0.18
-Nodes (13): server-only, POST, schema, requireStudent(), destroySession(), getSessionUser, hashToken(), openSteps() (+5 more)
-
-### Community 49 - "compilerOptions"
+### Community 20 - "Configuración TypeScript"
 Cohesion: 0.11
 Nodes (18): compilerOptions, allowJs, esModuleInterop, incremental, isolatedModules, jsx, lib, module (+10 more)
 
-### Community 50 - "dependencies"
-Cohesion: 0.11
-Nodes (18): dependencies, bcryptjs@^3.0.2, @breezystack/lamejs@1.2.7, @fontsource/playwrite-mx@^5.3.0, next@15.5.29, prisma@^6.16.2, @prisma/client@^6.16.2, react@19.1.0 (+10 more)
+### Community 21 - "library/types.ts"
+Cohesion: 0.08
+Nodes (44): EditResource(), ART_OPTIONS, ContentEditor(), FilePicker(), ImagePicker(), listOps(), PairsEditor(), RowTools() (+36 more)
 
-### Community 51 - "webhook.ts"
-Cohesion: 0.21
-Nodes (13): POST(), EmailPlan, idOf(), planBillingEmail(), subscriptionIdOfInvoice(), PLAN_NAME(), verifyWebhook(), processStripeEvent() (+5 more)
-
-### Community 52 - ""public"."School""
-Cohesion: 0.18
-Nodes (15): Assignment_schoolId_active_idx, AuditLog_schoolId_createdAt_idx, Category_schoolId_parentId_idx, "public"."Assignment", "public"."AuditLog", "public"."Category", "public"."School", "public"."Video" (+7 more)
-
-### Community 53 - "audit"
-Cohesion: 0.22
-Nodes (15): POST, createCategory(), deleteCategory(), names, updateCategory(), addToCollection(), createCollection(), deleteCollection() (+7 more)
-
-### Community 54 - "VideoPlayer.tsx"
-Cohesion: 0.17
-Nodes (12): metadata, WatchPage(), Report, StudentWatch(), fmt(), loadYouTubeApi(), ProgressReport, SPEEDS (+4 more)
-
-### Community 55 - "games.ts"
-Cohesion: 0.21
-Nodes (14): GamesPage(), metadata, ActivityFilters(), ActivityList(), ActivitySearch, loadActivities(), Loaded, schoolGame() (+6 more)
-
-### Community 56 - "ActivitySettings.tsx"
-Cohesion: 0.19
-Nodes (16): ActivitySettings(), flush(), update(), AnswerRow(), save(), LOOK_KEYS, PossibleAnswers(), Section (+8 more)
-
-### Community 57 - "templates.e2e.mjs"
+### Community 22 - "Tests e2e de plantillas"
 Cohesion: 0.14
 Nodes (5): addImage(), fx(), publish(), saved(), stamp
 
-### Community 58 - "topic-lesson.e2e.mjs"
-Cohesion: 0.14
-Nodes (10): addImage(), assert(), db, desktop, errors, fx(), page, playStep() (+2 more)
-
-### Community 59 - "voice.e2e.mjs"
-Cohesion: 0.16
-Nodes (8): assert(), db, errors, getGame(), newGame(), putGame(), stamp, tts()
-
-### Community 60 - "VideoForm.tsx"
-Cohesion: 0.24
-Nodes (10): EditVideo(), metadata, metadata, NewVideo(), parseYouTubeId(), VideoForm(), save(), VideoFormValue (+2 more)
-
-### Community 61 - "ref_node_fs"
+### Community 23 - "library.ts"
 Cohesion: 0.13
-Nodes (6): errors, NAMES, stamp, db, dir, plan
+Nodes (41): addLibraryContent(), addResourcesToGame(), addResourcesToTopic(), addToTopic(), archiveResource(), createGrade(), createResource(), createTopic() (+33 more)
 
-### Community 62 - "playwright"
-Cohesion: 0.14
-Nodes (5): stamp, resetLinkFromLog(), sleep(), stamp, playwright
+### Community 24 - "flow.e2e.mjs"
+Cohesion: 0.08
+Nodes (14): errors, stamp, addGroup(), addLevel(), addStudent(), addImage(), fx(), stamp (+6 more)
 
-### Community 63 - "preview/[id]/page.tsx"
-Cohesion: 0.21
-Nodes (11): metadata, PreviewPage(), recipientLabel(), SettingsData, ActivityStrip(), saveRename(), StripAssignment, StripRole (+3 more)
+### Community 25 - "AuthLayout"
+Cohesion: 0.06
+Nodes (40): AdminInvitePage(), dynamic, metadata, AdminLayout(), ForgotPasswordPage(), metadata, LearnLayout(), LoginPage() (+32 more)
 
-### Community 64 - "library.e2e.mjs"
-Cohesion: 0.15
-Nodes (7): ADMIN_EMAIL, check(), consoleErrors, db, log(), results, stamp
+### Community 26 - "useVoiceSession.ts"
+Cohesion: 0.09
+Nodes (25): Coach, CoachLine, Diagnostic, Input, SessionOptions, TurnResult, TYPED_HELP, MicState (+17 more)
 
-### Community 65 - "video-player.e2e.mjs"
-Cohesion: 0.15
-Nodes (6): ADMIN_EMAIL, check(), consoleErrors, db, log(), results
+### Community 27 - "ref_node_path"
+Cohesion: 0.12
+Nodes (6): COLORS, db, stamp, db, errors, stamp
 
-### Community 66 - "AlphabetExplorer.tsx"
-Cohesion: 0.22
-Nodes (9): AlphabetExplorer(), Config, FeedbackBubble(), MicIndicator(), ALPHABET, Letter, LETTER_STYLES, letterName() (+1 more)
+### Community 28 - "Reproductor de video"
+Cohesion: 0.24
+Nodes (7): fmt(), loadYouTubeApi(), ProgressReport, SPEEDS, VideoPlayer(), Window, YTPlayer
 
-### Community 67 - "roster.ts"
-Cohesion: 0.26
-Nodes (12): addStudentList(), capitalize(), CheckedRow, checkRows(), friendlyPassword(), key(), ListRow, parseStudentList() (+4 more)
-
-### Community 68 - "automatic.ts"
-Cohesion: 0.34
-Nodes (10): adminInviteEmail(), billingEmail(), button(), escapeHtml(), formatMoney(), layout(), Money, Rendered (+2 more)
-
-### Community 69 - ""TopicPlan""
-Cohesion: 0.19
-Nodes (6): AssignmentActivity_gameId_idx, "TopicPlan", TopicPlan_teacherId_topicId_key, "TopicFavorite", TopicFavorite_topicId_idx, TopicPlan_teacherId_topicId_classroomId_key
-
-### Community 70 - "flashcards-printables.e2e.mjs"
-Cohesion: 0.15
-Nodes (4): COLORS, db, errors, stamp
-
-### Community 71 - "games/types.ts"
-Cohesion: 0.17
-Nodes (9): vitest, EditorGame, EditorItem, EditorQuestion, FaceData, ItemData, Lang, SpellTarget (+1 more)
-
-### Community 72 - "attempts/service.ts"
-Cohesion: 0.27
-Nodes (10): isVoice(), questionResult(), questionStatus(), R, finishedQuestions(), assignmentReport(), assignmentStudents(), StudentRow (+2 more)
-
-### Community 73 - "flashcards.e2e.mjs"
+### Community 29 - "Tests e2e de flashcards"
 Cohesion: 0.18
 Nodes (3): addPicture(), fx(), stamp
 
-### Community 74 - ""public"."MediaAsset""
-Cohesion: 0.18
-Nodes (12): AcceptedAnswer_questionId_idx, AudioAsset_schoolId_cacheKey_key, GameItem_gameId_position_idx, MediaAsset_schoolId_kind_idx, MediaAsset_schoolId_sha256_idx, MediaAsset_storageKey_key, "public"."AcceptedAnswer", "public"."AudioAsset" (+4 more)
+### Community 30 - "Scripts de package.json"
+Cohesion: 0.10
+Nodes (20): dependencies, bcryptjs@^3.0.2, @breezystack/lamejs@1.2.7, @fontsource/playwrite-mx@^5.3.0, next@15.5.29, prisma@^6.16.2, @prisma/client@^6.16.2, react@19.1.0 (+12 more)
 
-### Community 75 - ""public"."User""
-Cohesion: 0.20
-Nodes (11): "public"."Session", "public"."User", Session_expiresAt_idx, Session_userId_idx, User_email_key, User_schoolId_role_idx, PasswordResetToken_userId_idx, "public"."PasswordResetToken" (+3 more)
+### Community 31 - "stt/index.ts"
+Cohesion: 0.10
+Nodes (26): GET(), maxDuration, metadata, StudentAlphabet(), metadata, TeacherAlphabet(), AlphabetExplorer(), azure() (+18 more)
 
-### Community 76 - "appUrl"
-Cohesion: 0.40
-Nodes (8): stripe@^17.7.0, stripe, POST, POST, billingConfigured(), isLiveKey(), stripe(), appUrl()
-
-### Community 77 - "scripts"
+### Community 32 - "Dependencias de desarrollo"
 Cohesion: 0.18
 Nodes (11): scripts, admin:grant, build, db:migrate, db:seed, dev, lint, start (+3 more)
 
-### Community 78 - ""public"."Game""
-Cohesion: 0.24
-Nodes (10): Game_schoolId_status_idx, Game_teacherId_idx, "public"."Game", "public"."GameTemplate", "public"."Teacher", Teacher_schoolId_idx, Teacher_userId_key, ActivityFolder_teacherId_parentId_idx (+2 more)
+### Community 33 - "Corrector de español"
+Cohesion: 0.31
+Nodes (7): ALWAYS, applyAll(), checkSpanish(), ESTAR, matchCase(), QUESTION_WORDS, Suggestion
 
-### Community 79 - "library/seed.ts"
-Cohesion: 0.27
-Nodes (8): db, main(), CATEGORY, SEED_CHANT, SEED_TOPICS, SEED_VOCAB, seedLibrary(), TOPIC_DESCRIPTION
+### Community 34 - "AudioField.tsx"
+Cohesion: 0.08
+Nodes (33): AudioControl(), browserPreview(), generate(), AudioDefaults, AudioDefaultsContext, audioLanguages(), AudioPanel(), ensureGenerated() (+25 more)
 
-### Community 80 - "sample/route.ts"
-Cohesion: 0.24
-Nodes (9): Ctx, GET, PUT, CARDS, GET(), maxDuration, saveEditorGame(), saveSchema (+1 more)
+### Community 35 - "webhook.ts"
+Cohesion: 0.14
+Nodes (23): POST(), EmailPlan, idOf(), planBillingEmail(), subscriptionIdOfInvoice(), PLAN_NAME(), verifyWebhook(), processStripeEvent() (+15 more)
 
-### Community 83 - "library-header.e2e.mjs"
-Cohesion: 0.25
-Nodes (3): errors, head(), pressed()
-
-### Community 84 - "eslint.config.mjs"
+### Community 36 - "Configuración ESLint"
 Cohesion: 0.22
 Nodes (6): compat, __dirname, eslintConfig, __filename, @eslint/eslintrc@^3, @eslint/eslintrc
 
-### Community 85 - "build-accent-maps.mjs"
-Cohesion: 0.28
-Nodes (8): dictionary-en@^4.0.0, dictionary-es@^4.0.0, dictionary-fr@^3.0.0, dictionary-en, dictionary-fr, build(), strip(), words()
+### Community 37 - "ImageField.tsx"
+Cohesion: 0.09
+Nodes (25): Ctx, Dict, EN, ES, UiLang, UiLangProvider(), EditStep, ico (+17 more)
 
-### Community 87 - ""public"."Topic""
-Cohesion: 0.36
-Nodes (7): "public"."Topic", Topic_slug_key, GameResource_resourceId_idx, Grade_nameKey_key, "public"."GameResource", "public"."Grade", Topic_gradeId_idx
-
-### Community 88 - "youtubeIdFrom"
-Cohesion: 0.32
-Nodes (7): LinkPreview(), embedFor(), fileIdsOf(), KINDS, linkRef, publicUrl(), youtubeIdFrom()
-
-### Community 90 - "app/layout.tsx"
+### Community 38 - "Layout raíz"
 Cohesion: 0.29
 Nodes (4): gothic, metadata, montessori, viewport
 
-### Community 91 - "email.ts"
-Cohesion: 0.52
-Nodes (6): canSendEmail(), consoleDriver(), Email, emailConfigured(), randomRef(), sendEmail()
+### Community 49 - "autocorrect.ts"
+Cohesion: 0.13
+Nodes (22): El, SHORTCUTS, skipKey(), useAutocorrect(), AccentMap, afterInput(), Correction, detectLang() (+14 more)
 
-### Community 92 - "html-to-image"
+### Community 50 - "Players.tsx"
+Cohesion: 0.22
+Nodes (27): Celebrate(), ConnectSheet(), Done, FlashcardsPlayer(), GamePlayer(), Instructions(), ListenGame(), ListeningPlayer() (+19 more)
+
+### Community 51 - "lextro.e2e.mjs"
+Cohesion: 0.09
+Nodes (17): ADMIN_EMAIL, assert(), check(), confirmEmail(), consoleErrors, db, desktop, emails() (+9 more)
+
+### Community 52 - "lessonData.ts"
+Cohesion: 0.14
+Nodes (22): metadata, StudentTask(), metadata, TopicLessonPage(), AssignTaskPage(), metadata, resourceOf(), TopicResources (+14 more)
+
+### Community 53 - "assignments/[id]/page.tsx"
+Cohesion: 0.14
+Nodes (21): Actions(), AssignedBanner(), AssignmentResults(), fmtTime(), metadata, VideoResults(), metadata, PrintAccess() (+13 more)
+
+### Community 54 - "TopicLesson.tsx"
+Cohesion: 0.15
+Nodes (22): StudentActivity(), KindIcon(), LABEL, MediaThumb(), MyAssignments(), Phase, TopicLesson(), TopicLessonProps (+14 more)
+
+### Community 55 - "20261113220000_laxtrospeak_library/migration.sql"
+Cohesion: 0.14
+Nodes (24): ActivityProgress_activityId_studentId_idx, ActivityProgress_studentId_idx, AdminInvite_email_idx, AssignmentActivity_assignmentId_idx, AssignmentActivity_resourceId_idx, EmailLog_userId_idx, EmailVerificationToken_userId_idx, LibraryFile_storageKey_key (+16 more)
+
+### Community 56 - "plainText"
+Cohesion: 0.17
+Nodes (21): Clips, LetsPractice(), begin(), go(), lineFor(), loaded, pickOf(), sayBoth() (+13 more)
+
+### Community 57 - "TopicHero.tsx"
+Cohesion: 0.16
+Nodes (22): Branch(), Carousel(), onKey(), page(), Categories(), CategoryPanel(), Cover(), fmt() (+14 more)
+
+### Community 58 - "actions/videos.ts"
+Cohesion: 0.17
+Nodes (17): Ctx, PUT, POST, metadata, addToCollection(), deleteCollection(), deleteVideo(), moveInCollection() (+9 more)
+
+### Community 59 - "google.ts"
+Cohesion: 0.18
+Nodes (18): GET, PROBES, b64(), fetchGoogleImage(), googleMissing(), GooglePhoto, googleProvider(), httpsUrl() (+10 more)
+
+### Community 60 - "FlashcardsGame.tsx"
+Cohesion: 0.18
+Nodes (20): CardsBoard(), advance(), play(), clockText(), Face(), FlashcardsGame(), IconArrow(), IconFull() (+12 more)
+
+### Community 61 - "photo-form.e2e.mjs"
+Cohesion: 0.13
+Nodes (13): assert(), backOf(), box(), db, errors, fake, form(), item() (+5 more)
+
+### Community 62 - "TopicRow.tsx"
+Cohesion: 0.22
+Nodes (13): FavoriteButton(), AccessItem, KindPicture(), TopicAccess(), groupSteps(), RowStep, RowTopic, StudentTopicRow() (+5 more)
+
+### Community 63 - ""public"."School""
+Cohesion: 0.18
+Nodes (15): Assignment_schoolId_active_idx, AuditLog_schoolId_createdAt_idx, Category_schoolId_parentId_idx, "public"."Assignment", "public"."AuditLog", "public"."Category", "public"."School", "public"."Video" (+7 more)
+
+### Community 64 - "roster.ts"
+Cohesion: 0.21
+Nodes (15): addStudentList(), newSecret(), rand(), capitalize(), CheckedRow, checkRows(), fourDigitPin(), friendlyPassword() (+7 more)
+
+### Community 65 - "ref_node_fs"
+Cohesion: 0.12
+Nodes (7): errors, NAMES, stamp, db, dir, plan, slug()
+
+### Community 66 - "topic-lesson.e2e.mjs"
+Cohesion: 0.14
+Nodes (10): addImage(), assert(), db, desktop, errors, fx(), page, playStep() (+2 more)
+
+### Community 67 - "voice.e2e.mjs"
+Cohesion: 0.16
+Nodes (8): assert(), db, errors, getGame(), newGame(), putGame(), stamp, tts()
+
+### Community 68 - "playwright"
+Cohesion: 0.14
+Nodes (5): stamp, resetLinkFromLog(), sleep(), stamp, playwright
+
+### Community 69 - "library.e2e.mjs"
+Cohesion: 0.15
+Nodes (7): ADMIN_EMAIL, check(), consoleErrors, db, log(), results, stamp
+
+### Community 70 - "video-player.e2e.mjs"
+Cohesion: 0.15
+Nodes (6): ADMIN_EMAIL, check(), consoleErrors, db, log(), results
+
+### Community 71 - "GroupForm.tsx"
+Cohesion: 0.26
+Nodes (9): EditGroupPage(), metadata, metadata, NewGroupPage(), AddListPage(), metadata, GroupForm(), S (+1 more)
+
+### Community 72 - ""TopicPlan""
+Cohesion: 0.19
+Nodes (6): AssignmentActivity_gameId_idx, "TopicPlan", TopicPlan_teacherId_topicId_key, "TopicFavorite", TopicFavorite_topicId_idx, TopicPlan_teacherId_topicId_classroomId_key
+
+### Community 73 - "flashcards-printables.e2e.mjs"
+Cohesion: 0.15
+Nodes (4): COLORS, db, errors, stamp
+
+### Community 74 - "preview/[id]/page.tsx"
+Cohesion: 0.24
+Nodes (9): metadata, PreviewPage(), recipientLabel(), SettingsData, ActivityStrip(), saveRename(), StripAssignment, StripRole (+1 more)
+
+### Community 75 - "DiagramBoard.tsx"
+Cohesion: 0.29
+Nodes (11): DiagramBoard(), drop(), finishIfDone(), submitTyped(), sleep(), MatchBoard(), done(), drop() (+3 more)
+
+### Community 76 - ""public"."MediaAsset""
+Cohesion: 0.18
+Nodes (12): AcceptedAnswer_questionId_idx, AudioAsset_schoolId_cacheKey_key, GameItem_gameId_position_idx, MediaAsset_schoolId_kind_idx, MediaAsset_schoolId_sha256_idx, MediaAsset_storageKey_key, "public"."AcceptedAnswer", "public"."AudioAsset" (+4 more)
+
+### Community 77 - ""public"."User""
+Cohesion: 0.20
+Nodes (11): "public"."Session", "public"."User", Session_expiresAt_idx, Session_userId_idx, User_email_key, User_schoolId_role_idx, PasswordResetToken_userId_idx, "public"."PasswordResetToken" (+3 more)
+
+### Community 78 - "library/seed.ts"
+Cohesion: 0.24
+Nodes (9): db, main(), TEMPLATES, CATEGORY, SEED_CHANT, SEED_TOPICS, SEED_VOCAB, seedLibrary() (+1 more)
+
+### Community 79 - "SpellBoard.tsx"
+Cohesion: 0.32
+Nodes (9): Config, sleep(), SpellBoard(), submit(), ALPHABET, Letter, LETTER_STYLES, letterName() (+1 more)
+
+### Community 80 - ""public"."Game""
+Cohesion: 0.24
+Nodes (10): Game_schoolId_status_idx, Game_teacherId_idx, "public"."Game", "public"."GameTemplate", "public"."Teacher", Teacher_schoolId_idx, Teacher_userId_key, ActivityFolder_teacherId_parentId_idx (+2 more)
+
+### Community 81 - "teacher/library/page.tsx"
+Cohesion: 0.33
+Nodes (8): BAND, LEGACY, LibraryPage(), metadata, GRADE_FILTERS, GradeFilter, LibraryHeader(), libraryTopics()
+
+### Community 82 - "VideoForm"
+Cohesion: 0.29
+Nodes (8): EditVideo(), metadata, NewVideo(), parseYouTubeId(), VideoForm(), save(), requireVideoAdminPage(), videoFormOptions()
+
+### Community 83 - "games.ts"
+Cohesion: 0.29
+Nodes (10): AnswerRow(), save(), schoolGame(), deleteGame(), langCode, saveAcceptedAnswers(), saveActivitySettings(), setGameFont() (+2 more)
+
+### Community 84 - "ActivityList.tsx"
+Cohesion: 0.36
+Nodes (8): GamesPage(), metadata, ActivityFilters(), ActivityList(), ActivitySearch, loadActivities(), Loaded, duplicateGame()
+
+### Community 86 - "library-header.e2e.mjs"
+Cohesion: 0.25
+Nodes (3): errors, head(), pressed()
+
+### Community 87 - "TopicPlanEditor.tsx"
+Cohesion: 0.25
+Nodes (4): KindIcon(), LABEL, PlanItem, TopicPlanEditor()
+
+### Community 89 - "build-accent-maps.mjs"
+Cohesion: 0.32
+Nodes (7): dictionary-es@^4.0.0, dictionary-fr@^3.0.0, dictionary-es, dictionary-fr, build(), strip(), words()
+
+### Community 90 - ""public"."Topic""
+Cohesion: 0.36
+Nodes (7): "public"."Topic", Topic_slug_key, GameResource_resourceId_idx, Grade_nameKey_key, "public"."GameResource", "public"."Grade", Topic_gradeId_idx
+
+### Community 91 - "resources/[id]/page.tsx"
+Cohesion: 0.43
+Nodes (5): DraftPreview(), ResourcePreview(), BackLink(), requireAdminPage(), resourceForPreview()
+
+### Community 92 - "checkout/route.ts"
+Cohesion: 0.57
+Nodes (5): POST, POST, billingConfigured(), isLiveKey(), stripe()
+
+### Community 93 - "[slug]/page.tsx"
+Cohesion: 0.39
+Nodes (6): TopicPage(), metadata, StudentViewPage(), EyeIcon(), heroShapes(), GRADES
+
+### Community 94 - "Button.tsx"
+Cohesion: 0.32
+Nodes (6): AddStudentsMenu(), buttonClass(), Size, sizes, Variant, variants
+
+### Community 96 - "vitest"
+Cohesion: 0.40
+Nodes (3): vitest, poolerSafeUrl(), env
+
+### Community 97 - "html-to-image"
 Cohesion: 0.40
 Nodes (5): html-to-image@1.11.13, jspdf@4.2.1, html-to-image, jspdf, downloadPdf()
 
-### Community 93 - "templateByKey"
-Cohesion: 0.60
-Nodes (4): EditGame(), metadata, GameEditor(), templateByKey()
-
-### Community 94 - "vercel.json"
+### Community 98 - "vercel.json"
 Cohesion: 0.40
 Nodes (4): claude/natural-voice, git, deploymentEnabled, $schema
 
-### Community 95 - "DeleteAssignmentButton.tsx"
-Cohesion: 0.67
-Nodes (3): DeleteAssignmentButton(), Submit(), deleteAssignment()
-
 ## Knowledge Gaps
-- **14 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **16 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `react` connect `Páginas de login y contraseña` to `Reproductor de juegos y sesión de voz`, `Componentes UI y páginas de profesor`, `Esquema de base de datos (migraciones)`, `Editor de juegos (campos de audio/imagen)`, `Servicio de juegos y feedback`, `API, guards y rate limit`, `Micrófono y detección de voz (VAD)`, `Acciones de aula, tareas y categorías`, `Plantillas y galería de plantillas`, `Búsqueda de imágenes y filtro seguro`, `Dependencias (package.json)`, `Segmentación de texto`, `Almacenamiento y API de medios`, `Videos (servicio y API)`, `Texto a voz (TTS) y voces`, `Configuración TypeScript`, `Campo de texto en español`, `Tests e2e de plantillas`, `Portada, privacidad y logo`, `Test e2e de videos`, `Tests e2e de flashcards`, `Dependencias de desarrollo`, `Corrector de español`, `Generación de TTS`, `Middleware`, `Configuración PostCSS`, `Script de arranque de Graphify`, `dependencies`, `VideoPlayer.tsx`, `games.ts`, `ActivitySettings.tsx`, `VideoForm.tsx`, `preview/[id]/page.tsx`, `AlphabetExplorer.tsx`?**
-  _High betweenness centrality (0.157) - this node is a cross-community bridge._
-- **Should `Reproductor de juegos y sesión de voz` be split into smaller, more focused modules?**
-  _Cohesion score 0.0502497796062298 - nodes in this community are weakly interconnected._
-- **Why does `next` connect `Shells y layouts de profesor/alumno` to `Reproductor de juegos y sesión de voz`, `Esquema de base de datos (migraciones)`, `Editor de juegos (campos de audio/imagen)`, `Acciones de aula, tareas y categorías`, `Plantillas y galería de plantillas`, `Sesión de usuario`, `Validación y subida de medios`, `Dependencias (package.json)`, `Formularios de contraseña`, `Segmentación de texto`, `Almacenamiento y API de medios`, `Videos (servicio y API)`, `Configuración TypeScript`, `Campo de texto en español`, `Páginas de login y contraseña`, `Tests e2e de seguridad y videos`, `Test e2e de videos`, `Tests e2e de flashcards`, `Dependencias de desarrollo`, `Corrector de español`, `Selector de alumno`, `Generación de TTS`, `Layout raíz`, `Configuración Next.js`, `20261025013059_spelling_name/migration.sql`, `20261025013801_support_and_endings/migration.sql`, `20261025014837_ends_question/migration.sql`, `20261025031956_templates_v2/migration.sql`, `Script de arranque de Graphify`, `dependencies`, `webhook.ts`, `audit`, `VideoPlayer.tsx`, `games.ts`, `ActivitySettings.tsx`, `VideoForm.tsx`, `preview/[id]/page.tsx`, `appUrl`, `sample/route.ts`, `app/layout.tsx`, `templateByKey`?**
-  _High betweenness centrality (0.144) - this node is a cross-community bridge._
-- **Should `Componentes UI y páginas de profesor` be split into smaller, more focused modules?**
-  _Cohesion score 0.0645933014354067 - nodes in this community are weakly interconnected._
-- **Why does `@prisma/client` connect `Reconocimiento de voz (STT)` to `Validación y subida de medios`, `Dependencias (package.json)`, `Formularios de contraseña`, `Test e2e de videos`, `Scripts de package.json`, `Selector de alumno`, `20261025015628_game_language_default/migration.sql`, `Script de arranque de Graphify`, `dependencies`, `webhook.ts`, `topic-lesson.e2e.mjs`, `voice.e2e.mjs`, `ref_node_fs`, `library.e2e.mjs`, `video-player.e2e.mjs`, `automatic.ts`, `flashcards-printables.e2e.mjs`, `attempts/service.ts`, `library/seed.ts`?**
-  _High betweenness centrality (0.096) - this node is a cross-community bridge._
-- **Should `Esquema de base de datos (migraciones)` be split into smaller, more focused modules?**
-  _Cohesion score 0.08754208754208755 - nodes in this community are weakly interconnected._
-- **Should `Editor de juegos (campos de audio/imagen)` be split into smaller, more focused modules?**
-  _Cohesion score 0.10831586303284417 - nodes in this community are weakly interconnected._
+- **Why does `react` connect `Button` to `parts.tsx`, `PageHeader`, `GameEditor.tsx`, `layout.ts`, `games/templates.ts`, `topics/[id]/page.tsx`, `commons.ts`, `Dependencias (package.json)`, `db.ts`, `Segmentación de texto`, `MyActivitiesBoard.tsx`, `next`, `library/types.ts`, `AuthLayout`, `useVoiceSession.ts`, `Reproductor de video`, `Scripts de package.json`, `AudioField.tsx`, `ImageField.tsx`, `autocorrect.ts`, `Players.tsx`, `TopicLesson.tsx`, `plainText`, `TopicHero.tsx`, `FlashcardsGame.tsx`, `TopicRow.tsx`, `GroupForm.tsx`, `preview/[id]/page.tsx`, `DiagramBoard.tsx`, `SpellBoard.tsx`, `teacher/library/page.tsx`, `ActivityList.tsx`, `TopicPlanEditor.tsx`, `Button.tsx`?**
+  _High betweenness centrality (0.151) - this node is a cross-community bridge._
+- **Should `parts.tsx` be split into smaller, more focused modules?**
+  _Cohesion score 0.11219512195121951 - nodes in this community are weakly interconnected._
+- **Why does `next` connect `next` to `PageHeader`, `GameEditor.tsx`, `games/service.ts`, `Acciones de aula, tareas y categorías`, `topics/[id]/page.tsx`, `HttpError`, `Dependencias (package.json)`, `db.ts`, `Button`, `MyActivitiesBoard.tsx`, `library/types.ts`, `library.ts`, `AuthLayout`, `Scripts de package.json`, `stt/index.ts`, `webhook.ts`, `Layout raíz`, `Configuración Next.js`, `Middleware`, `lessonData.ts`, `assignments/[id]/page.tsx`, `TopicLesson.tsx`, `TopicHero.tsx`, `actions/videos.ts`, `google.ts`, `TopicRow.tsx`, `GroupForm.tsx`, `preview/[id]/page.tsx`, `teacher/library/page.tsx`, `games.ts`, `ActivityList.tsx`, `TopicPlanEditor.tsx`, `resources/[id]/page.tsx`, `checkout/route.ts`, `[slug]/page.tsx`, `Button.tsx`?**
+  _High betweenness centrality (0.138) - this node is a cross-community bridge._
+- **Should `PageHeader` be split into smaller, more focused modules?**
+  _Cohesion score 0.09077380952380952 - nodes in this community are weakly interconnected._
+- **Why does `@prisma/client` connect `next` to `games/service.ts`, `Acciones de aula, tareas y categorías`, `HttpError`, `Dependencias (package.json)`, `db.ts`, `library.ts`, `flow.e2e.mjs`, `ref_node_path`, `Scripts de package.json`, `webhook.ts`, `lextro.e2e.mjs`, `assignments/[id]/page.tsx`, `photo-form.e2e.mjs`, `ref_node_fs`, `topic-lesson.e2e.mjs`, `voice.e2e.mjs`, `library.e2e.mjs`, `video-player.e2e.mjs`, `flashcards-printables.e2e.mjs`, `library/seed.ts`?**
+  _High betweenness centrality (0.103) - this node is a cross-community bridge._
+- **Should `20261025012814_init/migration.sql` be split into smaller, more focused modules?**
+  _Cohesion score 0.14532019704433496 - nodes in this community are weakly interconnected._
+- **Should `GameEditor.tsx` be split into smaller, more focused modules?**
+  _Cohesion score 0.09397163120567376 - nodes in this community are weakly interconnected._

@@ -44,3 +44,13 @@ next-env.d.ts
 /storage
 /e2e/*.png
 !.env.example
+
+# graphify: se versiona el mapa (graph.json, GRAPH_REPORT.md, etiquetas); lo demás es local
+/graphify-out/cache/
+/graphify-out/20*/
+/graphify-out/graph.html
+/graphify-out/manifest.json
+/graphify-out/.graphify_root
+/graphify-out/memory/
+/graphify-out/reflections/
+/graphify-out/converted/
