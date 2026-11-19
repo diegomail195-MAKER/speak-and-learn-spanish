@@ -28,7 +28,7 @@ export default async function MyActivities() {
           id: true,
           resource: { select: { kind: true } },
           version: { select: { title: true } },
-          game: { select: { title: true, templateKey: true } },
+          game: { select: { title: true, templateKey: true, schoolId: true } },
           progress: { where: { studentId: student.id, completedAt: { not: null } }, select: { id: true }, take: 1 },
         },
       },
@@ -56,12 +56,14 @@ export default async function MyActivities() {
               progress); the icons only show what it contains. */}
           <ul className="topic-list" data-testid="student-tasks">
             {tasks.map((t) => {
-              const done = t.activities.filter((a) => a.progress.length).length;
-              const kinds = t.activities.map((a) => ({ key: a.id, kind: a.game ? gameKind(a.game.templateKey) : (a.resource?.kind ?? "VIDEO"), title: a.version?.title ?? a.game?.title ?? "" }));
+              // Same rule as the lesson: a game that can't be played here is skipped.
+              const acts = t.activities.filter((a) => !a.game || a.game.schoolId === student.schoolId);
+              const done = acts.filter((a) => a.progress.length).length;
+              const kinds = acts.map((a) => ({ key: a.id, kind: a.game ? gameKind(a.game.templateKey) : (a.resource?.kind ?? "VIDEO"), title: a.version?.title ?? a.game?.title ?? "" }));
               const topic = { id: t.id, titleEs: t.topic?.titleEs ?? t.title, titleEn: t.topic?.titleEn ?? "", description: t.topic?.description ?? "", color: t.topic?.color ?? "#FFC928", art: t.topic?.art ?? "" };
               return (
                 <li key={t.id}>
-                  <StudentTopicRow topic={topic} href={`/learn/tasks/${t.id}`} kinds={kinds} done={done} total={t.activities.length} />
+                  <StudentTopicRow topic={topic} href={`/learn/tasks/${t.id}`} kinds={kinds} done={done} total={acts.length} />
                 </li>
               );
             })}

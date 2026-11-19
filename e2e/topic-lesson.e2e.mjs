@@ -122,7 +122,7 @@ try {
   const eye = card.getByTestId("student-view");
   await eye.waitFor();
   const [cb, eb] = [await card.boundingBox(), await eye.boundingBox()];
-  assert(eb.x + eb.width > cb.x + cb.width - 24 && eb.y < cb.y + 24, "Student View is not in the top-right corner");
+  assert(eb.x + eb.width > cb.x + cb.width - 32 && eb.y < cb.y + 32, "Student View is not in the top-right corner");
   assert((await page.getByTestId("student-view").count()) >= 5, "a Topic card has no Student View");
   await shot(page, "tl01-library-student-view");
   log("Library: «Student View» with the eye on every Topic card, top-right");

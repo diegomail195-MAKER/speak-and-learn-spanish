@@ -4,13 +4,20 @@
 
 export type SequenceStep = { id: string; done: boolean; /** Steps the lesson skips (their activity is gone). */ skip?: boolean };
 
-/** Ids of the steps the student may open now: every finished step and the first unfinished one. */
+/**
+ * Ids of the steps the student may open now: every finished step (wherever it is, so progress
+ * made before keeps working) and the first unfinished one.
+ */
 export function openSteps(steps: SequenceStep[]): Set<string> {
   const open = new Set<string>();
+  let current = false;
   for (const s of steps) {
     if (s.skip) continue;
-    open.add(s.id);
-    if (!s.done) break;
+    if (s.done) open.add(s.id);
+    else if (!current) {
+      open.add(s.id);
+      current = true;
+    }
   }
   return open;
 }

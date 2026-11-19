@@ -305,7 +305,7 @@ body {
    focus only change colors and shadow, so nothing moves. */
 .topic-list { display: flex; flex-direction: column; gap: 16px; }
 .topic-row {
-  position: relative; box-sizing: border-box; display: flex; align-items: center; gap: 20px; padding: 16px 20px;
+  position: relative; box-sizing: border-box; display: flex; align-items: center; gap: 24px; padding: 20px 24px;
   background: #fff; border: 1px solid #E2E6EC; border-radius: 12px; min-width: 0; color: inherit;
   transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
@@ -321,9 +321,12 @@ body {
 .topic-thumb {
   flex: none; display: grid; place-items: center; width: 96px; height: 96px; border-radius: 12px; overflow: hidden;
 }
-.topic-title { font-family: var(--font-display); font-size: 20px; line-height: 1.2; font-weight: 800; color: #1F1A2E; min-width: 0; overflow-wrap: anywhere; }
-.topic-title-en { margin-left: 8px; font-size: 14px; font-weight: 700; color: #6B7385; }
-.topic-desc { margin-top: 4px; font-size: 15px; line-height: 1.45; color: #3B4252; overflow-wrap: anywhere; }
+.topic-title { font-family: var(--font-display); font-size: 20px; line-height: 1.2; font-weight: 800; color: #172033; letter-spacing: -0.005em;
+  /* The fallback face (Didact Gothic) has a single weight: a hairline stroke gives the title the
+     bold presence of the mockup without changing the configured typography. */
+  -webkit-text-stroke: 0.35px currentColor; min-width: 0; overflow-wrap: anywhere; }
+.topic-title-en { -webkit-text-stroke: 0; margin-left: 8px; font-size: 14px; font-weight: 700; color: #6B7385; }
+.topic-desc { margin-top: 6px; font-size: 16px; line-height: 1.45; color: #3A4256; max-width: 72ch; overflow-wrap: anywhere; }
 .topic-progress { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 9999px; background: #F1EAFB; color: #4B1F7A; font-size: 13px; font-weight: 800; white-space: nowrap; }
 .topic-row-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .topic-tool {
@@ -333,10 +336,10 @@ body {
 .topic-tool:hover { background: #F6F0F9; }
 .topic-tool:focus-visible, .topic-access:focus-visible, .topic-access-option:focus-visible { outline: 3px solid #FF5148; outline-offset: 2px; }
 .topic-heart { width: 36px; padding: 0; color: #E81CC8; }
-.topic-accesses { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.topic-accesses { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-top: 14px; }
 .topic-access {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  min-width: 72px; min-height: 64px; padding: 6px 8px; border-radius: 10px; color: #1F2433;
+  min-width: 72px; min-height: 64px; padding: 6px 8px; border-radius: 10px; color: #172033;
   transition: background-color 150ms ease;
 }
 button.topic-access, a.topic-access { cursor: pointer; }
