@@ -4,7 +4,7 @@ import { AdminActionForm } from "@/components/admin/AdminActionForm";
 import { Card, Empty, PageTitle } from "@/components/dashboard/DashBits";
 import { LocalTime } from "@/components/dashboard/LocalTime";
 import { WsIcon } from "@/components/shell/WsIcons";
-import { createSchool, endSessions, inviteAdmin, renameSchool, revokeAdmin } from "@/lib/actions/admin";
+import { createSchool, endSessions, inviteAdmin, mergeSchool, moveUser, renameSchool, revokeAdmin } from "@/lib/actions/admin";
 import { requireAdminPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 
@@ -112,6 +112,23 @@ async function Users({ me, q, role, school, page }: { me: string; q?: string; ro
                             <button className="ws-btn ws-btn-danger">Remove admin</button>
                           </AdminActionForm>
                         )}
+                        {u.role !== "STUDENT" && schools.length > 1 && (
+                          <details>
+                            <summary className="ws-btn ws-btn-secondary cursor-pointer list-none" data-testid="move-user">Move…</summary>
+                            <div className="mt-2 w-72 rounded-xl border border-[#E2E6EC] bg-white p-3 shadow-lg">
+                              <AdminActionForm action={moveUser} className="grid gap-2" confirm={`Move ${u.displayName} (and the classes they own) to the chosen school?`}>
+                                <input type="hidden" name="userId" value={u.id} />
+                                <label className="text-sm font-bold">Move {u.displayName} to
+                                  <select name="schoolId" required defaultValue="" className="ws-select mt-1" data-testid="move-school-select">
+                                    <option value="" disabled>Choose a school</option>
+                                    {schools.filter((x) => x.id !== u.school.id).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                                  </select>
+                                </label>
+                                <button className="ws-btn ws-btn-primary" data-testid="move-user-submit">Move</button>
+                              </AdminActionForm>
+                            </div>
+                          </details>
+                        )}
                         {u.id !== me && u._count.sessions > 0 && (
                           <AdminActionForm action={endSessions} className="flex flex-wrap gap-2" confirm={`Sign ${u.displayName} out of every device?`}>
                             <input type="hidden" name="userId" value={u.id} />
@@ -142,9 +159,10 @@ async function Users({ me, q, role, school, page }: { me: string; q?: string; ro
 
 async function Schools({ q, page }: { q?: string; page: number }) {
   const where: Prisma.SchoolWhereInput = q ? { name: { contains: q, mode: "insensitive" } } : {};
-  const [schools, total] = await Promise.all([
+  const [schools, total, all] = await Promise.all([
     db.school.findMany({ where, orderBy: { name: "asc" }, take: PAGE, skip: (page - 1) * PAGE, include: { _count: { select: { classrooms: true, students: true } }, users: { where: { role: { in: ["ADMIN", "TEACHER"] } }, select: { id: true } } } }),
     db.school.count({ where }),
+    db.school.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
   const pages = Math.max(1, Math.ceil(total / PAGE));
   const href = (n: number) => `/admin/users?${new URLSearchParams({ tab: "schools", ...(q ? { q } : {}), page: String(n) })}`;
@@ -169,8 +187,8 @@ async function Schools({ q, page }: { q?: string; page: number }) {
           <Empty title="No schools match" />
         ) : (
           <div className="relative -mx-4 overflow-x-auto sm:mx-0">
-            <table className="ws-table min-w-[760px]" data-testid="schools-table">
-              <thead><tr><th>Name</th><th>Teachers</th><th>Classes</th><th>Students</th><th>Created</th></tr></thead>
+            <table className="ws-table min-w-[860px]" data-testid="schools-table">
+              <thead><tr><th>Name</th><th>Teachers</th><th>Classes</th><th>Students</th><th>Created</th><th><span className="sr-only">Actions</span></th></tr></thead>
               <tbody>
                 {schools.map((s) => (
                   <tr key={s.id} data-testid="school-row">
@@ -185,6 +203,26 @@ async function Schools({ q, page }: { q?: string; page: number }) {
                     <td>{s._count.classrooms}</td>
                     <td>{s._count.students}</td>
                     <td className="whitespace-nowrap"><LocalTime iso={s.createdAt.toISOString()} mode="day" /></td>
+                    <td>
+                      {all.length > 1 && (
+                        <details>
+                          <summary className="ws-btn ws-btn-secondary cursor-pointer list-none" data-testid="merge-school">Merge…</summary>
+                          <div className="mt-2 w-80 rounded-xl border border-[#E2E6EC] bg-white p-3 shadow-lg">
+                            <AdminActionForm action={mergeSchool} className="grid gap-2" confirm={`Merge ${s.name} into the chosen school? Everyone and everything in ${s.name} moves there, and ${s.name} is deleted. This can't be undone.`}>
+                              <input type="hidden" name="schoolId" value={s.id} />
+                              <label className="text-sm font-bold">Move everything in {s.name} to
+                                <select name="intoId" required defaultValue="" className="ws-select mt-1" data-testid="merge-into-select">
+                                  <option value="" disabled>Choose a school</option>
+                                  {all.filter((x) => x.id !== s.id).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                                </select>
+                              </label>
+                              <p className="text-xs text-[#5B6577]">Accounts, classes, students, activities and assignments move; then {s.name} is deleted.</p>
+                              <button className="ws-btn ws-btn-danger" data-testid="merge-school-submit">Merge and delete {s.name}</button>
+                            </AdminActionForm>
+                          </div>
+                        </details>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

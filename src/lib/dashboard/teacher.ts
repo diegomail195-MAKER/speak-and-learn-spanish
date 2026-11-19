@@ -30,18 +30,15 @@ export async function teacherClasses(teacherId: string, opts: { archived?: boole
 
 export async function teacherStats(teacherId: string) {
   const cls = { ...classroomAccessWhere(teacherId), archivedAt: null };
-  const weekAgo = new Date(Date.now() - 7 * 86_400_000);
   const visible = assignmentsForTeacherWhere(teacherId);
-  const [classes, students, active, completedSteps, completedGames] = await Promise.all([
+  const [classes, students, active] = await Promise.all([
     db.classroom.count({ where: cls }),
     // A student belongs to exactly one class, so counting students (not group memberships) never
     // counts anyone twice, even when they are in several groups.
     db.student.count({ where: { active: true, classroom: cls } }),
     db.assignment.count({ where: { AND: [visible, openAssignmentWhere()] } }),
-    db.activityProgress.count({ where: { completedAt: { gte: weekAgo }, activity: { assignment: visible }, student: { classroom: cls } } }),
-    db.studentAttempt.count({ where: { completedAt: { gte: weekAgo }, assignment: visible, student: { classroom: cls } } }),
   ]);
-  return { classes, students, active, completedThisWeek: completedSteps + completedGames };
+  return { classes, students, active };
 }
 
 type RecipientRow = {

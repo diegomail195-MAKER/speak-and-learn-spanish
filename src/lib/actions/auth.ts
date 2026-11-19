@@ -9,6 +9,7 @@ import { audit } from "@/lib/audit";
 import { hashSecret, verifySecret } from "@/lib/auth/password";
 import { createSession, destroySession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import { getSettings } from "@/lib/settings";
 import { appUrl, canSendEmail, sendEmail } from "@/lib/email";
 import { DEFAULT_CATEGORIES } from "@/lib/games/templates";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
@@ -26,6 +27,7 @@ const signupSchema = z.object({
 });
 
 export async function signUpTeacher(_: FormState, form: FormData): Promise<FormState> {
+  if (!(await getSettings()).signupOpen) return { error: "Sign-up is closed. Ask your school's administrator for an invitation." };
   const parsed = signupSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const { schoolName, displayName, email, password } = parsed.data;

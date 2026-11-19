@@ -6,7 +6,7 @@ import { GamePlayer } from "@/components/player/GamePlayer";
 import { StudentPlay } from "@/components/player/StudentPlay";
 import { Art, Pinita } from "@/components/ui/Art";
 import { recordActivityProgress } from "@/lib/actions/tasks";
-import { libraryFileUrl, youtubeIdFrom } from "@/lib/library/types";
+import { libraryFileUrl, youtubeIdFrom, type SpeakingResult } from "@/lib/library/types";
 import { LESSON, lessonClipKey, spokenTitle, stepLine, type Line } from "@/lib/library/lesson";
 import type { LessonStep } from "@/lib/library/lessonData";
 import { ResourcePlayer, speak } from "./Players";
@@ -231,12 +231,12 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
   // once this one is recorded). Up to 3 tries, then "Retry".
   const [saveState, setSaveState] = useState<Record<number, "saving" | "error">>({});
   const save = useCallback(
-    async (i: number, score: number, max: number) => {
+    async (i: number, score: number, max: number, details?: SpeakingResult[]) => {
       const step = steps[i];
       setSaveState((s) => ({ ...s, [i]: "saving" }));
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
-          await recordActivityProgress({ assignmentId: assignmentId!, activityId: step.id, score: Math.min(score, 1000), total: Math.min(max, 1000) });
+          await recordActivityProgress({ assignmentId: assignmentId!, activityId: step.id, score: Math.min(score, 1000), total: Math.min(max, 1000), details });
           setSaveState(({ [i]: _, ...rest }) => rest);
           return;
         } catch {
@@ -248,22 +248,22 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
     },
     [assignmentId, steps],
   );
-  const lastScore = useRef<Record<number, [number, number]>>({});
+  const lastScore = useRef<Record<number, [number, number, SpeakingResult[] | undefined]>>({});
   const complete = useCallback(
-    (i: number, score = 1, max = 1, practice = false) => {
+    (i: number, score = 1, max = 1, practice = false, details?: SpeakingResult[]) => {
       setCompleted((c) => (c.has(i) ? c : new Set(c).add(i)));
       const step = steps[i];
       if (mode !== "student" || practice || !assignmentId || sent.current.has(step.id) || step.done) return;
       sent.current.add(step.id);
-      lastScore.current[i] = [score, max];
-      void save(i, score, max);
+      lastScore.current[i] = [score, max, details];
+      void save(i, score, max, details);
     },
     [assignmentId, mode, steps, save],
   );
   const retrySave = (i: number) => {
-    const [score, max] = lastScore.current[i] ?? [1, 1];
+    const [score, max, details] = lastScore.current[i] ?? [1, 1, undefined];
     sent.current.add(steps[i].id);
-    void save(i, score, max);
+    void save(i, score, max, details);
   };
 
   const start = (i: number, practice = false) => {
@@ -359,7 +359,7 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
     const s = steps[i];
     const saving = !practice && saveState[i];
     const ready = practice || (completed.has(i) && !saving);
-    const onDone = (score: number, max: number) => complete(i, score, max, practice);
+    const onDone = (score: number, max: number, details?: SpeakingResult[]) => complete(i, score, max, practice, details);
     let player;
     if (s.game) {
       player =

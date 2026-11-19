@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { signOut } from "@/lib/actions/auth";
+import { getSettings } from "@/lib/settings";
 import { VerifyBanner } from "./VerifyBanner";
 import { WorkspaceFrame, type Workspace, type WsLink } from "./WorkspaceFrame";
 
@@ -21,6 +22,7 @@ const TEACHER_LINKS: WsLink[] = [
   { href: "/teacher/assignments", label: "My Assignments", icon: "clipboard", match: ["/teacher/tasks"] },
   { href: "/teacher/my-activities", label: "My Activities", icon: "bolt", match: ["/teacher/games"] },
   { href: "/teacher/progress", label: "Progress", icon: "chart" },
+  { href: "/teacher/review", label: "Review", icon: "inbox" },
   { href: "/teacher/account", label: "My Account", icon: "user", match: ["/teacher/billing"] },
 ];
 
@@ -29,7 +31,7 @@ const TEACHER_EXTRA: WsLink[] = [
   { href: "/teacher/games/new", label: "Create activity", icon: "plus", exact: true },
 ];
 
-export function WorkspaceShell({
+export async function WorkspaceShell({
   workspace,
   user,
   school,
@@ -43,6 +45,7 @@ export function WorkspaceShell({
   // Both workspaces only for administrators (role ADMIN, given by the server process in
   // src/lib/auth/admin-role.ts) that also have their teacher profile.
   const available: Workspace[] = user.role === "ADMIN" && user.teacher ? ["admin", "teacher"] : [workspace];
+  const { announcement } = await getSettings();
   return (
     <WorkspaceFrame
       workspace={workspace}
@@ -53,7 +56,16 @@ export function WorkspaceShell({
       user={{ name: user.displayName, email: user.email, school }}
       accountHref={user.teacher ? "/teacher/account" : null}
       signOut={signOut}
-      banner={user.email && !user.emailVerifiedAt ? <VerifyBanner email={user.email} /> : null}
+      banner={
+        <>
+          {announcement && (
+            <div role="note" className="no-print border-b border-[#BFD3FE] bg-[#EEF4FF] px-4 py-2.5 text-[15px] font-semibold text-[#1D4ED8] sm:px-6 [overflow-wrap:anywhere]" data-testid="platform-notice">
+              {announcement}
+            </div>
+          )}
+          {user.email && !user.emailVerifiedAt ? <VerifyBanner email={user.email} /> : null}
+        </>
+      }
     >
       {children}
     </WorkspaceFrame>

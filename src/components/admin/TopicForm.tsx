@@ -22,7 +22,7 @@ const THUMBNAILS = [
  * Create or edit a topic. A new topic can take library resources right away ("Add from Library");
  * an existing topic manages them in its activity list above this form.
  */
-export function TopicForm({ topic, grades, library, categories = [] }: { topic?: { id: string; titleEn: string; titleEs: string; category: string; color: string; gradeId: string | null; description: string; art: string; language?: string }; categories?: string[]; grades: GradeOpt[]; library?: PickItem[] }) {
+export function TopicForm({ topic, grades, library, categories = [], defaultLanguage = "es" }: { defaultLanguage?: string; topic?: { id: string; titleEn: string; titleEs: string; category: string; color: string; gradeId: string | null; description: string; art: string; language?: string }; categories?: string[]; grades: GradeOpt[]; library?: PickItem[] }) {
   const [state, action, pending] = useActionState(topic ? updateTopic : createTopic, undefined);
   const router = useRouter();
   const created = state?.topicId;
@@ -54,7 +54,7 @@ export function TopicForm({ topic, grades, library, categories = [] }: { topic?:
         </div>
         <div>
           <Label htmlFor="language">Language</Label>
-          <Select id="language" name="language" defaultValue={topic?.language ?? "es"}>
+          <Select id="language" name="language" defaultValue={topic?.language ?? defaultLanguage}>
             {TOPIC_LANGUAGES.map((l) => <option key={l} value={l}>{LANGUAGE_LABEL[l]}</option>)}
           </Select>
         </div>

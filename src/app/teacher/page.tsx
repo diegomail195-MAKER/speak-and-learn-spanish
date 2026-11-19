@@ -10,6 +10,7 @@ import { requireTeacherPage } from "@/lib/auth/guards";
 import { assignmentSummaries, teacherClasses, teacherStats } from "@/lib/dashboard/teacher";
 import { db } from "@/lib/db";
 import { libraryTopics } from "@/lib/library/service";
+import { pendingReviewCount } from "@/lib/review";
 import { teacherTopicSteps } from "@/lib/library/steps";
 
 export const metadata = { title: "Teacher Dashboard" };
@@ -20,13 +21,14 @@ const STATUS_CLS: Record<string, string> = { Open: "ws-pill-active", Overdue: "b
 // completion, and a short selection of published Library topics.
 async function DashboardContent() {
   const { user, teacher } = await requireTeacherPage();
-  const [school, stats, classes, assignments, topics, favRows] = await Promise.all([
+  const [school, stats, classes, assignments, topics, favRows, toReview] = await Promise.all([
     db.school.findUniqueOrThrow({ where: { id: user.schoolId }, select: { name: true } }),
     teacherStats(teacher.id),
     teacherClasses(teacher.id),
     assignmentSummaries(teacher.id, { take: 4, onlyOpen: true }),
     libraryTopics(),
     db.topicFavorite.findMany({ where: { teacherId: teacher.id }, select: { topicId: true } }),
+    pendingReviewCount(teacher.id),
   ]);
   const favorites = new Set(favRows.map((f) => f.topicId));
   // Favorites first, then the Library order.
@@ -56,7 +58,7 @@ async function DashboardContent() {
         <StatCard href="/teacher/classes" icon="users" value={stats.classes} label={stats.classes === 1 ? "Class" : "Classes"} testId="stat-classes" />
         <StatCard href="/teacher/progress" icon="cap" value={stats.students} label={stats.students === 1 ? "Student" : "Students"} testId="stat-students" />
         <StatCard href="/teacher/assignments?open=1" icon="clipboard" value={stats.active} label="Active assignments" tone="purple" testId="stat-active" />
-        <StatCard href="/teacher/progress" icon="check" value={stats.completedThisWeek} label="Completed this week" tone="purple" testId="stat-completed" />
+        <StatCard href="/teacher/review" icon="inbox" value={toReview} label="To review" tone="purple" testId="stat-review" />
       </div>
 
       <div className="mb-6 grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">

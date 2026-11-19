@@ -79,6 +79,9 @@ enum ResourceKind {
   PRINTABLE
   WORKSHEET
   LISTENING
+  // Say-it-aloud prompts checked by speech recognition; answers the app is unsure about go to
+  // the teacher's review queue.
+  SPEAKING
 }
 
 enum MasteryStatus {
@@ -572,6 +575,10 @@ model StudentAttempt {
   uncertainCount     Int       @default(0)
   hintsUsed          Int       @default(0)
   independentCount   Int       @default(0)
+  // Teacher review (Review queue): when, by whom (User id) and the teacher's note.
+  reviewedAt         DateTime?
+  reviewedById       String?
+  reviewNote         String    @default("")
 
   student    Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
   game       Game              @relation(fields: [gameId], references: [id], onDelete: Cascade)
@@ -598,6 +605,8 @@ model StudentResponse {
   score        Float?
   // True for the response that closed the question (correct, or moved on after the last try).
   endsQuestion Boolean         @default(false)
+  // The teacher's decision when reviewing (overrides the recognizer's outcome).
+  teacherOutcome ResponseOutcome?
   createdAt    DateTime        @default(now())
 
   attempt  StudentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
@@ -950,6 +959,11 @@ model ActivityProgress {
   completedAt DateTime?
   score       Int?
   total       Int?
+  // Speaking steps: what the student said for each prompt ([{ say, transcript, outcome, teacher? }]).
+  details      Json?
+  reviewedAt   DateTime?
+  reviewedById String?
+  reviewNote   String    @default("")
 
   activity AssignmentActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
   student  Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -969,4 +983,19 @@ model TopicFavorite {
 
   @@id([teacherId, topicId])
   @@index([topicId])
+}
+
+// Platform-wide settings edited by admins in Settings (a single row, id "global").
+model PlatformSettings {
+  id                   String   @id @default("global")
+  // Public teacher sign-up (when off, accounts come only from admin invites).
+  signupOpen           Boolean  @default(true)
+  // Short notice shown at the top of every teacher and admin page ("" = none).
+  announcement         String   @default("")
+  // Language preselected when creating a topic.
+  defaultTopicLanguage String   @default("es")
+  // Shown to teachers in My Account as the help contact ("" = hidden).
+  supportEmail         String   @default("")
+  updatedAt            DateTime @updatedAt
+  updatedById          String?
 }

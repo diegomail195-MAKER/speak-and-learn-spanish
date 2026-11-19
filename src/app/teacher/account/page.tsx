@@ -5,6 +5,7 @@ import { ProfileForm } from "@/components/teacher/ProfileForm";
 import { signOut } from "@/lib/actions/auth";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
+import { getSettings } from "@/lib/settings";
 
 export const metadata = { title: "My Account" };
 
@@ -12,10 +13,11 @@ const ROLE: Record<string, string> = { ADMIN: "Teacher and platform administrato
 
 export default async function AccountPage() {
   const { user, teacher } = await requireTeacherPage();
-  const [school, owned, coTeaching] = await Promise.all([
+  const [school, owned, coTeaching, settings] = await Promise.all([
     db.school.findUniqueOrThrow({ where: { id: user.schoolId }, select: { name: true } }),
     db.classroom.count({ where: { teacherId: teacher.id, archivedAt: null } }),
     db.classroomTeacher.count({ where: { teacherId: teacher.id, classroom: { archivedAt: null } } }),
+    getSettings(),
   ]);
   return (
     <>
@@ -48,6 +50,11 @@ export default async function AccountPage() {
               <form action={signOut}><button className="ws-btn ws-btn-secondary">Sign out</button></form>
             </div>
           </Card>
+          {settings.supportEmail && (
+            <Card title="Need help?" testId="support-card">
+              <p className="text-[15px] text-[#3D4759]">Write to <a href={`mailto:${settings.supportEmail}`} className="ws-link">{settings.supportEmail}</a>.</p>
+            </Card>
+          )}
         </div>
       </div>
     </>

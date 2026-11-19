@@ -11,7 +11,8 @@ export const ADMIN_ACTION_PREFIXES = ["topic.", "library.", "grade.", "user.", "
 export const ACTION_GROUPS: Record<string, { label: string; prefixes: string[] }> = {
   content: { label: "Topics & resources", prefixes: ["topic.", "library.", "grade."] },
   users: { label: "Users & schools", prefixes: ["user.", "school.", "teacher."] },
-  classes: { label: "Classes & tasks", prefixes: ["classroom.", "group.", "student.", "task.", "assignment."] },
+  classes: { label: "Classes & tasks", prefixes: ["classroom.", "group.", "student.", "task.", "assignment.", "review."] },
+  settings: { label: "Settings", prefixes: ["settings."] },
 };
 
 export function actionWhere(group?: string | null): Prisma.AuditLogWhereInput {
@@ -46,6 +47,8 @@ const VERB: Record<string, string> = {
   "user.end_sessions": "signed out of every device",
   "school.create": "school created",
   "school.rename": "school renamed",
+  "school.merge": "school merged into another",
+  "settings.update": "platform settings updated",
   "teacher.signup": "signed up",
   "classroom.create": "class created",
   "classroom.archive": "class archived",

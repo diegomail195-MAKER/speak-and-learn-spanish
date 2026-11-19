@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { GradeForm } from "@/components/admin/GradeForm";
+import { SettingsForm } from "@/components/admin/SettingsForm";
+import { LocalTime } from "@/components/dashboard/LocalTime";
+import { getSettings } from "@/lib/settings";
 import { Card, PageTitle } from "@/components/dashboard/DashBits";
 import { requireAdminPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
@@ -18,22 +21,27 @@ function Status({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   );
 }
 
-// Platform Admin › Settings: the classification teachers and admins use everywhere (grades,
+// Platform Admin › Settings: general platform options (sign-up, notice, defaults), the classification teachers and admins use everywhere (grades,
 // languages, categories) and the state of the platform services. Service keys live in the
 // environment (Vercel), never in the database; this page only shows whether each one is set.
 export default async function AdminSettings() {
   await requireAdminPage();
-  const [grades, categories, langs] = await Promise.all([
+  const [grades, categories, langs, settings] = await Promise.all([
     db.grade.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }], include: { _count: { select: { topics: true } } } }),
     db.topic.groupBy({ by: ["category"], _count: true, orderBy: { category: "asc" } }),
     db.topic.groupBy({ by: ["language"], _count: true }),
+    getSettings(),
   ]);
   const tts = ttsProvider();
   const stt = sttProvider();
   return (
     <>
-      <PageTitle title="Settings" subtitle="Classification used by topics and the status of the platform services." />
+      <PageTitle title="Settings" subtitle="Platform options, the classification used by topics and the status of the platform services." />
       <div className="grid gap-6 xl:grid-cols-2">
+        <Card title="General" className="xl:col-span-2" testId="settings-general">
+          {settings.updatedAt && <p className="-mt-2 mb-4 text-sm text-[#5B6577]">Last changed <LocalTime iso={settings.updatedAt.toISOString()} /> (details in the Activity Log).</p>}
+          <SettingsForm settings={settings} />
+        </Card>
         <Card title="Grades" testId="settings-grades">
           <p className="-mt-2 mb-4 text-[15px] text-[#5B6577]">Grades added here appear in the Grade selector of every topic and in the Topics filters.</p>
           <GradeForm />

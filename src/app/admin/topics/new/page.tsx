@@ -4,22 +4,24 @@ import { Card, PageTitle } from "@/components/dashboard/DashBits";
 import { requireAdminPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { pickableLibrary } from "@/lib/library/service";
+import { getSettings } from "@/lib/settings";
 
 export const metadata = { title: "Create topic" };
 
 export default async function NewTopic() {
   await requireAdminPage();
-  const [grades, library, categories] = await Promise.all([
+  const [grades, library, categories, settings] = await Promise.all([
     db.grade.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true } }),
     pickableLibrary(),
     db.topic.findMany({ select: { category: true }, distinct: ["category"], orderBy: { category: "asc" } }),
+    getSettings(),
   ]);
   return (
     <>
       <Link href="/admin/topics" className="ws-link inline-flex min-h-11 items-center">‹ Topics</Link>
       <PageTitle title="Create topic" subtitle="Title, description, thumbnail and classification. You can add and order its resources now or after saving." />
       <Card>
-        <TopicForm grades={grades} library={library} categories={categories.map((c) => c.category)} />
+        <TopicForm grades={grades} library={library} categories={categories.map((c) => c.category)} defaultLanguage={settings.defaultTopicLanguage} />
       </Card>
     </>
   );

@@ -48,11 +48,12 @@ const METHODS: Record<Kind, Method[]> = {
   FLASHCARDS: ["build", "link"],
   GAME: ["build", "link"],
   LISTENING: ["upload", "link", "build"],
+  SPEAKING: ["build", "link"],
 };
 const METHOD_LABEL: Record<Method, (k: Kind) => string> = {
   link: (k) => (k === "VIDEO" ? "Add YouTube Link" : "Add Link"),
   upload: (k) => (k === "VIDEO" ? "Upload Video" : "Upload File"),
-  build: (k) => (k === "FLASHCARDS" || k === "GAME" ? "Create in LextroSpeak" : k === "PRINTABLE" || k === "WORKSHEET" ? "Build a sheet" : k === "SONG" ? "Open the editor (lyrics)" : k === "LISTENING" ? "Open the editor (transcript)" : "Open the editor (captions)"),
+  build: (k) => (k === "FLASHCARDS" || k === "GAME" || k === "SPEAKING" ? "Create in LextroSpeak" : k === "PRINTABLE" || k === "WORKSHEET" ? "Build a sheet" : k === "SONG" ? "Open the editor (lyrics)" : k === "LISTENING" ? "Open the editor (transcript)" : "Open the editor (captions)"),
 };
 
 /** What each way of adding a video means for students (shown under "How do you want to add it?"). */

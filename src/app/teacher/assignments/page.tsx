@@ -14,7 +14,7 @@ export const metadata = { title: "My Assignments" };
 
 type Kind = keyof typeof KIND_LABEL;
 const KINDS: readonly Kind[] = ACTIVE_KINDS;
-const ICON: Record<Kind, string> = { VIDEO: "🎬", SONG: "🎵", GAME: "🎮", FLASHCARDS: "🃏", PRINTABLE: "📝", WORKSHEET: "📝", LISTENING: "🎧" };
+const ICON: Record<Kind, string> = { VIDEO: "🎬", SONG: "🎵", GAME: "🎮", FLASHCARDS: "🃏", PRINTABLE: "📝", WORKSHEET: "📝", LISTENING: "🎧", SPEAKING: "🎤" };
 
 function recipientLabel(r: { type: string; classroom: { name: string } | null; level: { name: string } | null; group: { name: string; level: { name: string } } | null; student: { firstName: string; lastInitial: string } | null }) {
   if (r.type === "CLASSROOM") return r.classroom?.name ?? "Class";
