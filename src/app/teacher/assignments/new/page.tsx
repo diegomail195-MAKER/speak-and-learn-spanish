@@ -1,4 +1,5 @@
 import { AssignForm } from "@/components/teacher/AssignForm";
+import { classroomAccessWhere } from "@/lib/access";
 import { ButtonLink } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/Panel";
 import { requireTeacherPage } from "@/lib/auth/guards";
@@ -15,7 +16,7 @@ export default async function NewAssignment({ searchParams }: { searchParams: Pr
     db.video.findMany({ where: { schoolId: user.schoolId, status: "PUBLISHED" }, select: { id: true, title: true }, orderBy: { updatedAt: "desc" } }),
     db.collection.findMany({ where: { schoolId: user.schoolId, videos: { some: { video: { status: "PUBLISHED" } } } }, select: { id: true, title: true }, orderBy: { createdAt: "desc" } }),
     db.classroom.findMany({
-      where: { teacherId: teacher.id },
+      where: { ...classroomAccessWhere(teacher.id), archivedAt: null },
       include: {
         levels: { orderBy: { sortOrder: "asc" }, include: { groups: { orderBy: { name: "asc" }, include: { _count: { select: { memberships: true } } } } } },
         students: { where: { active: true }, orderBy: { firstName: "asc" } },

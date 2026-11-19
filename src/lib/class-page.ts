@@ -1,12 +1,13 @@
 import "server-only";
 import { notFound } from "next/navigation";
 import { requireTeacherPage } from "@/lib/auth/guards";
+import { classroomAccessWhere } from "@/lib/access";
 import { db } from "@/lib/db";
 
-/** The teacher's own class (404 for anyone else's). */
+/** A class the teacher owns or co-teaches (404 for anyone else's). */
 export async function teacherClass(id: string) {
   const { teacher } = await requireTeacherPage();
-  const c = await db.classroom.findFirst({ where: { id, teacherId: teacher.id } });
+  const c = await db.classroom.findFirst({ where: { id, ...classroomAccessWhere(teacher.id) } });
   if (!c) notFound();
   return { classroom: c, teacher };
 }

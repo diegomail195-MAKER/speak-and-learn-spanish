@@ -3,7 +3,7 @@
 import { randomInt } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { ownedClassroom, ownedGroup, ownedLevel, ownedStudent } from "@/lib/access";
+import { classroomAccessWhere, ownClassroomStrict, ownedClassroom, ownedGroup, ownedLevel, ownedStudent } from "@/lib/access";
 import { audit } from "@/lib/audit";
 import { requireTeacher } from "@/lib/auth/guards";
 import { hashSecret } from "@/lib/auth/password";
@@ -277,7 +277,7 @@ async function defaultLevel(classroomId: string) {
 
 async function checkMembers(teacherId: string, classroomId: string, ids: string[]) {
   const unique = [...new Set(ids)];
-  const found = await db.student.count({ where: { id: { in: unique }, classroomId, classroom: { teacherId } } });
+  const found = await db.student.count({ where: { id: { in: unique }, classroomId, classroom: classroomAccessWhere(teacherId) } });
   if (found !== unique.length) throw new HttpError(400, "Some students aren't in this class.");
   return unique;
 }
@@ -317,4 +317,42 @@ export async function updateGroupWithMembers(input: unknown): Promise<GroupResul
   await audit(user.schoolId, user.id, "group.update", "Group", g.id, { members: members.length });
   revalidatePath(`/teacher/classes/${g.level.classroomId}`);
   return { groupId: g.id };
+}
+
+// ---- Class management (owner only): archive and co-teachers ----
+
+export type ClassAdminState = { error?: string; message?: string } | undefined;
+
+/** Archive or restore a class. Archived classes leave the dashboard and Assign Task; students, groups and results are kept. */
+export async function setClassArchived(form: FormData) {
+  const { user, teacher } = await requireTeacher();
+  const c = await ownClassroomStrict(teacher.id, String(form.get("classroomId")));
+  const archive = form.get("archive") === "1";
+  await db.classroom.update({ where: { id: c.id }, data: { archivedAt: archive ? new Date() : null } });
+  await audit(user.schoolId, user.id, archive ? "classroom.archive" : "classroom.restore", "Classroom", c.id);
+  revalidatePath("/teacher", "layout");
+}
+
+/** Adds a co-teacher by email: a teacher account of the same school. */
+export async function addCoTeacher(_: ClassAdminState, form: FormData): Promise<ClassAdminState> {
+  const { user, teacher } = await requireTeacher();
+  const c = await ownClassroomStrict(teacher.id, String(form.get("classroomId")));
+  const email = z.string().trim().toLowerCase().email("Write the teacher's email.").safeParse(form.get("email"));
+  if (!email.success) return { error: email.error.issues[0].message };
+  const other = await db.user.findFirst({ where: { email: email.data, schoolId: c.schoolId, role: { in: ["TEACHER", "ADMIN"] } }, include: { teacher: true } });
+  if (!other?.teacher) return { error: "No teacher with that email in your school." };
+  if (other.teacher.id === teacher.id) return { error: "You already own this class." };
+  await db.classroomTeacher.upsert({ where: { classroomId_teacherId: { classroomId: c.id, teacherId: other.teacher.id } }, create: { classroomId: c.id, teacherId: other.teacher.id }, update: {} });
+  await audit(user.schoolId, user.id, "classroom.add_coteacher", "Classroom", c.id, { teacherId: other.teacher.id });
+  revalidatePath(`/teacher/classes/${c.id}`);
+  return { message: `${other.displayName} can now co-teach ${c.name}.` };
+}
+
+export async function removeCoTeacher(form: FormData) {
+  const { user, teacher } = await requireTeacher();
+  const c = await ownClassroomStrict(teacher.id, String(form.get("classroomId")));
+  const teacherId = String(form.get("teacherId"));
+  await db.classroomTeacher.deleteMany({ where: { classroomId: c.id, teacherId } });
+  await audit(user.schoolId, user.id, "classroom.remove_coteacher", "Classroom", c.id, { teacherId });
+  revalidatePath(`/teacher/classes/${c.id}`);
 }

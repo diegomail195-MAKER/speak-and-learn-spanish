@@ -8,6 +8,7 @@ import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { assertFilesReady } from "@/lib/library/service";
+import { TOPIC_LANGUAGES } from "@/lib/library/topicMeta";
 import { GAME_TYPES, GRADES, KINDS, UPLOAD_FOR, displayKind, emptyContent, parseContent, publicUrl, publishProblem, youtubeIdFrom, type AnyContent, type Kind } from "@/lib/library/types";
 
 // Administrator-only operations on the content library. Every action starts with requireAdmin(),
@@ -339,6 +340,8 @@ const topicSchema = z.object({
   description: z.string().trim().max(200, "Keep the description under 200 characters.").default(""),
   // Thumbnail: a built-in LextroSpeak illustration ("topic:animals", "animals:perro"…).
   art: z.string().trim().max(60).regex(/^[a-z]+:[a-z0-9-]+$|^$/, "Choose a thumbnail.").default(""),
+  // Language the topic teaches (Platform Admin › Topics filter).
+  language: z.enum(TOPIC_LANGUAGES).default("es"),
 });
 
 function slugify(s: string) {
@@ -347,8 +350,10 @@ function slugify(s: string) {
 
 export async function createTopic(_: LibState, form: FormData): Promise<LibState> {
   const { user } = await requireAdmin();
-  const p = topicSchema.safeParse(Object.fromEntries(form));
+  const p = topicSchema.safeParse(Object.fromEntries([...form.entries()].filter(([k]) => k !== "intent")));
   if (!p.success) return { error: p.error.issues[0].message };
+  // "Save as draft" keeps it in Platform Admin for review; "Create topic" publishes it right away.
+  const status = form.get("intent") === "draft" ? "DRAFT" : "PUBLISHED";
   let slug = slugify(p.data.titleEn);
   for (let i = 2; await db.topic.findUnique({ where: { slug } }); i++) slug = `${slugify(p.data.titleEn)}-${i}`;
   const gradeId = await readGradeId(form);
@@ -356,11 +361,11 @@ export async function createTopic(_: LibState, form: FormData): Promise<LibState
   const count = await db.topic.count();
   const resourceIds = await existingResources(ids(form, "resourceIds"));
   const t = await db.$transaction(async (tx) => {
-    const t = await tx.topic.create({ data: { ...p.data, gradeId, slug, sortOrder: count, status: "PUBLISHED" } });
+    const t = await tx.topic.create({ data: { ...p.data, gradeId, slug, sortOrder: count, status } });
     for (const id of resourceIds) await syncTopicAdd(tx, t.id, id);
     return t;
   });
-  await audit(user.schoolId, user.id, "topic.create", "Topic", t.id, { resourceIds });
+  await audit(user.schoolId, user.id, "topic.create", "Topic", t.id, { resourceIds, status, title: t.titleEs });
   revalidateLibrary();
   redirect(`/admin/topics/${t.id}`);
 }
@@ -373,7 +378,7 @@ export async function updateTopic(_: LibState, form: FormData): Promise<LibState
   const gradeId = await readGradeId(form);
   if (gradeId === false) return { error: "Unknown grade." };
   await db.topic.update({ where: { id }, data: { ...p.data, gradeId } });
-  await audit(user.schoolId, user.id, "topic.update", "Topic", id);
+  await audit(user.schoolId, user.id, "topic.update", "Topic", id, { title: p.data.titleEs });
   revalidateLibrary();
   return { ok: true, message: "Topic saved." };
 }
@@ -445,4 +450,28 @@ export async function replaceInTopic(form: FormData) {
   });
   await audit(user.schoolId, user.id, "topic.replace_resource", "Topic", topicId, { from: oldId, to: newId });
   revalidateLibrary();
+}
+
+// ---- Topic status (Platform Admin): publish, unpublish, archive, restore ----
+
+/**
+ * Published topics are what teachers see in the Library and can assign. Unpublishing (back to
+ * draft) or archiving only hides the topic from new assignments: tasks already assigned keep the
+ * versions they pinned, so students keep their access and recorded progress.
+ */
+export async function setTopicStatus(_: LibState, form: FormData): Promise<LibState> {
+  const { user } = await requireAdmin();
+  const id = String(form.get("topicId"));
+  const to = z.enum(["publish", "unpublish", "archive", "restore"]).safeParse(form.get("to"));
+  if (!to.success) return { error: "Unknown action." };
+  const topic = await db.topic.findUnique({ where: { id }, include: { resources: { where: { resource: { status: "PUBLISHED", currentVersionId: { not: null } } }, select: { resourceId: true } } } });
+  if (!topic) return { error: "Topic not found." };
+  if (to.data === "publish" && topic.resources.length === 0) return { error: "Publish at least one of its resources first: teachers only see topics with published resources." };
+  const status = to.data === "publish" ? "PUBLISHED" : to.data === "archive" ? "ARCHIVED" : "DRAFT";
+  await db.topic.update({ where: { id }, data: { status } });
+  await audit(user.schoolId, user.id, `topic.${to.data}`, "Topic", id, { title: topic.titleEs, from: topic.status, to: status });
+  revalidateLibrary();
+  revalidatePath(`/admin/topics/${id}`);
+  const msg = { publish: "Published. Teachers can now find and assign it.", unpublish: "Back to draft. Teachers no longer see it; existing assignments keep working.", archive: "Archived. Existing assignments keep working.", restore: "Restored as a draft." } as const;
+  return { ok: true, message: msg[to.data] };
 }

@@ -1,105 +1,128 @@
 import Link from "next/link";
+import { Card, Empty, PageTitle, Progress, StatCard } from "@/components/dashboard/DashBits";
+import { LocalTime } from "@/components/dashboard/LocalTime";
+import { TopicRow } from "@/components/library/TopicRow";
+import { WsIcon } from "@/components/shell/WsIcons";
 import { UnsavedDrafts } from "@/components/teacher/UnsavedDrafts";
-import { ButtonLink } from "@/components/ui/Button";
-import { PageHeader, Panel } from "@/components/ui/Panel";
 import { requireTeacherPage } from "@/lib/auth/guards";
+import { assignmentSummaries, teacherClasses, teacherStats } from "@/lib/dashboard/teacher";
 import { db } from "@/lib/db";
-import { sttProvider } from "@/lib/stt";
-import { ttsProvider } from "@/lib/tts";
+import { libraryTopics } from "@/lib/library/service";
+import { teacherTopicSteps } from "@/lib/library/steps";
 
 export const metadata = { title: "Teacher Dashboard" };
 
+const STATUS_CLS: Record<string, string> = { Open: "ws-pill-active", Overdue: "bg-[#FEF3F2] text-[#B42318]", Completed: "ws-pill-published", Closed: "ws-pill-archived", Scheduled: "ws-pill-draft" };
+
+// Teacher View › Dashboard: the teacher's classes (owned and co-taught), open assignments with
+// completion, and a short selection of published Library topics.
 export default async function Dashboard() {
   const { user, teacher } = await requireTeacherPage();
-  const [classes, students, games, , assignments, recent] = await Promise.all([
-    db.classroom.count({ where: { teacherId: teacher.id } }),
-    db.student.count({ where: { classroom: { teacherId: teacher.id }, active: true } }),
-    db.game.count({ where: { schoolId: user.schoolId, status: { not: "ARCHIVED" } } }),
-    db.game.count({ where: { schoolId: user.schoolId, status: "PUBLISHED" } }),
-    db.assignment.count({ where: { teacherId: teacher.id, active: true } }),
-    db.studentAttempt.findMany({
-      where: { assignment: { teacherId: teacher.id }, completedAt: { not: null } },
-      include: { student: true, game: { select: { title: true } } },
-      orderBy: { completedAt: "desc" },
-      take: 8,
-    }),
+  const [school, stats, classes, assignments, topics, favRows] = await Promise.all([
+    db.school.findUniqueOrThrow({ where: { id: user.schoolId }, select: { name: true } }),
+    teacherStats(teacher.id),
+    teacherClasses(teacher.id),
+    assignmentSummaries(teacher.id, { take: 4, onlyOpen: true }),
+    libraryTopics(),
+    db.topicFavorite.findMany({ where: { teacherId: teacher.id }, select: { topicId: true } }),
   ]);
-  const tts = ttsProvider();
-  const stt = sttProvider();
-
-  const steps = [
-    { done: classes > 0, label: "Create a class", href: "/teacher/classes" },
-    { done: students > 0, label: "Add students and groups", href: "/teacher/classes" },
-    { done: true, label: "Browse the Library", href: "/teacher/library" },
-    { done: assignments > 0, label: "Assign your first task", href: "/teacher/tasks/assign" },
-  ];
+  const favorites = new Set(favRows.map((f) => f.topicId));
+  // Favorites first, then the Library order.
+  const picks = [...topics].sort((a, b) => Number(favorites.has(b.id)) - Number(favorites.has(a.id))).slice(0, 3);
+  const pickSteps = await Promise.all(
+    picks.map(async (t) => {
+      const { steps } = await teacherTopicSteps({ id: teacher.id, schoolId: user.schoolId }, t.id);
+      return steps.map((s) => ({ key: s.key, kind: s.kind, title: s.title, href: s.resourceId ? `/teacher/library/resources/${s.resourceId}` : `/play/preview/${s.gameId}` }));
+    }),
+  );
 
   return (
     <>
-      <PageHeader eyebrow="Teacher Dashboard" title={`Hola, ${user.displayName.split(" ")[0]}`} actions={<><ButtonLink href="/teacher/my-activities" variant="secondary">My Activities</ButtonLink><ButtonLink href="/teacher/games/new" variant="secondary">+ Create Activity</ButtonLink><ButtonLink href="/teacher/tasks/assign">Assign Task</ButtonLink></>} />
+      <PageTitle
+        title="My classroom"
+        subtitle={<span data-testid="teacher-school">{user.displayName} · {school.name}</span>}
+        action={
+          <Link href="/teacher/tasks/assign" className="ws-btn ws-btn-primary ws-btn-lg" data-testid="assign-topic">
+            <WsIcon name="plus" /> Assign topic
+          </Link>
+        }
+      />
 
       <UnsavedDrafts />
 
-      {steps.some((s) => !s.done) && (
-        <Panel className="mb-6">
-          <h2 className="font-display text-lg font-semibold">Getting started</h2>
-          <ol className="mt-3 grid gap-2 sm:grid-cols-4">
-            {steps.map((s, i) => (
-              <li key={s.label}>
-                <Link href={s.href} className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold ${s.done ? "bg-leaf-soft text-leaf" : "bg-paper-2 text-ink-2 hover:bg-line"}`}>
-                  <span className="grid h-6 w-6 place-items-center rounded-full bg-card text-xs">{s.done ? "✓" : i + 1}</span>
-                  {s.label}
-                </Link>
-              </li>
-            ))}
-          </ol>
-        </Panel>
-      )}
+      <div className="mb-6 grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 xl:grid-cols-4" data-testid="teacher-stats">
+        <StatCard href="/teacher/classes" icon="users" value={stats.classes} label={stats.classes === 1 ? "Class" : "Classes"} testId="stat-classes" />
+        <StatCard href="/teacher/progress" icon="cap" value={stats.students} label={stats.students === 1 ? "Student" : "Students"} testId="stat-students" />
+        <StatCard href="/teacher/assignments?open=1" icon="clipboard" value={stats.active} label="Active assignments" tone="purple" testId="stat-active" />
+        <StatCard href="/teacher/progress" icon="check" value={stats.completedThisWeek} label="Completed this week" tone="purple" testId="stat-completed" />
+      </div>
 
-      <dl className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl2 border border-line bg-line sm:grid-cols-4">
-        {[
-          ["Students", students],
-          ["Classes", classes],
-          ["Games", games],
-          ["Open assignments", assignments],
-        ].map(([k, v]) => (
-          <div key={k} className="bg-card px-5 py-4">
-            <dt className="text-xs font-bold uppercase tracking-wider text-muted">{k}</dt>
-            <dd className="mt-1 font-display text-3xl font-semibold">{v}</dd>
-          </div>
-        ))}
-      </dl>
-
-      <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-        <Panel>
-          <h2 className="font-display text-lg font-semibold">Recently completed</h2>
-          {recent.length === 0 ? (
-            <p className="mt-2 text-sm text-muted">No completed activities yet. Results appear here as soon as students finish.</p>
+      <div className="mb-6 grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        <Card title="My Classes" action={<Link href="/teacher/classes" className="ws-link inline-flex min-h-11 items-center gap-1">All classes <WsIcon name="arrowRight" className="h-5 w-5" /></Link>} testId="dashboard-classes">
+          {classes.length === 0 ? (
+            <Empty title="No classes yet" body="Create a class to get a sign-in code for your students." action={<Link href="/teacher/classes" className="ws-btn ws-btn-primary">Create a class</Link>} />
           ) : (
-            <ul className="mt-3 divide-y divide-line text-sm">
-              {recent.map((r) => (
-                <li key={r.id} className="flex flex-wrap items-center gap-2 py-2.5">
-                  <span className="font-bold">{r.student.firstName} {r.student.lastInitial}</span>
-                  <span className="text-muted">{r.game.title}</span>
-                  <span className="ml-auto">{r.independentCount}/{r.questionsPresented} independent</span>
-                  {r.assignmentId && <Link href={`/teacher/assignments/${r.assignmentId}`} className="font-bold text-coral">View</Link>}
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {classes.slice(0, 6).map((c) => (
+                <li key={c.id} className="flex items-center gap-3 rounded-xl border border-[#E2E6EC] bg-white p-3" data-testid="class-card">
+                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-[#F1F4F8] text-[#3D4759]"><WsIcon name="board" /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-display text-lg font-extrabold" title={c.name}>{c.name}</p>
+                    <p className="flex items-center gap-1.5 text-[15px] text-[#3D4759]">
+                      <WsIcon name="users" className="h-4 w-4" /> {c._count.students} student{c._count.students === 1 ? "" : "s"}
+                      {c.teacher.id !== teacher.id && <span className="ml-1 text-sm text-[#5B6577]">· co-teaching</span>}
+                    </p>
+                  </div>
+                  <Link href={`/teacher/classes/${c.id}`} className="ws-link inline-flex min-h-11 shrink-0 items-center border-l border-[#E2E6EC] pl-3 text-[15px]" aria-label={`Manage class ${c.name}`}>Manage class</Link>
                 </li>
               ))}
             </ul>
           )}
-        </Panel>
-        <Panel>
-          <h2 className="font-display text-lg font-semibold">Speech services</h2>
-          <ul className="mt-3 space-y-2 text-sm">
-            <li>
-              <strong>Voice generation (TTS):</strong> {tts ? <span className="text-leaf">{tts === "gateway" ? "natural voices (Vercel AI Gateway)" : tts} connected</span> : <span className="text-[#8a5a00]">not configured — students hear the device&apos;s Spanish voice when available</span>}
-            </li>
-            <li>
-              <strong>Speech recognition (STT):</strong> {stt === "scripted-test" ? <span className="font-bold text-coral-dark">TEST RECOGNIZER — for automated tests only, not for classrooms</span> : stt ? <span className="text-leaf">{stt === "gateway" ? "natural recognition (OpenAI through Vercel AI Gateway) connected" : `${stt} connected`}</span> : <span className="text-[#8a5a00]">using Chrome&apos;s built-in recognizer (needs internet; audio goes to Google)</span>}
-            </li>
-          </ul>
-        </Panel>
+          {classes.length > 6 && <p className="mt-3 text-[15px] text-[#5B6577]">+{classes.length - 6} more in <Link href="/teacher/classes" className="ws-link">My Classes</Link></p>}
+        </Card>
+
+        <Card title="Assignments" action={<Link href="/teacher/assignments" className="ws-link inline-flex min-h-11 items-center gap-1">All assignments <WsIcon name="arrowRight" className="h-5 w-5" /></Link>} testId="dashboard-assignments">
+          {assignments.length === 0 ? (
+            <Empty title="No open assignments" body="Assign a Library topic to a class, group or students." action={<Link href="/teacher/tasks/assign" className="ws-btn ws-btn-primary">Assign topic</Link>} />
+          ) : (
+            <ul className="space-y-3">
+              {assignments.map((a) => (
+                <li key={a.id}>
+                  <Link href={a.href} className="grid gap-3 rounded-xl border border-[#E2E6EC] bg-white p-4 transition-colors hover:border-[#2563EB] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" data-testid="assignment-summary">
+                    <span className="min-w-0">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-display text-lg font-extrabold [overflow-wrap:anywhere]">{a.title}</span>
+                        <span className={`ws-pill ${STATUS_CLS[a.status]}`}>{a.status}</span>
+                      </span>
+                      <span className="mt-0.5 block text-[15px] text-[#3D4759] [overflow-wrap:anywhere]">
+                        {a.who}
+                        {a.dueAt ? <> — Due <LocalTime iso={a.dueAt.toISOString()} mode="day" /></> : " — No due date"}
+                      </span>
+                    </span>
+                    <span className="sm:border-l sm:border-[#E2E6EC] sm:pl-4">
+                      <Progress done={a.completed} total={a.total} />
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
+
+      <Card title="Explore the library" action={<Link href="/teacher/library" className="ws-link inline-flex min-h-11 items-center gap-1">View library <WsIcon name="arrowRight" className="h-5 w-5" /></Link>} testId="dashboard-library">
+        {picks.length === 0 ? (
+          <Empty title="No published topics yet" body="Topics appear here as soon as they are published." />
+        ) : (
+          <ul className="topic-list">
+            {picks.map((t, i) => (
+              <li key={t.id}>
+                <TopicRow topic={t} href={`/teacher/library/topics/${t.slug}`} studentViewHref={`/teacher/library/topics/${t.slug}/student-view`} steps={pickSteps[i]} favorite={{ on: favorites.has(t.id) }} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </>
   );
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { classroomAccessWhere } from "@/lib/access";
 import { notFound } from "next/navigation";
 import { TopicPlanEditor } from "@/components/library/TopicPlanEditor";
 import { PageHeader } from "@/components/ui/Panel";
@@ -17,7 +18,7 @@ export default async function TopicLessonPage({ params, searchParams }: { params
   const sp = await searchParams;
   const topic = await db.topic.findFirst({ where: { slug, status: "PUBLISHED" } });
   if (!topic) notFound();
-  const classes = await db.classroom.findMany({ where: { teacherId: teacher.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true } });
+  const classes = await db.classroom.findMany({ where: { ...classroomAccessWhere(teacher.id), archivedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, name: true } });
   // Only the teacher's own classes can be chosen; anything else shows the default.
   const cls = classes.find((c) => c.id === sp.class) ?? null;
   const [{ steps, removed, classSaved }, games] = await Promise.all([

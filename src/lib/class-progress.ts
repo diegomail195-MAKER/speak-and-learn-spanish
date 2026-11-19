@@ -1,11 +1,12 @@
 import "server-only";
 import { db } from "@/lib/db";
 
-// Topic tasks of one class, with who received each one and how far each student got.
-export async function classTasks(classroomId: string, teacherId: string) {
+// Topic tasks of one class, with who received each one and how far each student got. The caller
+// has already checked that the teacher owns or co-teaches the class, so every teacher of the class
+// sees the same tasks (whoever assigned them).
+export async function classTasks(classroomId: string) {
   const tasks = await db.assignment.findMany({
     where: {
-      teacherId,
       topicId: { not: null },
       recipients: { some: { OR: [{ group: { level: { classroomId } } }, { student: { classroomId } }, { classroomId }] } },
     },

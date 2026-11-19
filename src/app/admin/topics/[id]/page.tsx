@@ -8,12 +8,14 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Field";
 import { Badge, Panel } from "@/components/ui/Panel";
 import { LibraryPicker } from "@/components/admin/LibraryPicker";
+import { TopicStatusBar } from "@/components/admin/TopicStatusBar";
+import { LANGUAGE_LABEL } from "@/lib/library/topicMeta";
 import { addResourcesToTopic, archiveResource, duplicateResource, moveInTopic, removeFromTopic, replaceInTopic, restoreResource } from "@/lib/actions/library";
 import { db } from "@/lib/db";
 import { pickableLibrary } from "@/lib/library/service";
 import { KIND_LABEL, type Kind } from "@/lib/library/types";
 
-export const metadata = { title: "Manage Activities" };
+export const metadata = { title: "Edit topic" };
 
 // Manage Activities: add, remove, reorder and replace the activities of a topic.
 // "Remove from Topic" only unlinks it; "Delete from Library" deletes the resource (refused if
@@ -22,31 +24,35 @@ export default async function ManageActivities({ params }: { params: Promise<{ i
   const { id } = await params;
   const topic = await db.topic.findUnique({
     where: { id },
-    include: { grade: { select: { name: true } }, resources: { orderBy: { position: "asc" }, include: { resource: { include: { currentVersion: { select: { number: true } }, _count: { select: { activities: true } } } } } } },
+    include: { _count: { select: { assignments: true } }, grade: { select: { name: true } }, resources: { orderBy: { position: "asc" }, include: { resource: { include: { currentVersion: { select: { number: true } }, _count: { select: { activities: true } } } } } } },
   });
   if (!topic) notFound();
   const inTopic = new Set(topic.resources.map((r) => r.resourceId));
-  const [others, grades, library] = await Promise.all([
+  const [others, grades, library, categories] = await Promise.all([
     db.libraryResource.findMany({ where: { id: { notIn: [...inTopic] }, status: { not: "ARCHIVED" } }, orderBy: [{ kind: "asc" }, { title: "asc" }], select: { id: true, title: true, kind: true, status: true } }),
     db.grade.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true } }),
     pickableLibrary(),
+    db.topic.findMany({ select: { category: true }, distinct: ["category"], orderBy: { category: "asc" } }),
   ]);
   const back = `/admin/topics/${topic.id}`;
   return (
     <>
-      <Link href="/admin/topics" className="text-sm font-bold text-sky hover:underline">‹ Topics</Link>
+      <Link href="/admin/topics" className="ws-link inline-flex min-h-11 items-center">‹ Topics</Link>
       <div className="mb-6 mt-3 flex flex-wrap items-center gap-5 rounded-[12px] border border-[#E2E6EC] bg-white p-5">
         <span className="grid h-24 w-24 shrink-0 place-items-center rounded-[12px]" style={{ background: `color-mix(in srgb, ${topic.color} 22%, white)` }}>
           <Art k={topic.art} className="h-[72px] w-[72px]" />
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-3xl font-extrabold leading-tight">Manage Activities · {topic.titleEs}</h1>
-          <p className="mt-1 font-bold text-ink/70">{topic.titleEn} · {topic.category}{topic.grade ? ` · ${topic.grade.name}` : ""}</p>
+          <h1 className="font-display text-3xl font-extrabold leading-tight [overflow-wrap:anywhere]">{topic.titleEs}</h1>
+          <p className="mt-1 font-bold text-ink/70">{topic.titleEn} · {topic.category} · {LANGUAGE_LABEL[topic.language] ?? topic.language}{topic.grade ? ` · ${topic.grade.name}` : ""}</p>
           {topic.description && <p className="mt-1 text-[15px] text-[#3B4252]">{topic.description}</p>}
         </div>
       </div>
 
+      <TopicStatusBar topicId={topic.id} status={topic.status} assignments={topic._count.assignments} />
+
       <Panel className="mb-6">
+        <h2 className="mb-2 font-display text-xl font-extrabold">Resources</h2>
         <ol className="divide-y divide-line">
           {topic.resources.map(({ resource: r }, i) => (
             <li key={r.id} data-testid="topic-activity" className="flex flex-wrap items-center gap-3 py-3">
@@ -99,7 +105,7 @@ export default async function ManageActivities({ params }: { params: Promise<{ i
       <Panel>
         <h2 className="mb-3 font-display text-xl font-extrabold">Topic details</h2>
         <p className="-mt-2 mb-3 text-sm text-muted">Title, thumbnail and short description shown in the teachers&apos; Library.</p>
-        <TopicForm topic={topic} grades={grades} />
+        <TopicForm topic={topic} grades={grades} categories={categories.map((c) => c.category)} />
       </Panel>
     </>
   );

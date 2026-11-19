@@ -1,4 +1,5 @@
 import { AssignTaskWizard } from "@/components/teacher/AssignTaskWizard";
+import { classroomAccessWhere } from "@/lib/access";
 import { ButtonLink } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/Panel";
 import { requireTeacherPage } from "@/lib/auth/guards";
@@ -16,7 +17,7 @@ export default async function AssignTaskPage({ searchParams }: { searchParams: P
   const sp = await searchParams;
   const [classes, topics] = await Promise.all([
     db.classroom.findMany({
-      where: { teacherId: teacher.id },
+      where: { ...classroomAccessWhere(teacher.id), archivedAt: null },
       orderBy: { createdAt: "asc" },
       include: {
         levels: { orderBy: { sortOrder: "asc" }, include: { groups: { orderBy: { name: "asc" }, include: { memberships: { select: { studentId: true } } } } } },
