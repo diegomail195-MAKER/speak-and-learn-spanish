@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Art } from "@/components/ui/Art";
 import { assignmentsForStudentWhere } from "@/lib/access";
 import { requireStudentPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
@@ -16,6 +17,11 @@ export default async function MyActivities() {
     },
     orderBy: [{ dueAt: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }],
   });
+  const tasks = await db.assignment.findMany({
+    where: { ...assignmentsForStudentWhere(student), topicId: { not: null } },
+    include: { topic: true, activities: { select: { id: true, progress: { where: { studentId: student.id, completedAt: { not: null } }, select: { id: true }, take: 1 } } } },
+    orderBy: [{ dueAt: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }],
+  });
   const withState = assignments.map((a) => {
     const done = a.attempts.filter((t) => t.completedAt).length;
     const open = a.attempts.find((t) => !t.completedAt);
@@ -28,7 +34,28 @@ export default async function MyActivities() {
   return (
     <>
       <h1 className="font-display text-4xl font-semibold">¡Hola, {student.firstName}!</h1>
-      <p className="mt-1 text-lg text-ink-2">{todo.length ? "Here is what to do today." : "You're all caught up."}</p>
+      <p className="mt-1 text-lg text-ink-2">{todo.length || tasks.length ? "Here is what to do today." : "You're all caught up."}</p>
+
+      {tasks.length > 0 && (
+        <section className="mt-8">
+          <h2 className="mb-3 text-sm font-bold uppercase tracking-[0.16em] text-teal">My Tasks</h2>
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {tasks.map((t) => {
+              const done = t.activities.filter((a) => a.progress.length).length;
+              return (
+                <li key={t.id}>
+                  <Link href={`/learn/tasks/${t.id}`} data-testid="student-task" className="flex flex-col items-center gap-2 rounded-[28px] p-5 text-center shadow-pop transition hover:-translate-y-0.5" style={{ background: t.topic?.color }}>
+                    <Art k={t.topic?.art} className="h-20 w-20" />
+                    <span className="font-display text-2xl font-extrabold leading-none">{t.topic?.titleEs}</span>
+                    <span className="text-sm font-bold text-ink/75">{t.topic?.titleEn}</span>
+                    <span className="mt-1 rounded-full bg-card px-3 py-1 text-sm font-extrabold">{done}/{t.activities.length} done</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <section className="mt-8">
         <h2 className="mb-3 text-sm font-bold uppercase tracking-[0.16em] text-teal">My Activities</h2>

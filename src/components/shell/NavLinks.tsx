@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export function NavLinks({ links, tone = "coral" }: { links: Array<{ href: string; label: string; exact?: boolean }>; tone?: "coral" | "teal" }) {
+export function NavLinks({ links, tone = "coral", dark = false }: { links: Array<{ href: string; label: string; exact?: boolean }>; tone?: "coral" | "teal"; dark?: boolean }) {
   const path = usePathname();
   return (
     <nav aria-label="Main" className="-mx-1 flex gap-1 overflow-x-auto px-1">
@@ -15,7 +15,7 @@ export function NavLinks({ links, tone = "coral" }: { links: Array<{ href: strin
             href={l.href}
             aria-current={active ? "page" : undefined}
             className={`whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-bold transition-colors ${
-              active ? (tone === "coral" ? "bg-ink text-white" : "bg-teal text-white") : "text-ink-2 hover:bg-paper-2"
+              active ? (tone === "coral" ? "bg-ink text-white" : "bg-teal text-white") : tone === "teal" && dark ? "text-white/85 hover:bg-white/10" : "text-ink-2 hover:bg-paper-2"
             }`}
           >
             {l.label}

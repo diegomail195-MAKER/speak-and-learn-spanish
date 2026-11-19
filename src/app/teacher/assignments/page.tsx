@@ -35,11 +35,11 @@ export default async function AssignmentsPage() {
         <ul className="divide-y divide-line overflow-hidden rounded-xl2 border border-line bg-card">
           {list.map((a) => (
             <li key={a.id}>
-              <Link href={`/teacher/assignments/${a.id}`} className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-paper">
+              <Link href={a.topicId ? `/teacher/tasks/${a.id}` : `/teacher/assignments/${a.id}`} className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-paper">
                 <span className="min-w-60 flex-1">
                   <span className="block font-display text-lg font-semibold">
-                    {a.game?.title ?? a.video?.title ?? a.collection?.title ?? "Activity"}
-                    <span className="ml-2 align-middle text-xs font-bold uppercase tracking-wider text-muted">{a.game ? "game" : a.video ? "video" : "collection"}</span>
+                    {a.game?.title ?? a.video?.title ?? a.collection?.title ?? (a.title || "Activity")}
+                    <span className="ml-2 align-middle text-xs font-bold uppercase tracking-wider text-muted">{a.game ? "game" : a.video ? "video" : a.topicId ? "topic task" : "collection"}</span>
                   </span>
                   <span className="text-sm text-muted">
                     {a.recipients.map(recipientLabel).join(", ")} · {a.dueAt ? `due ${a.dueAt.toLocaleDateString("en-US")}` : "no due date"}

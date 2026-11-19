@@ -1,22 +1,20 @@
-// Brand mark: a speech bubble whose tail is a tilde — the "ñ" that makes Spanish Spanish.
-export function LogoMark({ size = 36 }: { size?: number }) {
+/* eslint-disable @next/next/no-img-element */
+// LextroSpeak logo (the approved wordmark) with the LextroSpeak motto.
+export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
-      <path d="M8 10c0-2.2 1.8-4 4-4h24c2.2 0 4 1.8 4 4v18c0 2.2-1.8 4-4 4H21l-8 7v-7h-1c-2.2 0-4-1.8-4-4z" fill="#e4553c" />
-      <path d="M15 19.5c2.2-3 4.6-3 6.6-1.2 2 1.8 4.4 1.8 6.6-1.2" stroke="#fff" strokeWidth="3.2" fill="none" strokeLinecap="round" />
-      <circle cx="35.5" cy="12.5" r="3.2" fill="#f2b33d" />
-    </svg>
+    <span className="inline-flex flex-col gap-1 leading-none">
+      <img src="/brand/lextrospeak-logo.png" alt="LextroSpeak" width={884} height={160} className={compact ? "h-6 w-auto sm:h-7" : "h-8 w-auto sm:h-9"} />
+      {!compact && <span className="text-[0.78rem] font-extrabold tracking-[0.02em] text-ink-2">Speak. Learn. Grow.</span>}
+    </span>
   );
 }
 
-export function Logo({ compact = false }: { compact?: boolean }) {
+export function LogoMark({ size = 36 }: { size?: number }) {
   return (
-    <span className="inline-flex items-center gap-2.5">
-      <LogoMark />
-      <span className="leading-none">
-        <span className="block font-display text-[1.15rem] font-semibold tracking-tight text-ink">Speak &amp; Learn</span>
-        {!compact && <span className="block text-[0.72rem] font-bold uppercase tracking-[0.18em] text-coral">Spanish</span>}
-      </span>
-    </span>
+    <svg width={size} height={size} viewBox="0 0 80 80" aria-hidden="true">
+      <path d="M14 10h52a10 10 0 0 1 10 10v30a10 10 0 0 1-10 10H36L22 72V60h-8A10 10 0 0 1 4 50V20a10 10 0 0 1 10-10Z" fill="#FF5A4E" />
+      <text x="40" y="47" textAnchor="middle" fontFamily="inherit" fontWeight="800" fontSize="34" fill="#fff">ñ</text>
+      <circle cx="70" cy="12" r="9" fill="#FFC93C" />
+    </svg>
   );
 }

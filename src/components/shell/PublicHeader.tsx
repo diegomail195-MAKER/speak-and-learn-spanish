@@ -5,7 +5,7 @@ import { Logo } from "@/components/ui/Logo";
 export function PublicHeader() {
   return (
     <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-5">
-      <Link href="/" aria-label="Speak & Learn Spanish — Home">
+      <Link href="/" aria-label="LextroSpeak — Home">
         <Logo />
       </Link>
       <nav className="flex items-center gap-1.5 sm:gap-2">

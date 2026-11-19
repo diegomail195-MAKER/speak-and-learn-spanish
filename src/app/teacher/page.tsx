@@ -10,7 +10,7 @@ export const metadata = { title: "Teacher Dashboard" };
 
 export default async function Dashboard() {
   const { user, teacher } = await requireTeacherPage();
-  const [classes, students, games, published, assignments, recent] = await Promise.all([
+  const [classes, students, games, , assignments, recent] = await Promise.all([
     db.classroom.count({ where: { teacherId: teacher.id } }),
     db.student.count({ where: { classroom: { teacherId: teacher.id }, active: true } }),
     db.game.count({ where: { schoolId: user.schoolId, status: { not: "ARCHIVED" } } }),
@@ -29,13 +29,13 @@ export default async function Dashboard() {
   const steps = [
     { done: classes > 0, label: "Create a class", href: "/teacher/classes" },
     { done: students > 0, label: "Add students and groups", href: "/teacher/classes" },
-    { done: published > 0, label: "Create and publish an activity", href: "/teacher/games/new" },
-    { done: assignments > 0, label: "Assign it to a group", href: "/teacher/assignments/new" },
+    { done: true, label: "Browse the Library", href: "/teacher/library" },
+    { done: assignments > 0, label: "Assign your first task", href: "/teacher/tasks/assign" },
   ];
 
   return (
     <>
-      <PageHeader eyebrow="Teacher Dashboard" title={`Hola, ${user.displayName.split(" ")[0]}`} actions={<ButtonLink href="/teacher/games/new">+ Create Activity</ButtonLink>} />
+      <PageHeader eyebrow="Teacher Dashboard" title={`Hola, ${user.displayName.split(" ")[0]}`} actions={<><ButtonLink href="/teacher/games/new" variant="secondary">+ Create Activity</ButtonLink><ButtonLink href="/teacher/tasks/assign">Assign Task</ButtonLink></>} />
 
       {steps.some((s) => !s.done) && (
         <Panel className="mb-6">

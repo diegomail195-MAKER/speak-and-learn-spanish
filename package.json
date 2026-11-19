@@ -1,5 +1,5 @@
 {
-  "name": "speak-learn-spanish",
+  "name": "lextrospeak",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,8 @@
     "test": "vitest run",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "admin:grant": "tsx --conditions=react-server scripts/grant-admin.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
@@ -21,6 +22,7 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "server-only": "^0.0.1",
+    "stripe": "^17.7.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {

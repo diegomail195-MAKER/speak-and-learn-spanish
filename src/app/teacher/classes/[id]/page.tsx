@@ -1,143 +1,157 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AddStudentForm, ResetPinButton } from "@/components/teacher/StudentForms";
-import { Avatar } from "@/components/ui/Avatar";
-import { Button } from "@/components/ui/Button";
+import { AddStudentsMenu } from "@/components/teacher/AddStudentsMenu";
+import { Icon } from "@/components/ui/Art";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
-import { Badge, EmptyState, PageHeader, Panel } from "@/components/ui/Panel";
-import { createGroup, createLevel, deleteGroup, setStudentGroups, updateStudent } from "@/lib/actions/classroom";
+import { Badge, EmptyState, Panel } from "@/components/ui/Panel";
+import { createLevel, deleteGroup } from "@/lib/actions/classroom";
 import { requireTeacherPage } from "@/lib/auth/guards";
+import { classTasks } from "@/lib/class-progress";
 import { db } from "@/lib/db";
 
-export default async function ClassPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ClassPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ q?: string }> }) {
   const { id } = await params;
+  const { q = "" } = await searchParams;
   const { teacher } = await requireTeacherPage();
   const c = await db.classroom.findFirst({
     where: { id, teacherId: teacher.id },
     include: {
       levels: { orderBy: { sortOrder: "asc" }, include: { groups: { orderBy: { name: "asc" }, include: { _count: { select: { memberships: true } } } } } },
-      students: { orderBy: { firstName: "asc" }, include: { memberships: { include: { group: { include: { level: true } } } } } },
+      students: { orderBy: [{ firstName: "asc" }, { lastInitial: "asc" }], select: { id: true, firstName: true, lastInitial: true, active: true } },
     },
   });
   if (!c) notFound();
-  const allGroups = c.levels.flatMap((l) => l.groups.map((g) => ({ id: g.id, label: `${l.name} · ${g.name}` })));
+  const tasks = await classTasks(c.id, teacher.id);
+  const needle = q.trim().toLowerCase();
+  const students = needle ? c.students.filter((s) => `${s.firstName} ${s.lastInitial}`.toLowerCase().includes(needle)) : c.students;
+  const overall = (sid: string) => {
+    const mine = tasks.filter((t) => t.students.has(sid) && t.total > 0);
+    return mine.length ? Math.round(mine.reduce((n, t) => n + t.pct(sid), 0) / mine.length) : null;
+  };
 
   return (
     <>
-      <PageHeader
-        eyebrow="Class"
-        title={c.name}
-        subtitle={
-          <>
-            Students sign in at <strong>/student</strong> with code{" "}
-            <span className="rounded-md bg-teal-soft px-2 py-0.5 font-mono font-bold tracking-widest text-teal-dark">{c.code}</span>, then pick their name and type their PIN.
-          </>
-        }
-      />
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.6fr]">
-        <Panel>
-          <h2 className="font-display text-xl font-semibold">Levels &amp; groups</h2>
-          <p className="mt-1 text-sm text-muted">Any names work. A student can be in more than one group.</p>
-          <div className="mt-4 space-y-4">
-            {c.levels.map((l) => (
-              <div key={l.id} className="rounded-xl border border-line p-3.5">
-                <p className="font-display text-lg font-semibold">{l.name}</p>
-                <ul className="mt-2 flex flex-wrap gap-2">
-                  {l.groups.map((g) => (
-                    <li key={g.id} className="flex items-center gap-1 rounded-full bg-paper-2 py-1 pl-3 pr-1 text-sm font-bold">
-                      {g.name}
-                      <span className="text-xs font-semibold text-muted">({g._count.memberships})</span>
-                      <form action={deleteGroup}>
-                        <input type="hidden" name="groupId" value={g.id} />
-                        <button className="ml-1 grid h-6 w-6 place-items-center rounded-full text-muted hover:bg-coral-soft hover:text-coral-dark" aria-label={`Delete ${g.name}`} title="Delete group (students stay in the class)">
-                          ×
-                        </button>
-                      </form>
-                    </li>
-                  ))}
-                </ul>
-                <form action={createGroup} className="mt-3 flex gap-2">
-                  <input type="hidden" name="levelId" value={l.id} />
-                  <Input name="name" placeholder="Group A" required maxLength={60} className="py-1.5" aria-label={`New group in ${l.name}`} />
-                  <Button size="sm" variant="secondary">Add group</Button>
-                </form>
-              </div>
-            ))}
-            <form action={createLevel} className="flex gap-2">
-              <input type="hidden" name="classroomId" value={c.id} />
-              <Input name="name" placeholder="LE2" required maxLength={60} aria-label="New level" />
-              <Button size="md" variant="secondary">Add level</Button>
-            </form>
-          </div>
-        </Panel>
-
-        <Panel>
-          <h2 className="font-display text-xl font-semibold">Students</h2>
-          <p className="mt-1 text-sm text-muted">Only a first name and last initial are needed. Full name is optional and only used by “Spell Your Name”.</p>
-          <div className="mt-4">
-            <AddStudentForm classroomId={c.id} groups={allGroups} />
-          </div>
-          {c.students.length === 0 ? (
-            <div className="mt-5">
-              <EmptyState title="No students yet" />
-            </div>
-          ) : (
-            <ul className="mt-5 divide-y divide-line">
-              {c.students.map((s) => (
-                <li key={s.id} className="py-3">
-                  <details>
-                    <summary className="flex cursor-pointer list-none items-center gap-3">
-                      <Avatar name={s.firstName} kind={s.avatar} size={36} />
-                      <span className="flex-1">
-                        <span className="font-bold">
-                          {s.firstName} {s.lastInitial && `${s.lastInitial}.`}
-                        </span>
-                        {!s.active && <Badge tone="coral">inactive</Badge>}
-                        <span className="ml-2 inline-flex flex-wrap gap-1 align-middle">
-                          {s.memberships.map((m) => (
-                            <Badge key={m.groupId} tone="teal">
-                              {m.group.level.name} · {m.group.name}
-                            </Badge>
-                          ))}
-                        </span>
-                      </span>
-                      <span className="text-sm font-bold text-muted">Edit</span>
-                    </summary>
-                    <div className="mt-3 grid gap-4 rounded-xl bg-paper p-4 sm:grid-cols-2">
-                      <form action={updateStudent} className="space-y-2">
-                        <input type="hidden" name="studentId" value={s.id} />
-                        <Input name="firstName" defaultValue={s.firstName} required aria-label="First name" />
-                        <Input name="lastInitial" defaultValue={s.lastInitial} maxLength={1} aria-label="Last initial" placeholder="Last initial" />
-                        <Input name="spellingName" defaultValue={s.spellingName} aria-label="Full name for spelling" placeholder="Full name for spelling (optional)" />
-                        <label className="flex items-center gap-2 text-sm font-semibold">
-                          <input type="checkbox" name="active" defaultChecked={s.active} /> Can sign in
-                        </label>
-                        <Button size="sm" variant="secondary">Save</Button>
-                      </form>
-                      <div className="space-y-4">
-                        <form action={setStudentGroups}>
-                          <input type="hidden" name="studentId" value={s.id} />
-                          <p className="mb-1.5 text-sm font-bold text-ink-2">Groups</p>
-                          {allGroups.length === 0 && <p className="text-sm text-muted">Create a level and a group first.</p>}
-                          <div className="flex flex-col gap-1">
-                            {allGroups.map((g) => (
-                              <label key={g.id} className="flex items-center gap-2 text-sm">
-                                <input type="checkbox" name="groupId" value={g.id} defaultChecked={s.memberships.some((m) => m.groupId === g.id)} /> {g.label}
-                              </label>
-                            ))}
-                          </div>
-                          {allGroups.length > 0 && <Button size="sm" variant="secondary" className="mt-2">Update groups</Button>}
-                        </form>
-                        <ResetPinButton studentId={s.id} />
-                      </div>
-                    </div>
-                  </details>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
+      <Link href="/teacher/classes" className="text-sm font-bold text-sky hover:underline">‹ My Classes</Link>
+      <div className="mb-6 mt-2 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-4xl font-bold tracking-tight">{c.name}</h1>
+          <p className="mt-1 font-bold text-muted">
+            {c.students.length} Total Students · class code{" "}
+            <span className="rounded-md bg-teal-soft px-2 py-0.5 font-mono font-bold tracking-widest text-teal-dark">{c.code}</span>
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <AddStudentsMenu classroomId={c.id} />
+          <ButtonLink href={`/teacher/tasks/assign?classroomId=${c.id}`}>Assign Task</ButtonLink>
+        </div>
       </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+        <form className="relative min-w-64">
+          <Input name="q" defaultValue={q} placeholder="Search by student name" aria-label="Search students" className="rounded-full pr-10" />
+        </form>
+        <Link href={`/teacher/classes/${c.id}/roster`} className="inline-flex items-center gap-1.5 font-bold text-sky hover:underline">
+          <Icon name="book" className="h-5 w-5" /> Roster
+        </Link>
+        <Link href={`/teacher/classes/${c.id}/print`} className="inline-flex items-center gap-1.5 font-bold text-sky hover:underline">
+          <Icon name="printables" className="h-5 w-5" /> Print Access Instructions
+        </Link>
+      </div>
+
+      <Panel className="mb-6 overflow-x-auto p-0 sm:p-0">
+        {c.students.length === 0 ? (
+          <div className="p-6">
+            <EmptyState title="No students yet" body="Use Add Students to add one student, paste a list, or create a group." />
+          </div>
+        ) : (
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead className="bg-sky-soft text-ink">
+              <tr>
+                <th className="px-4 py-3 font-bold">Name</th>
+                <th className="px-4 py-3 font-bold">Total Progress</th>
+                {tasks.map((t) => (
+                  <th key={t.id} className="border-l border-line px-4 py-3 font-bold">
+                    <Link href={`/teacher/tasks/${t.id}`} className="hover:underline">{t.topic?.titleEs ?? t.title}</Link>
+                    {t.dueAt && <span className="block text-xs font-semibold text-muted">Due: {t.dueAt.toLocaleDateString("en-US")}</span>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {students.map((s) => {
+                const all = overall(s.id);
+                return (
+                  <tr key={s.id}>
+                    <td className="px-4 py-3 font-bold">
+                      {s.firstName} {s.lastInitial && `${s.lastInitial}.`} {!s.active && <Badge tone="coral">can’t sign in</Badge>}
+                    </td>
+                    <td className="px-4 py-3">{all === null ? <span className="text-muted">—</span> : <Bar pct={all} />}</td>
+                    {tasks.map((t) => (
+                      <td key={t.id} className="border-l border-line px-4 py-3">
+                        {t.students.has(s.id) ? <Bar pct={t.pct(s.id)} /> : <span className="text-muted">—</span>}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </Panel>
+
+      <Panel>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-2xl font-bold">Groups</h2>
+            <p className="text-sm text-muted">A student can be in more than one group. Assign a task to a whole group at once.</p>
+          </div>
+          <ButtonLink href={`/teacher/classes/${c.id}/groups/new`} variant="secondary" size="sm">+ Create Group</ButtonLink>
+        </div>
+        <div className="mt-4 space-y-4">
+          {c.levels.length === 0 && <p className="text-sm text-muted">No groups yet.</p>}
+          {c.levels.map((l) => (
+            <div key={l.id}>
+              {c.levels.length > 1 || l.name !== "Groups" ? <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.14em] text-muted">{l.name}</p> : null}
+              <ul className="flex flex-wrap gap-2">
+                {l.groups.map((g) => (
+                  <li key={g.id} className="flex items-center gap-1 rounded-full bg-paper-2 py-1 pl-3 pr-1 text-sm font-bold">
+                    <Link href={`/teacher/classes/${c.id}/groups/${g.id}`} className="hover:underline">
+                      {g.name} <span className="text-xs font-semibold text-muted">({g._count.memberships})</span>
+                    </Link>
+                    <form action={deleteGroup}>
+                      <input type="hidden" name="groupId" value={g.id} />
+                      <button className="ml-1 grid h-7 w-7 place-items-center rounded-full text-muted hover:bg-coral-soft hover:text-coral-dark" aria-label={`Delete ${g.name}`} title="Delete group (students stay in the class)">
+                        ×
+                      </button>
+                    </form>
+                  </li>
+                ))}
+                {l.groups.length === 0 && <li className="text-sm text-muted">No groups in {l.name}.</li>}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <details className="mt-5">
+          <summary className="cursor-pointer text-sm font-bold text-muted">Levels (LE1, LE2, UE1…)</summary>
+          <form action={createLevel} className="mt-2 flex max-w-md gap-2">
+            <input type="hidden" name="classroomId" value={c.id} />
+            <Input name="name" placeholder="LE2" required maxLength={60} aria-label="New level" />
+            <Button size="md" variant="secondary">Add level</Button>
+          </form>
+        </details>
+      </Panel>
     </>
+  );
+}
+
+function Bar({ pct }: { pct: number }) {
+  return (
+    <span className="flex items-center gap-2">
+      <span className="h-2 w-24 overflow-hidden rounded-full bg-paper-2">
+        <span className="block h-full rounded-full bg-mint" style={{ width: `${pct}%` }} />
+      </span>
+      <span className="text-xs font-bold">{pct}%</span>
+    </span>
   );
 }

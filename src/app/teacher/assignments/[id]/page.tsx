@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PrintButton } from "@/components/teacher/PrintButton";
 import { Button } from "@/components/ui/Button";
 import { Badge, EmptyState, PageHeader, Panel } from "@/components/ui/Panel";
@@ -83,8 +83,9 @@ async function VideoResults({ id }: { id: string }) {
 export default async function AssignmentResults({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { teacher } = await requireTeacherPage();
-  const owned = await db.assignment.findFirst({ where: { id, teacherId: teacher.id }, select: { id: true, gameId: true } });
+  const owned = await db.assignment.findFirst({ where: { id, teacherId: teacher.id }, select: { id: true, gameId: true, topicId: true } });
   if (!owned) notFound();
+  if (owned.topicId) redirect(`/teacher/tasks/${id}`);
   if (!owned.gameId) return <VideoResults id={id} />;
   const { assignment: a, rows, questionStats } = await assignmentReport(id);
   const completed = rows.filter((r) => r.status === "completed").length;

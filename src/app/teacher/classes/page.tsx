@@ -6,7 +6,7 @@ import { createClassroom } from "@/lib/actions/classroom";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 
-export const metadata = { title: "Classes & Students" };
+export const metadata = { title: "My Classes" };
 
 export default async function ClassesPage() {
   const { teacher } = await requireTeacherPage();
@@ -18,7 +18,7 @@ export default async function ClassesPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Classroom" title="Classes & Students" subtitle="Each class has its own sign-in code. Inside a class you can create levels (LE1, LE2, UE1…) and groups (Group A, B, C…)." />
+      <PageHeader eyebrow="Classroom" title="My Classes" subtitle="Each class has its own sign-in code. Open a class to add students, make groups and assign tasks." />
       <Panel className="mb-6">
         <form action={createClassroom} className="flex flex-wrap items-end gap-3">
           <div className="min-w-60 flex-1">

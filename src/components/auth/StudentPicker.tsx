@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/Field";
 import { signInStudent } from "@/lib/actions/auth";
 
-type S = { id: string; firstName: string; lastInitial: string; avatar: string };
+type S = { id: string; firstName: string; lastInitial: string; avatar: string; loginType: "PIN" | "PASSWORD" };
 
 export function StudentPicker({ code, students }: { code: string; students: S[] }) {
   const [picked, setPicked] = useState<S | null>(null);
@@ -35,6 +35,39 @@ export function StudentPicker({ code, students }: { code: string; students: S[] 
           </li>
         ))}
       </ul>
+    );
+  }
+
+  if (picked.loginType === "PASSWORD") {
+    return (
+      <form action={action} className="mx-auto mt-6 max-w-xs text-center">
+        <input type="hidden" name="code" value={code} />
+        <input type="hidden" name="studentId" value={picked.id} />
+        <div className="flex flex-col items-center gap-2">
+          <Avatar name={picked.firstName} kind={picked.avatar} size={72} />
+          <p className="font-display text-2xl font-semibold">Hola, {picked.firstName}</p>
+          <label htmlFor="student-password" className="text-ink-2">Type your password.</label>
+        </div>
+        <input
+          id="student-password"
+          name="pin"
+          type="password"
+          autoComplete="current-password"
+          autoCapitalize="none"
+          value={pin}
+          onChange={(e) => setPin(e.target.value)}
+          className="mt-5 w-full rounded-2xl border-2 border-line bg-card px-4 py-3 text-center text-xl font-bold focus:border-teal focus:outline-none"
+        />
+        <div className="mt-4">
+          <FormError message={state?.error} />
+        </div>
+        <Button type="submit" variant="voice" size="lg" className="mt-4 w-full" disabled={!pin || pending}>
+          {pending ? "…" : "Go!"}
+        </Button>
+        <button type="button" onClick={() => { setPicked(null); setPin(""); }} className="mt-4 text-sm font-bold text-muted hover:text-ink">
+          That&apos;s not me
+        </button>
+      </form>
     );
   }
 

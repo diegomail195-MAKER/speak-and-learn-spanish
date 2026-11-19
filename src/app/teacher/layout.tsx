@@ -6,7 +6,7 @@ export default async function TeacherLayout({ children }: { children: React.Reac
   const { user } = await requireTeacherPage();
   const school = await db.school.findUniqueOrThrow({ where: { id: user.schoolId }, select: { name: true } });
   return (
-    <TeacherShell name={user.displayName} school={school.name}>
+    <TeacherShell name={user.displayName} school={school.name} isAdmin={user.role === "ADMIN"} unverifiedEmail={user.email && !user.emailVerifiedAt ? user.email : null}>
       {children}
     </TeacherShell>
   );
