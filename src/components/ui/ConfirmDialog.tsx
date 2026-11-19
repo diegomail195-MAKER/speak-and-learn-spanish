@@ -31,8 +31,8 @@ export function ConfirmDialog({
   }, [onCancel]);
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center bg-ink/40 p-4" onMouseDown={(e) => e.target === e.currentTarget && onCancel()}>
-      <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" className="w-full max-w-sm rounded-xl border border-line bg-card p-6 shadow-[var(--shadow-menu)]">
-        <h2 id="confirm-title" className="text-lg font-bold text-ink">{title}</h2>
+      <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" className="w-full max-w-sm rounded-xl2 border border-line bg-card p-6 shadow-[var(--shadow-menu)]">
+        <h2 id="confirm-title" className="text-lg font-bold text-ink [overflow-wrap:anywhere]">{title}</h2>
         {body && <div className="mt-2 text-[15px] text-ink-2">{body}</div>}
         <div className="mt-6 flex flex-wrap justify-end gap-2">
           <Button ref={cancelRef} variant="secondary" onClick={onCancel}>Cancel</Button>

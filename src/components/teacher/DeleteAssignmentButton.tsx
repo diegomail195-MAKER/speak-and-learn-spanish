@@ -12,7 +12,7 @@ function Submit({ title }: { title: string }) {
       data-testid="delete-assignment"
       aria-label={`Delete assignment: ${title}`}
       title="Delete assignment"
-      className="grid h-9 w-9 place-items-center rounded-full bg-card text-muted shadow-sm ring-1 ring-line hover:bg-coral-soft hover:text-coral-dark disabled:opacity-50"
+      className="grid size-11 place-items-center rounded-ctl border border-line bg-card text-muted hover:bg-coral-soft hover:text-coral-dark disabled:opacity-50"
     >
       {pending ? "…" : "🗑"}
     </button>

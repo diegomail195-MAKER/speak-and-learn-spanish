@@ -30,7 +30,7 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
       assignHref: `${assign}&only=${encodeURIComponent(s.key)}`,
     })),
   );
-  const pill = "inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-sm font-bold text-[#620D78] ring-1 ring-[#620D78]/20 hover:bg-[#F3E8F7]";
+  const pill = "inline-flex min-h-control items-center gap-2 rounded-ctl border border-plum/20 bg-card px-4 text-sm font-bold text-plum hover:bg-lavender";
   return (
     <TopicHero
       title={topic.titleEs}
@@ -40,7 +40,7 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
       data={data}
       toolbar={
         <>
-          <Link href={`/teacher/library${q ? `?${q}` : ""}`} className="text-sm font-bold text-sky hover:underline">‹ Library</Link>
+          <Link href={`/teacher/library${q ? `?${q}` : ""}`} className="inline-flex min-h-control items-center text-sm font-bold text-sky hover:underline">‹ Library</Link>
           <span className="flex flex-wrap items-center gap-2">
             <Link href={`/teacher/library/topics/${topic.slug}/student-view${q ? `?${q}` : ""}`} className={pill} data-testid="topic-student-view">
               <EyeIcon /> Student View

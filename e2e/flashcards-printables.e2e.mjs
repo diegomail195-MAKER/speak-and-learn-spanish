@@ -120,7 +120,7 @@ try {
   log("compact editor: one row, clean bar, table", Math.round(tableWidth), "px wide");
 
   await page.getByLabel("Activity Title").fill("¿Cuál es tu color favorito?");
-  await page.click("text=+ Add Instruction");
+  await page.getByRole("button", { name: "Add Instruction" }).click();
   await page.getByLabel("Instructions for students").fill("Mira el color y di su nombre.");
   await waitSaved();
   await shot(page, "p01-editor-new");

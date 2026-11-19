@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { buttonClass } from "@/components/ui/Button";
 import { useFormStatus } from "react-dom";
 import { createGame } from "@/lib/actions/games";
 import { FILTERS, type TemplateDef, type TemplateFilter } from "@/lib/games/templates";
@@ -28,7 +29,7 @@ function CreateButton({ name }: { name: string }) {
   const { pending, data } = useFormStatus();
   const mine = pending && data?.get("templateKey") === name;
   return (
-    <button name="templateKey" value={name} disabled={pending} className="rounded-full bg-coral px-5 py-2 font-bold text-white shadow-soft transition hover:bg-coral-dark disabled:opacity-60">
+    <button name="templateKey" value={name} disabled={pending} className={buttonClass("primary", "md")}>
       {mine ? "Creating…" : "Create"}
     </button>
   );
@@ -51,7 +52,7 @@ export function TemplateGallery({ templates }: { templates: TemplateDef[] }) {
             type="button"
             aria-pressed={filter === f.key}
             onClick={() => setFilter(f.key)}
-            className={`rounded-full border-2 px-4 py-1.5 text-sm font-bold transition ${filter === f.key ? "border-ink bg-ink text-white" : "border-line bg-card text-ink-2 hover:border-ink-2"}`}
+            className={`inline-flex min-h-control items-center rounded-ctl border px-4 text-sm font-bold ${filter === f.key ? "border-ink bg-ink text-white" : "border-line bg-card text-ink-2 hover:border-line-strong hover:bg-paper-2"}`}
           >
             {f.label}
           </button>
@@ -64,7 +65,7 @@ export function TemplateGallery({ templates }: { templates: TemplateDef[] }) {
           return (
             <article
               key={t.key}
-              className={`group flex overflow-hidden rounded-[1.75rem] border border-line bg-card transition hover:-translate-y-0.5 hover:shadow-soft ${wide ? "flex-col sm:col-span-2 md:flex-row" : "flex-col"}`}
+              className={`group flex overflow-hidden rounded-xl2 border border-line bg-card transition hover:-translate-y-0.5 hover:shadow-soft ${wide ? "flex-col sm:col-span-2 md:flex-row" : "flex-col"}`}
               aria-labelledby={`tpl-${t.key}`}
             >
               <div className={`shrink-0 ${wide ? "aspect-[5/3] md:aspect-auto md:w-1/2" : "aspect-[5/3]"}`} style={{ background: PREVIEW_BG[t.key] }}>

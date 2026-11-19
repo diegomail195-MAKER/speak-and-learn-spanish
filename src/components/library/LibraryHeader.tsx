@@ -36,11 +36,11 @@ export function LibraryHeader({ grade, q, fav }: { grade: GradeFilter; q: string
   }, [text]);
 
   return (
-    <section aria-labelledby="library-title" className="lib-head mb-6 rounded-[20px] border border-[#D5DAE4] bg-white p-5 sm:p-7" data-testid="library-header">
-      <h1 id="library-title" className="font-display text-[34px] font-extrabold leading-tight tracking-tight text-[#620D78]">Library</h1>
-      <p className="mt-1 text-base text-[#3B4252]">Filter by grade or search by topic to find the content your students need.</p>
+    <section aria-labelledby="library-title" className="lib-head mb-6 rounded-xl2 border border-line bg-card p-4 sm:p-6" data-testid="library-header">
+      <h1 id="library-title" className="font-display text-[32px] font-extrabold leading-tight tracking-tight text-plum">Library</h1>
+      <p className="mt-2 text-base text-ink-2">Filter by grade or search by topic to find the content your students need.</p>
 
-      <div role="group" aria-label="Grade" className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div role="group" aria-label="Grade" className="mt-6 grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-4">
         {GRADE_FILTERS.map((f) => (
           <button
             key={f.id}
@@ -57,10 +57,10 @@ export function LibraryHeader({ grade, q, fav }: { grade: GradeFilter; q: string
         ))}
       </div>
 
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:gap-4">
         <form role="search" className="lib-search flex-1" onSubmit={(e) => (e.preventDefault(), go({ q: text.trim() || null }, true))}>
           <label htmlFor="library-search" className="sr-only">Search theme or activity</label>
-          <span className="text-[#620D78]"><Icon name="search" className="h-5 w-5" /></span>
+          <span className="text-plum"><Icon name="search" className="h-5 w-5" /></span>
           <input
             id="library-search"
             type="search"

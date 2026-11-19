@@ -16,7 +16,7 @@ export function PasswordInput({ className = "", ...props }: Omit<ComponentProps<
         aria-pressed={visible}
         aria-controls={props.id}
         title={visible ? "Hide password" : "Show password"}
-        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl text-muted hover:text-ink focus-visible:text-ink"
+        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-ctl text-muted hover:text-ink focus-visible:text-ink focus-visible:outline-offset-[-2px]"
       >
         {visible ? <EyeOff /> : <Eye />}
       </button>

@@ -17,12 +17,13 @@ export type IconTone = "lavender" | "mango" | "coral" | "plain";
 const tones: Record<IconTone, string> = {
   lavender: "bg-lavender text-plum hover:bg-lavender-2",
   mango: "bg-mango-soft text-plum hover:bg-mango",
-  coral: "bg-coral-soft text-coral hover:bg-[#fbcfcb]",
+  coral: "bg-coral-soft text-coral hover:bg-coral-soft/70",
   plain: "bg-card text-ink-2 border border-line hover:bg-paper-2",
 };
 
-export const IconButton = forwardRef<HTMLButtonElement, { icon: IconName; label: string; tone?: IconTone; size?: 44 | 40 } & Omit<ComponentProps<"button">, "children">>(
-  function IconButton({ icon, label, tone = "plain", size = 44, className = "", onPointerEnter, onPointerLeave, onFocus, onBlur, ...rest }, ref) {
+export const IconButton = forwardRef<HTMLButtonElement, { icon: IconName; label: string; tone?: IconTone; /** @deprecated every icon button is 44×44 now */ size?: 44 | 40 } & Omit<ComponentProps<"button">, "children">>(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  function IconButton({ icon, label, tone = "plain", size: _size, className = "", onPointerEnter, onPointerLeave, onFocus, onBlur, ...rest }, ref) {
     const inner = useRef<HTMLButtonElement | null>(null);
     const [tip, setTip] = useState(false);
     return (
@@ -40,7 +41,7 @@ export const IconButton = forwardRef<HTMLButtonElement, { icon: IconName; label:
           onPointerLeave={(e) => (onPointerLeave?.(e), setTip(false))}
           onFocus={(e) => (onFocus?.(e), e.currentTarget.matches(":focus-visible") && setTip(true))}
           onBlur={(e) => (onBlur?.(e), setTip(false))}
-          className={`inline-grid shrink-0 place-items-center rounded-xl disabled:cursor-not-allowed disabled:opacity-40 ${size === 44 ? "h-11 w-11" : "h-10 w-10"} ${tones[tone]} ${className}`}
+          className={`inline-grid size-11 shrink-0 place-items-center rounded-xl2 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40 ${tones[tone]} ${className}`}
         >
           <UiIcon name={icon} size={20} />
         </button>

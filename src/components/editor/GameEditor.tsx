@@ -544,9 +544,9 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
   );
 
   const langToggle = (
-    <div className="inline-flex rounded-[10px] border border-line bg-card p-1 text-sm font-bold" role="group" aria-label="Language / Idioma" data-testid="ui-lang">
+    <div className="inline-flex rounded-ctl border border-line bg-card p-0.5 text-sm font-bold" role="group" aria-label="Language / Idioma" data-testid="ui-lang">
       {(["es", "en"] as const).map((l) => (
-        <button key={l} type="button" onClick={() => setUiLang(l)} aria-pressed={uiLang === l} className={`h-9 min-w-11 rounded-lg px-3 ${uiLang === l ? "bg-primary-soft text-primary" : "text-muted hover:bg-paper-2"}`}>{l.toUpperCase()}</button>
+        <button key={l} type="button" onClick={() => setUiLang(l)} aria-pressed={uiLang === l} className={`h-10 min-w-11 rounded-lg px-3 ${uiLang === l ? "bg-primary-soft text-primary" : "text-muted hover:bg-paper-2"}`}>{l.toUpperCase()}</button>
       ))}
     </div>
   );
@@ -782,10 +782,10 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
         {showInstructions ? (
           <div>
             <SpanishField label={t.instructions} hint="spoken at the start" multiline value={game.instructions} language={game.language} onChange={(v) => set("instructions", v)} placeholder="Mira la imagen y responde." maxLength={1000} tags />
-            <button type="button" onClick={() => (set("instructions", ""), setShowInstructions(false))} className="mt-1 text-xs font-bold text-muted hover:text-coral-dark">{t.hideInstructions}</button>
+            <button type="button" onClick={() => (set("instructions", ""), setShowInstructions(false))} className="-ml-2 mt-2 inline-flex min-h-control items-center rounded-ctl px-2 text-sm font-bold text-muted hover:bg-paper-2 hover:text-coral-dark">{t.hideInstructions}</button>
           </div>
         ) : (
-          <button type="button" onClick={() => setShowInstructions(true)} className="text-base font-bold text-ink-2 hover:text-coral">+ {t.addInstructions}</button>
+          <button type="button" onClick={() => setShowInstructions(true)} className="-ml-2 inline-flex min-h-control items-center gap-2 rounded-ctl px-2 text-base font-bold text-ink-2 hover:bg-paper-2 hover:text-ink"><UiIcon name="plus" /> {t.addInstructions}</button>
         )}
       </section>
 

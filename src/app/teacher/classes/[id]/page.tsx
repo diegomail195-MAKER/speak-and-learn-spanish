@@ -38,7 +38,7 @@ export default async function ClassPage({ params, searchParams }: { params: Prom
           <h1 className="font-display text-4xl font-bold tracking-tight">{c.name}</h1>
           <p className="mt-1 font-bold text-muted">
             {c.students.length} Total Students · class code{" "}
-            <span className="rounded-md bg-teal-soft px-2 py-0.5 font-mono font-bold tracking-widest text-teal-dark">{c.code}</span>
+            <span className="whitespace-nowrap rounded-md bg-teal-soft px-2 py-0.5 font-mono font-bold tracking-widest text-teal-dark">{c.code}</span>
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -47,14 +47,14 @@ export default async function ClassPage({ params, searchParams }: { params: Prom
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
-        <form className="relative min-w-64">
-          <Input name="q" defaultValue={q} placeholder="Search by student name" aria-label="Search students" className="rounded-full pr-10" />
+      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <form className="relative w-full sm:w-72">
+          <Input name="q" defaultValue={q} placeholder="Search by student name" aria-label="Search students" />
         </form>
-        <Link href={`/teacher/classes/${c.id}/roster`} className="inline-flex items-center gap-1.5 font-bold text-sky hover:underline">
+        <Link href={`/teacher/classes/${c.id}/roster`} className="inline-flex min-h-control items-center gap-2 font-bold text-sky hover:underline">
           <Icon name="book" className="h-5 w-5" /> Roster
         </Link>
-        <Link href={`/teacher/classes/${c.id}/print`} className="inline-flex items-center gap-1.5 font-bold text-sky hover:underline">
+        <Link href={`/teacher/classes/${c.id}/print`} className="inline-flex min-h-control items-center gap-2 font-bold text-sky hover:underline">
           <Icon name="printables" className="h-5 w-5" /> Print Access Instructions
         </Link>
       </div>
@@ -65,10 +65,10 @@ export default async function ClassPage({ params, searchParams }: { params: Prom
             <EmptyState title="No students yet" body="Use Add Students to add one student, paste a list, or create a group." />
           </div>
         ) : (
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className={`w-full text-left text-sm ${tasks.length ? "min-w-[640px]" : ""}`}>
             <thead className="bg-sky-soft text-ink">
               <tr>
-                <th className="px-4 py-3 font-bold">Name</th>
+                <th className="sticky left-0 z-[1] bg-sky-soft px-4 py-3 font-bold">Name</th>
                 <th className="px-4 py-3 font-bold">Total Progress</th>
                 {tasks.map((t) => (
                   <th key={t.id} className="border-l border-line px-4 py-3 font-bold">
@@ -83,7 +83,7 @@ export default async function ClassPage({ params, searchParams }: { params: Prom
                 const all = overall(s.id);
                 return (
                   <tr key={s.id}>
-                    <td className="px-4 py-3 font-bold">
+                    <td className="sticky left-0 z-[1] bg-card px-4 py-3 font-bold">
                       {s.firstName} {s.lastInitial && `${s.lastInitial}.`} {!s.active && <Badge tone="coral">can’t sign in</Badge>}
                     </td>
                     <td className="px-4 py-3">{all === null ? <span className="text-muted">—</span> : <Bar pct={all} />}</td>
@@ -115,13 +115,13 @@ export default async function ClassPage({ params, searchParams }: { params: Prom
               {c.levels.length > 1 || l.name !== "Groups" ? <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.14em] text-muted">{l.name}</p> : null}
               <ul className="flex flex-wrap gap-2">
                 {l.groups.map((g) => (
-                  <li key={g.id} className="flex items-center gap-1 rounded-full bg-paper-2 py-1 pl-3 pr-1 text-sm font-bold">
+                  <li key={g.id} className="flex min-h-control items-center gap-1 rounded-ctl bg-paper-2 py-0.5 pl-3 pr-0.5 text-sm font-bold">
                     <Link href={`/teacher/classes/${c.id}/groups/${g.id}`} className="hover:underline">
                       {g.name} <span className="text-xs font-semibold text-muted">({g._count.memberships})</span>
                     </Link>
                     <form action={deleteGroup}>
                       <input type="hidden" name="groupId" value={g.id} />
-                      <button className="ml-1 grid h-7 w-7 place-items-center rounded-full text-muted hover:bg-coral-soft hover:text-coral-dark" aria-label={`Delete ${g.name}`} title="Delete group (students stay in the class)">
+                      <button className="grid h-10 w-10 place-items-center rounded-lg text-muted hover:bg-coral-soft hover:text-coral-dark" aria-label={`Delete ${g.name}`} title="Delete group (students stay in the class)">
                         ×
                       </button>
                     </form>

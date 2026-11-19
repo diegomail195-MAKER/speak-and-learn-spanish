@@ -64,8 +64,9 @@ try {
   await waitUrl(/grade=k-2/);
   await p.waitForFunction(() => document.querySelector("[data-testid=grade-k-2]").getAttribute("aria-pressed") === "true");
   const lower = await titles();
-  const outline = await k2.evaluate((b) => getComputedStyle(b).outlineStyle + " " + getComputedStyle(b).outlineColor);
-  assert(outline.startsWith("solid") && !outline.includes("rgba(0, 0, 0, 0)"), `selected outline (${outline})`);
+  // Selected = white inner ring (inset shadow); the outline is kept for keyboard focus only.
+  const selRing = await k2.evaluate((b) => getComputedStyle(b).boxShadow);
+  assert(/inset/.test(selRing) && /255, 255, 255/.test(selRing), `selected inner ring (${selRing})`);
   await head().getByTestId("grade-3-4").click();
   await waitUrl(/grade=3-4/);
   const upper = await titles();
@@ -75,7 +76,7 @@ try {
   await head().getByTestId("grade-all").click();
   await waitUrl(/\/teacher\/library$/);
   assert((await titles()).length === all.length, "All Grades again shows everything");
-  log(`filters: K–2 ${lower.length} topics, 3–4 / 5–6 ${upper.length}, All Grades ${all.length}; selected one has an outline and aria-pressed`);
+  log(`filters: K–2 ${lower.length} topics, 3–4 / 5–6 ${upper.length}, All Grades ${all.length}; selected one has an inner ring and aria-pressed`);
 
   // ── Search: as you type, no Enter ──
   await head().getByTestId("library-search").pressSequentially("color", { delay: 40 });
@@ -121,8 +122,8 @@ try {
   const focused = await p.evaluate(() => document.activeElement?.dataset.testid);
   assert(focused === "grade-k-2", `Tab moves to K–2 (${focused})`);
   await p.waitForTimeout(300);
-  const ring = await p.evaluate(() => getComputedStyle(document.activeElement).boxShadow);
-  assert(/255, 81, 72/.test(ring), `visible keyboard focus (${ring})`);
+  const ring = await p.evaluate(() => { const s = getComputedStyle(document.activeElement); return `${s.outlineStyle} ${s.outlineWidth}`; });
+  assert(ring === "solid 2px", `visible keyboard focus: one 2px outline (${ring})`);
   await shot(p, "lib3-keyboard-focus");
   await p.keyboard.press("Enter");
   await waitUrl(/grade=k-2/);

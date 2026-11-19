@@ -133,7 +133,7 @@ export function Menu({
               data-testid={testId}
               onKeyDown={onListKey}
               style={{ position: "fixed", top: pos?.top ?? -9999, left: pos?.left ?? -9999, width: `min(${width}px, calc(100vw - ${EDGE * 2}px))`, maxHeight: pos?.maxHeight }}
-              className="z-[60] overflow-y-auto rounded-xl border border-line bg-card p-1.5 text-[15px] text-ink shadow-[var(--shadow-menu)]"
+              className="z-[60] overflow-y-auto rounded-xl2 border border-line bg-card p-2 text-[15px] text-ink shadow-[var(--shadow-menu)]"
             >
               {children}
             </div>
@@ -145,7 +145,7 @@ export function Menu({
 }
 
 const itemClass = (tone: "default" | "danger", active?: boolean) =>
-  `flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-left font-semibold outline-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] disabled:cursor-not-allowed disabled:opacity-50 ${
+  `flex min-h-control w-full items-center gap-3 rounded-ctl px-3 py-2 text-left text-[15px] font-semibold leading-tight focus-visible:outline-offset-[-2px] disabled:cursor-not-allowed disabled:opacity-50 ${
     tone === "danger" ? "text-coral-dark hover:bg-coral-soft focus:bg-coral-soft" : active ? "bg-primary-soft text-primary" : "text-ink hover:bg-paper-2 focus:bg-paper-2"
   }`;
 
