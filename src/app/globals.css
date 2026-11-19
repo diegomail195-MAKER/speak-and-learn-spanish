@@ -423,6 +423,11 @@ button.topic-access:hover, a.topic-access:hover { background: #EDE5FA; }
 .ws-card { background: #fff; border: 1px solid #e2e6ec; border-radius: 14px; }
 .ws-h1 { font-family: var(--font-display); font-size: clamp(28px, 4vw, 40px); line-height: 1.1; font-weight: 800; color: #172033; letter-spacing: -0.01em; overflow-wrap: anywhere; }
 .ws-h2 { font-family: var(--font-display); font-size: 24px; line-height: 1.2; font-weight: 800; color: #172033; }
+/* The fallback face (Didact Gothic) has one weight and the browser's synthetic bold is faint, so in the
+   workspaces bold text gets a stroke proportional to its size: headings, the menu and buttons read as
+   heavy as in the mockups, with the configured typography unchanged. */
+.ws :is(h1, h2, h3, .font-extrabold, .font-bold, .ws-nav[aria-current="page"], .ws-avatar) { -webkit-text-stroke: 0.028em currentColor; }
+.ws :is(.font-semibold, .ws-btn, .ws-pill, .ws-link) { -webkit-text-stroke: 0.016em currentColor; }
 .ws-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 10px;
   font-weight: 700; font-size: 16px; white-space: nowrap; transition: background-color 120ms ease, border-color 120ms ease;

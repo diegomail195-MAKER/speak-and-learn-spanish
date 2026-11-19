@@ -10,12 +10,13 @@ import { displayKind } from "@/lib/library/types";
 // Small building blocks shared by the Platform Admin and Teacher dashboards.
 
 /** A KPI card: icon, value and label; the whole card opens the matching list. */
-export function StatCard({ href, icon, value, label, tone = "blue", testId }: { href: string; icon: WsIconName; value: number | string; label: string; tone?: "blue" | "purple" | "teal"; testId?: string }) {
-  const toneCls = tone === "purple" ? "bg-[#F3E8FF] text-[#7E22CE]" : tone === "teal" ? "bg-[#E6F6F4] text-[#0F766E]" : "bg-[#E8EFFF] text-[#2563EB]";
+export function StatCard({ href, icon, value, label, tone = "blue", plain = false, testId }: { href: string; icon: WsIconName; value: number | string; label: string; tone?: "blue" | "purple" | "teal"; plain?: boolean; testId?: string }) {
+  // plain: a line icon without the tinted square (Teacher Dashboard).
+  const toneCls = (tone === "purple" ? "bg-[#F3E8FF] text-[#7E22CE]" : tone === "teal" ? "bg-[#E6F6F4] text-[#0F766E]" : "bg-[#E8EFFF] text-[#2563EB]") + (plain ? " !bg-transparent" : "");
   return (
     <Link href={href} className="ws-card group flex min-h-[104px] items-center gap-4 p-4 transition-colors hover:border-[#2563EB] sm:p-5" data-testid={testId ?? "stat-card"}>
       <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-xl ${toneCls}`}>
-        <WsIcon name={icon} className="h-7 w-7" />
+        <WsIcon name={icon} className={plain ? "h-10 w-10" : "h-7 w-7"} />
       </span>
       <span className="min-w-0">
         <span className="block font-display text-3xl font-extrabold leading-none text-[#172033]" data-testid="stat-value">{value}</span>
@@ -39,11 +40,11 @@ export function StatusPill({ status }: { status: string }) {
   return <span className={`ws-pill ${cls}`} data-testid="status-pill">{TOPIC_STATUS_LABEL[status] ?? status}</span>;
 }
 
-export function TopicThumb({ topic, size = "md" }: { topic: { art: string; color: string }; size?: "sm" | "md" | "lg" }) {
-  const box = size === "sm" ? "h-14 w-[72px]" : size === "lg" ? "h-[104px] w-[150px]" : "h-[72px] w-[104px]";
+export function TopicThumb({ topic, size = "md" }: { topic: { art: string; color: string }; size?: "sm" | "md" | "lg" | "xl" | "wide" }) {
+  const box = { sm: "h-14 w-[72px]", md: "h-[72px] w-[104px]", lg: "h-[84px] w-[120px]", xl: "h-[92px] w-[132px]", wide: "h-[110px] w-full sm:w-[230px]" }[size];
   return (
     <span className={`grid ${box} shrink-0 place-items-center overflow-hidden rounded-xl`} style={{ background: `color-mix(in srgb, ${topic.color} 22%, white)` }} aria-hidden>
-      <Art k={topic.art} className="h-[84%] w-[84%]" />
+      <Art k={topic.art} className={size === "wide" ? "h-[96px] w-[96px]" : "h-[84%] w-[84%]"} />
     </span>
   );
 }

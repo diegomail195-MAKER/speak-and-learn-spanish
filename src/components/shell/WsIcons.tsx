@@ -18,6 +18,7 @@ const paths: Record<string, string> = {
   x: "M6 6l12 12M18 6 6 18",
   chevron: "m6 9 6 6 6-6",
   check: "m5 12 5 5 9-10",
+  checkCircle: "M21.8 10A10 10 0 1 1 17 3.3M9 11l3 3L22 4",
   plus: "M12 5v14M5 12h14",
   search: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3",
   eye: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",

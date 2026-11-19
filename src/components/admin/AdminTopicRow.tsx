@@ -26,7 +26,7 @@ export function AdminTopicRow({ topic: t, detailed = false }: { topic: AdminRowT
   const kinds = orderedKinds(t.resources.map((r) => r.resource.kind));
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-3 py-4 sm:flex-nowrap" data-testid="admin-topic-row">
-      <TopicThumb topic={t} />
+      <TopicThumb topic={t} size={detailed ? "md" : "xl"} />
       <div className="min-w-0 flex-1 basis-48">
         <p className="font-display text-xl font-extrabold leading-tight text-[#172033] [overflow-wrap:anywhere]">
           {t.titleEs}

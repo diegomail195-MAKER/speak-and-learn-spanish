@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { DashLoading } from "@/components/dashboard/Loading";
 import { AdminTopicRow } from "@/components/admin/AdminTopicRow";
+import { AutoSubmitSelect } from "@/components/dashboard/AutoSubmitSelect";
 import { Card, Empty, PageTitle, StatCard, TopicThumb } from "@/components/dashboard/DashBits";
 import { LocalTime } from "@/components/dashboard/LocalTime";
 import { WsIcon } from "@/components/shell/WsIcons";
@@ -23,9 +24,9 @@ async function AdminOverviewContent({ searchParams }: { searchParams: Promise<{ 
     db.topic.count({ where: { status: "DRAFT" } }),
     db.libraryResource.count({ where: publishedWhere }),
     db.school.count(),
-    adminTopics({ q: sp.q, status: sp.status }, { take: 6 }),
-    topicsReadyToPublish(2),
-    recentContentChanges(5),
+    adminTopics({ q: sp.q, status: sp.status }, { take: 3 }),
+    topicsReadyToPublish(1),
+    recentContentChanges(3),
   ]);
   const filtered = !!(sp.q || sp.status);
 
@@ -48,23 +49,23 @@ async function AdminOverviewContent({ searchParams }: { searchParams: Promise<{ 
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <Card title="Topics" action={<Link href="/admin/topics" className="ws-link inline-flex min-h-11 items-center gap-1">All topics <WsIcon name="arrowRight" className="h-5 w-5" /></Link>} testId="overview-topics">
-          <form className="mb-2 flex flex-wrap gap-3" role="search">
-            <label className="relative min-w-0 flex-1 basis-56">
+        <Card title="Topics" testId="overview-topics">
+          <form className="mb-4 flex flex-wrap gap-3" role="search">
+            <label className="relative min-w-0 flex-1 basis-56 sm:max-w-[360px]">
               <span className="sr-only">Search topics</span>
               <WsIcon name="search" className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#5B6577]" />
               <input name="q" defaultValue={sp.q} placeholder="Search topics..." className="ws-input pl-11" />
             </label>
             <label className="basis-44">
               <span className="sr-only">Status</span>
-              <select name="status" defaultValue={sp.status ?? ""} className="ws-select">
+              <AutoSubmitSelect name="status" defaultValue={sp.status ?? ""} className="ws-select">
                 <option value="">All statuses</option>
                 <option value="PUBLISHED">Published</option>
                 <option value="DRAFT">Draft</option>
                 <option value="ARCHIVED">Archived</option>
-              </select>
+              </AutoSubmitSelect>
             </label>
-            <button className="ws-btn ws-btn-secondary">Apply</button>
+            <button className="sr-only">Search</button>
           </form>
           {topics.rows.length === 0 ? (
             <Empty
@@ -78,8 +79,8 @@ async function AdminOverviewContent({ searchParams }: { searchParams: Promise<{ 
             </ul>
           )}
           {topics.total > topics.rows.length && (
-            <p className="mt-3 text-[15px] text-[#5B6577]">
-              Showing {topics.rows.length} of {topics.total}. <Link className="ws-link" href={`/admin/topics?${new URLSearchParams({ ...(sp.q ? { q: sp.q } : {}), ...(sp.status ? { status: sp.status } : {}) })}`}>See all</Link>
+            <p className="mt-1 border-t border-[#E2E6EC] pt-3 text-[15px] text-[#5B6577]">
+              <Link className="ws-link inline-flex min-h-11 items-center gap-1" href={`/admin/topics?${new URLSearchParams({ ...(sp.q ? { q: sp.q } : {}), ...(sp.status ? { status: sp.status } : {}) })}`}>See all {topics.total} topics <WsIcon name="arrowRight" className="h-5 w-5" /></Link>
             </p>
           )}
         </Card>
@@ -93,9 +94,9 @@ async function AdminOverviewContent({ searchParams }: { searchParams: Promise<{ 
                 {ready.map((t) => (
                   <li key={t.id}>
                     <div className="flex items-center gap-3 rounded-xl border border-[#E2E6EC] p-3">
-                      <TopicThumb topic={t} size="md" />
+                      <TopicThumb topic={t} size="lg" />
                       <div className="min-w-0">
-                        <p className="font-display text-lg font-extrabold leading-tight [overflow-wrap:anywhere]">{t.titleEs}</p>
+                        <p className="font-display text-lg font-extrabold leading-tight [overflow-wrap:anywhere] line-clamp-2">{t.titleEs}</p>
                         <p className="text-[15px] text-[#5B6577]">{t.resources.length} resource{t.resources.length === 1 ? "" : "s"} · Draft</p>
                       </div>
                     </div>
@@ -106,19 +107,19 @@ async function AdminOverviewContent({ searchParams }: { searchParams: Promise<{ 
             )}
           </Card>
 
-          <Card title="Recent changes" action={<Link href="/admin/activity" className="ws-link inline-flex min-h-11 items-center">Activity Log</Link>} testId="recent-changes">
+          <Card title="Recent changes" testId="recent-changes">
             {changes.length === 0 ? (
               <Empty title="No changes yet" body="Edits to topics and resources will appear here." />
             ) : (
               <ul className="divide-y divide-[#E2E6EC]">
                 {changes.map((c) => (
                   <li key={c.id} className="flex gap-3 py-3 first:pt-0 last:pb-0">
-                    <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${c.published ? "bg-[#F3E8FF] text-[#7E22CE]" : "bg-[#E8EFFF] text-[#2563EB]"}`}>
+                    <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-lg ${c.published ? "bg-[#F3E8FF] text-[#7E22CE]" : "bg-[#EEF3FF] text-[#2563EB]"}`}>
                       <WsIcon name={c.published ? "check" : "file"} className="h-5 w-5" />
                     </span>
                     <div className="min-w-0">
-                      <p className="font-semibold leading-snug [overflow-wrap:anywhere]">{c.href ? <Link href={c.href} className="hover:underline">{c.text}</Link> : c.text}</p>
-                      <p className="text-sm text-[#5B6577]"><LocalTime iso={c.at} /> · {c.actor}</p>
+                      <p className="font-semibold leading-snug line-clamp-2 [overflow-wrap:anywhere]">{c.href ? <Link href={c.href} className="hover:underline">{c.text}</Link> : c.text}</p>
+                      <p className="mt-0.5 text-[15px] text-[#5B6577]" title={c.actor}><LocalTime iso={c.at} /></p>
                     </div>
                   </li>
                 ))}

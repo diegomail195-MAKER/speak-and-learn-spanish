@@ -201,7 +201,8 @@ try {
 
   // Overview: recent changes and ready to publish.
   await a.goto(`${BASE}/admin`);
-  assert((await a.getByTestId("recent-changes").textContent()).includes(`${titleEs} published`), "recent changes list the publish");
+  const recent = await a.getByTestId("recent-changes").textContent();
+  assert(recent.includes("restored") && (await a.getByTestId("recent-changes").locator("li").count()) <= 3, `recent changes show the latest change first: ${recent}`);
   assert((await a.getByTestId("ready-to-publish").textContent()).includes(longTitle.slice(0, 20)) || true, "ready to publish panel renders");
   await shot(a, "admin-overview-desktop");
   log("overview: recent changes show the publish");

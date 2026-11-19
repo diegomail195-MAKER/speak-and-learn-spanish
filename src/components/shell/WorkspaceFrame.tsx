@@ -81,7 +81,7 @@ function UserMenu({ name, email, school, accountHref, signOut }: { name: string;
     <div className="relative" ref={ref}>
       <button type="button" className="ws-user" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen((o) => !o)} data-testid="user-menu">
         <span className="ws-avatar" aria-hidden>{name.trim().charAt(0).toUpperCase() || "?"}</span>
-        <span className="hidden max-w-40 truncate font-bold sm:block">{name}</span>
+        <span className="hidden max-w-40 truncate font-bold sm:block">{name.trim().split(/\s+/)[0]}</span>
         <span className="sr-only sm:hidden">Account menu for {name}</span>
         <WsIcon name="chevron" className="h-5 w-5" />
       </button>
