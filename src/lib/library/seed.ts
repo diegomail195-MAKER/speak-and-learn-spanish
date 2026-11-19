@@ -8,6 +8,15 @@ import { fileIdsOf } from "./types";
 
 const CATEGORY: Record<string, string> = { greetings: "Everyday", numbers: "Math", shapes: "Math", colors: "Art", animals: "Science" };
 
+/** Starting descriptions for the seeded topics (same text as the topic_description migration). */
+export const TOPIC_DESCRIPTION: Record<string, string> = {
+  greetings: "Practica cómo saludar y presentarte en español.",
+  numbers: "Cuenta en español con juegos y canciones.",
+  colors: "Identifica y nombra los colores en español.",
+  shapes: "Reconoce y nombra las figuras en español.",
+  animals: "Aprende los nombres de los animales en español.",
+};
+
 export async function seedLibrary(db: PrismaClient) {
   let created = 0;
   for (const [i, t] of SEED_TOPICS.entries()) {
@@ -76,7 +85,7 @@ export async function seedLibrary(db: PrismaClient) {
 
     await db.$transaction(async (tx) => {
       const topic = await tx.topic.create({
-        data: { slug: t.id, titleEn: t.title, titleEs: t.es, category: CATEGORY[t.id] ?? "Vocabulary", color: t.color, art: `topic:${t.id}`, sortOrder: i, status: "PUBLISHED" },
+        data: { slug: t.id, titleEn: t.title, titleEs: t.es, category: CATEGORY[t.id] ?? "Vocabulary", description: TOPIC_DESCRIPTION[t.id] ?? "", color: t.color, art: `topic:${t.id}`, sortOrder: i, status: "PUBLISHED" },
       });
       for (const [pos, it] of items.entries()) {
         const r = await tx.libraryResource.create({ data: { kind: it.kind, title: it.title, description: it.description, grades: it.grades, status: "PUBLISHED", draft: it.content as object } });

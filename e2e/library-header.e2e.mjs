@@ -18,7 +18,7 @@ const p = await ctx.newPage();
 const errors = [];
 p.on("pageerror", (e) => errors.push(e.message));
 const head = () => p.getByTestId("library-header");
-const titles = () => p.getByTestId("library-topics").locator("li").evaluateAll((li) => li.map((l) => l.textContent));
+const titles = () => p.getByTestId("library-topics").locator(":scope > li").evaluateAll((li) => li.map((l) => l.textContent));
 const pressed = () => head().locator("[role=group] button").evaluateAll((bs) => bs.map((b) => `${b.textContent}:${b.getAttribute("aria-pressed")}`));
 const waitUrl = (re) => p.waitForURL(re, { timeout: 15000 });
 
@@ -80,14 +80,14 @@ try {
   // ── Search: as you type, no Enter ──
   await head().getByTestId("library-search").pressSequentially("color", { delay: 40 });
   await waitUrl(/q=color/);
-  await p.waitForFunction(() => [...document.querySelectorAll("[data-testid=library-topics] li")].some((l) => /Colors/.test(l.textContent)), null, { timeout: 15000 });
+  await p.waitForFunction(() => [...document.querySelectorAll("[data-testid=library-topics] > li")].some((l) => /Colors/.test(l.textContent)), null, { timeout: 15000 });
   await head().getByTestId("library-search").fill("shapes");
   await waitUrl(/q=shapes/);
-  await p.waitForFunction(() => { const li = [...document.querySelectorAll("[data-testid=library-topics] li")]; return li.length === 1 && /Shapes/.test(li[0].textContent); }, null, { timeout: 15000 });
+  await p.waitForFunction(() => { const li = [...document.querySelectorAll("[data-testid=library-topics] > li")]; return li.length === 1 && /Shapes/.test(li[0].textContent); }, null, { timeout: 15000 });
   log("search by theme: «shapes» → only Las figuras / Shapes");
   await head().getByTestId("library-search").fill("Memory Game");
   await waitUrl(/q=Memory/);
-  await p.waitForFunction(() => !/q=shapes/.test(location.search) && document.querySelectorAll("[data-testid=library-topics] li").length >= 2, null, { timeout: 15000 });
+  await p.waitForFunction(() => !/q=shapes/.test(location.search) && document.querySelectorAll("[data-testid=library-topics] > li").length >= 2, null, { timeout: 15000 });
   await p.waitForTimeout(800);
   assert((await titles()).length >= 2, "search by activity name finds the topics that have it");
   await head().getByTestId("library-search").fill("zzzz");
@@ -97,14 +97,14 @@ try {
   log("search: typing works without Enter, «shapes» finds the theme, «Memory Game» finds activities, no match shows a message");
 
   // ── Favorites ──
-  const first = p.getByTestId("library-topics").locator("li").first();
+  const first = p.getByTestId("library-topics").locator(":scope > li").first();
   const favName = (await first.textContent()).trim();
   await first.getByTestId("favorite-toggle").click();
   await p.waitForFunction(() => document.querySelector("[data-testid=favorite-toggle]").getAttribute("aria-pressed") === "true");
   await p.waitForTimeout(500);
   await head().getByTestId("library-favorites").click();
   await waitUrl(/fav=1/);
-  await p.waitForFunction(() => document.querySelectorAll("[data-testid=library-topics] li").length === 1);
+  await p.waitForFunction(() => document.querySelectorAll("[data-testid=library-topics] > li").length === 1);
   assert((await titles())[0].trim() === favName, "My favorites shows the saved topic");
   assert((await head().getByTestId("library-favorites").getAttribute("aria-pressed")) === "true", "My favorites pressed");
   await shot(p, "lib2-favorites");

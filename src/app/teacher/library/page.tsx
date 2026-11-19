@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { GRADE_FILTERS, type GradeFilter } from "@/components/library/gradeFilters";
 import { LibraryHeader } from "@/components/library/LibraryHeader";
-import { KindBadge, TopicCard } from "@/components/library/LibraryBits";
+import { KindBadge } from "@/components/library/LibraryBits";
+import { TopicRow } from "@/components/library/TopicRow";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { libraryTopics } from "@/lib/library/service";
+import { teacherTopicSteps } from "@/lib/library/steps";
 import { KINDS, KIND_LABEL, type Grade, type Kind } from "@/lib/library/types";
 
 export const metadata = { title: "Library" };
@@ -16,7 +18,7 @@ const LEGACY: Record<string, GradeFilter> = { LOWER: "k-2", UPPER: "3-4" };
 
 // Library: filter by grade, search a theme or an activity, or show My favorites. Published content only.
 export default async function LibraryPage({ searchParams }: { searchParams: Promise<{ grade?: string; type?: string; q?: string; fav?: string }> }) {
-  const { teacher } = await requireTeacherPage();
+  const { user, teacher } = await requireTeacherPage();
   const sp = await searchParams;
   const grade: GradeFilter = GRADE_FILTERS.some((f) => f.id === sp.grade) ? (sp.grade as GradeFilter) : (LEGACY[sp.grade ?? ""] ?? "all");
   const band = BAND[grade];
@@ -28,6 +30,19 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
     db.topicFavorite.findMany({ where: { teacherId: teacher.id }, select: { topicId: true } }),
   ]);
   const favorites = new Set(favRows.map((r) => r.topicId));
+  // Each row's accesses come from the topic's saved resources, in this teacher's lesson order
+  // (their own Speaking / flashcards activities included).
+  const stepsByTopic = type
+    ? new Map()
+    : new Map(
+        await Promise.all(
+          topics.map(async (t) => {
+            const { steps } = await teacherTopicSteps({ id: teacher.id, schoolId: user.schoolId }, t.id, band);
+            return [t.id, steps.map((st) => ({ key: st.key, kind: st.kind, title: st.title, href: st.resourceId ? `/teacher/library/resources/${st.resourceId}` : `/play/preview/${st.gameId}` }))] as const;
+          }),
+        ),
+      );
+  const isAdmin = user.role === "ADMIN";
   const keep = (extra: string) => {
     const p = new URLSearchParams();
     if (grade !== "all") p.set("grade", grade);
@@ -55,15 +70,16 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
         </p>
       )}
       {!type ? (
-        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" data-testid="library-topics">
+        <ul className="topic-list" data-testid="library-topics">
           {topics.map((t) => (
             <li key={t.id}>
-              <TopicCard
+              <TopicRow
+                topic={t}
                 href={`/teacher/library/topics/${t.slug}${gradeQs}`}
                 studentViewHref={`/teacher/library/topics/${t.slug}/student-view${gradeQs}`}
-                topic={t}
-                kinds={t.resources.map((r) => r.resource.kind as Kind)}
-                favorite={{ topicId: t.id, on: favorites.has(t.id), refresh: fav }}
+                steps={stepsByTopic.get(t.id) ?? []}
+                favorite={{ on: favorites.has(t.id), refresh: fav }}
+                editHref={isAdmin ? `/admin/topics/${t.id}` : undefined}
               />
             </li>
           ))}

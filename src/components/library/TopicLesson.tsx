@@ -10,19 +10,14 @@ import { libraryFileUrl, youtubeIdFrom } from "@/lib/library/types";
 import { LESSON, lessonClipKey, spokenTitle, stepLine, type Line } from "@/lib/library/lesson";
 import type { LessonStep } from "@/lib/library/lessonData";
 import { ResourcePlayer, speak } from "./Players";
+import { KIND_ICON_3D } from "@/lib/library/kindIcons";
 
 // The guided Topic lesson: each step is presented (Spanish, then English, with the natural voices
 // and on screen), the student presses Start, plays the real activity, and Next Activity unlocks
 // only when it is finished. The last step leads to the final screen (practice again, next
 // assignment, My Assignments). Student View runs the same lesson and records nothing.
 
-const ICON: Record<string, string> = {
-  VIDEO: "/topic-icons/videos.webp",
-  GAME: "/topic-icons/games.webp",
-  FLASHCARDS: "/topic-icons/flashcards.webp",
-  SONG: "/topic-icons/music-videos.webp",
-  SPEAKING: "/topic-icons/speaking.webp",
-};
+const ICON = KIND_ICON_3D;
 const LABEL: Record<string, { es: string; en: string }> = {
   VIDEO: { es: "Video", en: "Video" },
   SONG: { es: "Video musical", en: "Music video" },

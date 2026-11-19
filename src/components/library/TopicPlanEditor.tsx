@@ -3,16 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition, type KeyboardEvent, type PointerEvent } from "react";
 import { saveTopicPlan } from "@/lib/actions/topicPlans";
+import { KIND_ICON_3D } from "@/lib/library/kindIcons";
 
 export type PlanItem = { key: string; kind: string; title: string };
 
-const ICON: Record<string, string> = {
-  VIDEO: "/topic-icons/videos.webp",
-  GAME: "/topic-icons/games.webp",
-  FLASHCARDS: "/topic-icons/flashcards.webp",
-  SONG: "/topic-icons/music-videos.webp",
-  SPEAKING: "/topic-icons/speaking.webp",
-};
+const ICON = KIND_ICON_3D;
 const LABEL: Record<string, string> = { VIDEO: "Video", GAME: "Game", FLASHCARDS: "Flashcards", SONG: "Music video", SPEAKING: "Speaking", PRINTABLE: "Printable", WORKSHEET: "Worksheet" };
 const PURPLE = "#620D78";
 

@@ -766,6 +766,8 @@ model Topic {
   titleEn   String
   titleEs   String
   category  String        @default("Vocabulary")
+  // Short description shown under the title in the Library list (editable by administrators).
+  description String      @default("")
   color     String        @default("#FF9F5A")
   // Built-in illustration key (e.g. "topic:animals") shown on the topic card.
   art       String        @default("")

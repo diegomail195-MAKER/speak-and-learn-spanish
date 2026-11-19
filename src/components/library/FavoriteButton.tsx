@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Icon } from "@/components/ui/Art";
 
 /** Heart on a Library topic card: adds it to (or removes it from) "My favorites". */
-export function FavoriteButton({ topicId, title, initial, refresh }: { topicId: string; title: string; initial: boolean; refresh?: boolean }) {
+export function FavoriteButton({ topicId, title, initial, refresh, inline }: { topicId: string; title: string; initial: boolean; refresh?: boolean; inline?: boolean }) {
   const router = useRouter();
   const [on, setOn] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -33,7 +33,7 @@ export function FavoriteButton({ topicId, title, initial, refresh }: { topicId: 
       aria-pressed={on}
       aria-label={`${on ? "Remove from" : "Add to"} My favorites: ${title}`}
       title={on ? "Remove from My favorites" : "Add to My favorites"}
-      className={`lib-card-heart ${on ? "lib-heart-on" : ""}`}
+      className={`${inline ? "topic-tool topic-heart" : "lib-card-heart"} ${on ? "lib-heart-on" : ""}`}
       data-testid="favorite-toggle"
     >
       <Icon name="heart" className="h-5 w-5" />

@@ -35,13 +35,15 @@ export default async function ManageActivities({ params }: { params: Promise<{ i
   return (
     <>
       <Link href="/admin/topics" className="text-sm font-bold text-sky hover:underline">‹ Topics</Link>
-      <div className="mb-6 mt-3 flex flex-wrap items-center gap-5 rounded-[28px] p-6 shadow-pop" style={{ background: topic.color }}>
-        <Art k={topic.art} className="h-20 w-20" />
-        <div className="flex-1">
-          <h1 className="font-display text-4xl font-extrabold leading-none">Manage Activities · {topic.titleEs}</h1>
-          <p className="mt-1 font-bold text-ink/75">{topic.titleEn} · {topic.category}{topic.grade ? ` · ${topic.grade.name}` : ""}</p>
+      <div className="mb-6 mt-3 flex flex-wrap items-center gap-5 rounded-[12px] border border-[#E2E6EC] bg-white p-5">
+        <span className="grid h-24 w-24 shrink-0 place-items-center rounded-[12px]" style={{ background: `color-mix(in srgb, ${topic.color} 22%, white)` }}>
+          <Art k={topic.art} className="h-[72px] w-[72px]" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h1 className="font-display text-3xl font-extrabold leading-tight">Manage Activities · {topic.titleEs}</h1>
+          <p className="mt-1 font-bold text-ink/70">{topic.titleEn} · {topic.category}{topic.grade ? ` · ${topic.grade.name}` : ""}</p>
+          {topic.description && <p className="mt-1 text-[15px] text-[#3B4252]">{topic.description}</p>}
         </div>
-        <ButtonLink href={`/admin/content/new?topicId=${topic.id}`}>Add content</ButtonLink>
       </div>
 
       <Panel className="mb-6">
@@ -85,13 +87,18 @@ export default async function ManageActivities({ params }: { params: Promise<{ i
           ))}
           {topic.resources.length === 0 && <li className="py-3 text-muted">No activities yet.</li>}
         </ol>
-        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
-          <LibraryPicker items={library} excludeIds={[...inTopic]} onAdd={addResourcesToTopic.bind(null, topic.id)} />
-          <span className="text-sm text-muted">Pick resources already in the Library. They stay in the Library when you remove them from this topic.</span>
+        <div className="mt-4 border-t border-line pt-4" data-testid="add-resource">
+          <h2 className="font-display text-lg font-extrabold">+ Add resource</h2>
+          <p className="mb-3 text-sm text-muted">Each resource has a title, a type and its content. It stays in the Library if you remove it from this topic; use ↑ ↓ to change the order and its title to edit it.</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <LibraryPicker items={library} excludeIds={[...inTopic]} onAdd={addResourcesToTopic.bind(null, topic.id)} label="Choose existing content" />
+            <ButtonLink href={`/admin/content/new?topicId=${topic.id}`} variant="secondary" size="sm" data-testid="add-new-resource">Upload a file or add a link</ButtonLink>
+          </div>
         </div>
       </Panel>
       <Panel>
         <h2 className="mb-3 font-display text-xl font-extrabold">Topic details</h2>
+        <p className="-mt-2 mb-3 text-sm text-muted">Title, thumbnail and short description shown in the teachers&apos; Library.</p>
         <TopicForm topic={topic} grades={grades} />
       </Panel>
     </>
