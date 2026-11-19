@@ -32,7 +32,9 @@ export function AssignTaskWizard({ classes, topics, classTopics = {}, initialCla
   // "Assign" on one activity of the topic starts with only that one selected.
   const [selected, setSelected] = useState<Set<string>>(() => {
     const all = resourcesOf(topics.find((t) => t.id === initialTopicId), initialClassId).filter((r) => !initialGrade || r.grades.includes(initialGrade)).map((r) => r.id);
-    return new Set(initialOnly && all.includes(initialOnly) ? [initialOnly] : all);
+    // "Assign" on one activity keeps only that one, even if the class setup leaves it out.
+    if (initialOnly && (all.includes(initialOnly) || topics.some((t) => t.resources.some((r) => r.id === initialOnly)))) return new Set([initialOnly]);
+    return new Set(all);
   });
   const [title, setTitle] = useState(() => topics.find((t) => t.id === initialTopicId)?.titleEs ?? "");
   const [dueAt, setDueAt] = useState("");
@@ -80,7 +82,11 @@ export function AssignTaskWizard({ classes, topics, classTopics = {}, initialCla
         <Panel className="space-y-5">
           <div className="max-w-sm">
             <Label htmlFor="cls">Class</Label>
-            <Select id="cls" value={classId} onChange={(e) => { const cid = e.target.value; setClassId(cid); setGroupIds(new Set()); setStudentIds(new Set()); if (topic) setSelected(new Set(resourcesOf(topic, cid).filter((r) => !grade || r.grades.includes(grade)).map((r) => r.id))); }}>
+            <Select id="cls" value={classId} onChange={(e) => { const cid = e.target.value; setClassId(cid); setGroupIds(new Set()); setStudentIds(new Set()); if (topic) {
+                // Keep the teacher's choice: only drop activities the new class's setup doesn't have.
+                const ids = new Set(resourcesOf(topic, cid).map((r) => r.id));
+                setSelected((cur) => new Set([...cur].filter((id) => ids.has(id))));
+              } }}>
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           </div>
