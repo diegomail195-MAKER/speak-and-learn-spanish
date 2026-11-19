@@ -1,7 +1,7 @@
 # Graph Report - speak-and-learn-spanish  (2026-11-19)
 
 ## Corpus Check
-- 389 files · ~231,859 words
+- 389 files · ~231,881 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 8 file(s) not represented in the graph (top: .example 1, (none) 1, .vtt 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `c38a9f7d`
+- Built from commit: `d24b1400`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -138,12 +138,12 @@
   src/lib/text/segments.ts → src/lib/tts/voices.ts
 - `VoiceGamePlayer()` --indirect_call--> `BoxesBoard()`  [INFERRED]
   src/components/player/GamePlayer.tsx → src/components/player/boards/BoxesBoard.tsx
+- `VoiceGamePlayer()` --indirect_call--> `MatchBoard()`  [INFERRED]
+  src/components/player/GamePlayer.tsx → src/components/player/boards/MatchBoard.tsx
 - `VoiceGamePlayer()` --indirect_call--> `SequenceBoard()`  [INFERRED]
   src/components/player/GamePlayer.tsx → src/components/player/boards/SequenceBoard.tsx
 - `VoiceGamePlayer()` --indirect_call--> `WheelBoard()`  [INFERRED]
   src/components/player/GamePlayer.tsx → src/components/player/boards/WheelBoard.tsx
-- `VoiceGamePlayer()` --indirect_call--> `DiagramBoard()`  [INFERRED]
-  src/components/player/GamePlayer.tsx → src/components/player/boards/DiagramBoard.tsx
 
 ## Import Cycles
 - 2-file cycle: `src/components/library/Players.tsx -> src/components/library/SpeakingPlayer.tsx -> src/components/library/Players.tsx`
@@ -528,16 +528,16 @@ Nodes (12): server-only, DraftPreview(), StudentActivityPage(), ResourcePreview(
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `react` connect `react` to `parts.tsx`, `db.ts`, `AudioField.tsx`, `layout.ts`, `topics/[id]/page.tsx`, `Dependencias (package.json)`, `db.ts`, `Segmentación de texto`, `MyActivitiesBoard.tsx`, `lib/videos.ts`, `PublicHeader`, `useVoiceSession.ts`, `preview/[id]/page.tsx`, `Scripts de package.json`, `Button`, `GameEditor.tsx`, `WsIcon`, `ImageField.tsx`, `session.ts`, `[slug]/page.tsx`, `autocorrect.ts`, `Players.tsx`, `GamePlayer.tsx`, `plainText`, `ImageField.tsx`, `FlashcardsGame.tsx`, `TopicRow.tsx`, `DashBits.tsx`, `teacher/page.tsx`, `DiagramBoard.tsx`, `SpellBoard.tsx`, `ActivitySettings.tsx`, `i18n.tsx`, `Button.tsx`, `lib/review.ts`, `settings/page.tsx`, `DashBits.tsx`, `library/service.ts`?**
-  _High betweenness centrality (0.165) - this node is a cross-community bridge._
+- **Why does `next` connect `next` to `db.ts`, `games/service.ts`, `Evaluación de pronunciación`, `topics/[id]/page.tsx`, `mediaUrl`, `search.ts`, `Dependencias (package.json)`, `db.ts`, `react`, `MyActivitiesBoard.tsx`, `lib/videos.ts`, `library.ts`, `PublicHeader`, `preview/[id]/page.tsx`, `Scripts de package.json`, `Button`, `GameEditor.tsx`, `WsIcon`, `Layout raíz`, `session.ts`, `[slug]/page.tsx`, `Players.tsx`, `lessonData.ts`, `gateway.ts`, `HttpError`, `TopicRow.tsx`, `classroom.ts`, `DashBits.tsx`, `teacher/page.tsx`, `videos/[id]/edit/page.tsx`, `ActivitySettings.tsx`, `progress/route.ts`, `users/page.tsx`, `rateLimit`, `Button.tsx`, `lib/review.ts`, `actions/review.ts`, `settings/page.tsx`, `next.config.ts`, `middleware.ts`, `DashBits.tsx`, `library/service.ts`?**
+  _High betweenness centrality (0.147) - this node is a cross-community bridge._
 - **Should `parts.tsx` be split into smaller, more focused modules?**
   _Cohesion score 0.11904761904761904 - nodes in this community are weakly interconnected._
-- **Why does `next` connect `next` to `db.ts`, `games/service.ts`, `Evaluación de pronunciación`, `topics/[id]/page.tsx`, `mediaUrl`, `search.ts`, `Dependencias (package.json)`, `db.ts`, `react`, `MyActivitiesBoard.tsx`, `lib/videos.ts`, `library.ts`, `PublicHeader`, `preview/[id]/page.tsx`, `Scripts de package.json`, `Button`, `GameEditor.tsx`, `WsIcon`, `Layout raíz`, `session.ts`, `[slug]/page.tsx`, `Players.tsx`, `lessonData.ts`, `gateway.ts`, `HttpError`, `TopicRow.tsx`, `classroom.ts`, `DashBits.tsx`, `teacher/page.tsx`, `videos/[id]/edit/page.tsx`, `ActivitySettings.tsx`, `progress/route.ts`, `users/page.tsx`, `rateLimit`, `Button.tsx`, `lib/review.ts`, `actions/review.ts`, `settings/page.tsx`, `next.config.ts`, `middleware.ts`, `DashBits.tsx`, `library/service.ts`?**
-  _High betweenness centrality (0.139) - this node is a cross-community bridge._
+- **Why does `react` connect `react` to `parts.tsx`, `db.ts`, `AudioField.tsx`, `layout.ts`, `topics/[id]/page.tsx`, `Dependencias (package.json)`, `db.ts`, `Segmentación de texto`, `MyActivitiesBoard.tsx`, `lib/videos.ts`, `PublicHeader`, `useVoiceSession.ts`, `preview/[id]/page.tsx`, `Scripts de package.json`, `Button`, `GameEditor.tsx`, `WsIcon`, `ImageField.tsx`, `session.ts`, `[slug]/page.tsx`, `autocorrect.ts`, `Players.tsx`, `GamePlayer.tsx`, `plainText`, `ImageField.tsx`, `FlashcardsGame.tsx`, `TopicRow.tsx`, `DashBits.tsx`, `teacher/page.tsx`, `DiagramBoard.tsx`, `SpellBoard.tsx`, `ActivitySettings.tsx`, `i18n.tsx`, `Button.tsx`, `lib/review.ts`, `settings/page.tsx`, `DashBits.tsx`, `library/service.ts`?**
+  _High betweenness centrality (0.144) - this node is a cross-community bridge._
 - **Should `db.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.09887005649717515 - nodes in this community are weakly interconnected._
 - **Why does `@prisma/client` connect `db.ts` to `games/service.ts`, `Evaluación de pronunciación`, `next`, `mediaUrl`, `Dependencias (package.json)`, `lib/videos.ts`, `library.ts`, `flow.e2e.mjs`, `ref_node_path`, `Scripts de package.json`, `lextro.e2e.mjs`, `lessonData.ts`, `photo-form.e2e.mjs`, `classroom.ts`, `ref_node_fs`, `topic-lesson.e2e.mjs`, `voice.e2e.mjs`, `library.e2e.mjs`, `video-player.e2e.mjs`, `flashcards-printables.e2e.mjs`, `library/seed.ts`, `users/page.tsx`, `lib/review.ts`, `actions/review.ts`, `dashboards.e2e.mjs`, `activity.ts`, `library/service.ts`?**
-  _High betweenness centrality (0.111) - this node is a cross-community bridge._
+  _High betweenness centrality (0.091) - this node is a cross-community bridge._
 - **Should `20261025012814_init/migration.sql` be split into smaller, more focused modules?**
   _Cohesion score 0.14532019704433496 - nodes in this community are weakly interconnected._
 - **Should `AudioField.tsx` be split into smaller, more focused modules?**
