@@ -44,16 +44,22 @@
   --spacing-s2: 16px;
   --spacing-s3: 24px;
   --spacing-s4: 32px;
-  /* Controls: at least 44px tall; icon buttons 44×44 with 20px icons. */
+  /* Controls: 44px tall (48px for big actions); Library grade filters 52px; icons 20px (24px in
+     big controls); control text 14–16px. Use h-control / min-h-control, min-h-control-lg… */
   --spacing-control: 44px;
+  --spacing-control-lg: 48px;
+  --spacing-filter: 52px;
+  --spacing-icon: 20px;
+  --spacing-icon-lg: 24px;
 
   /* One typeface everywhere: Century Gothic (when installed), else Didact Gothic (temporary, OFL). */
   --font-gothic: "Century Gothic", "CenturyGothic", var(--font-gothic-fallback), "URW Gothic", sans-serif;
   --font-sans: var(--font-gothic);
   --font-display: var(--font-gothic);
 
-  /* Corners: 8–12px for controls and cards; up to 20px only for the Add image modal. */
-  --radius-ctl: 8px;
+  /* Corners: 10px for controls (buttons, fields, chips), 12px for cards, panels, menus and modals;
+     up to 20px only for the Add image modal. */
+  --radius-ctl: 10px;
   --radius-xl2: 12px;
   --radius-modal: 20px;
   --radius-card: 28px;
@@ -72,14 +78,32 @@ body {
   font-family: var(--font-sans);
 }
 
-/* In the base layer so a utility such as focus:outline-none can turn it off (e.g. a text box
+/* Keyboard focus: one 2px outline, 2px away from the control. It follows the control's own
+   corners (it used to set border-radius: 6px, which squared off every 10–12px control the moment
+   it got focus and drew the ring at a different radius from the border).
+   In the base layer so a utility such as focus:outline-none can turn it off (e.g. a text box
    inside a bordered box that shows its own focus ring, where this outline covered the text). */
 @layer base {
   :focus-visible {
-    outline: 3px solid var(--color-primary);
+    outline: 2px solid var(--color-primary);
     outline-offset: 2px;
-    border-radius: 6px;
   }
+  /* Icons inside controls keep their size and sit on the text's center line. */
+  :where(button, a, label, summary, [role="button"], [role="tab"], [role="menuitem"]) > svg {
+    flex-shrink: 0;
+  }
+}
+
+/* Native selects get the same chevron and padding everywhere (the browser arrow sat at
+   different distances from the edge on each screen). Outside the layers so a
+   utility such as px-3 cannot push the text under the chevron. */
+select:not([multiple]):not([size]) {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 20px 20px;
+  padding-right: 40px;
 }
 
 /* Short, quiet transitions for interactive controls (removed under reduced motion below). */
@@ -272,20 +296,72 @@ body {
 .tool-3d-grape { --face: #5b14b0; --base: #34086b; --ink: #ffffff; }
 .tool-3d-coral { --face: #f8aaa5; --base: #c9615b; --ink: #8a0f0f; }
 
-/* Flashcard photo form ("Añadir vocabulario / Add words"): white form, Century Gothic, thin
-   borders, gold focus outline, rounded buttons. */
-.lx-form { font-family: "Century Gothic", CenturyGothic, AppleGothic, "URW Gothic", "Didact Gothic", sans-serif; color: #1f2a2e; }
-.lx-input { display: block; width: 100%; height: 46px; padding: 0 0.85rem; border: 1px solid #6b7f86; border-radius: 10px; background: #fff; font-size: 1rem; }
-.lx-input:focus, .lx-input:focus-visible { outline: 3px solid #d9a521; outline-offset: 0; border-color: #d9a521; border-radius: 10px; }
-.lx-fieldset { border: 1px solid #9aa8ad; border-radius: 4px; padding: 0.75rem 1rem 1.1rem; }
-.lx-file { display: block; width: 100%; padding: 0.55rem 0.7rem; border: 1px solid #6b7f86; border-radius: 10px; font-weight: 700; font-size: 0.95rem; }
-.lx-file:focus-visible { outline: 3px solid #d9a521; outline-offset: 0; }
-.lx-btn { display: inline-flex; min-height: 44px; align-items: center; padding: 0 1.1rem; border-radius: 10px; font-weight: 700; font-size: 1rem; }
-.lx-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.lx-btn:focus-visible { outline: 3px solid #d9a521; outline-offset: 2px; border-radius: 10px; }
-.lx-btn-save { background: #1d6b52; color: #fff; }
-.lx-btn-save:hover:not(:disabled) { background: #155540; }
-.lx-btn-cancel { background: #44606b; color: #fff; }
-.lx-btn-cancel:hover { background: #364d56; }
-.lx-btn-light { background: #fff; border: 1px solid #9aa8ad; color: #1f2a2e; font-size: 0.9rem; }
-.lx-btn-light:hover { background: #f4f6f7; }
+/* Flashcard photo form ("Añadir vocabulario / Add words"): same field and button measures as the
+   rest of the app (44px, 1px borders, 10px corners, blue focus). It had its own gray borders,
+   4px fieldset corners and a gold 3px outline that sat on top of the border. */
+.lx-form { font-family: var(--font-sans); color: var(--color-ink); }
+.lx-input { display: block; width: 100%; min-height: var(--spacing-control); padding: 0 14px; border: 1px solid var(--color-line-strong); border-radius: var(--radius-ctl); background: var(--color-card); font-size: 1rem; }
+.lx-input:hover { border-color: var(--color-muted); }
+.lx-input:focus, .lx-input:focus-visible { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 2px rgb(37 99 235 / 0.25); }
+.lx-fieldset { border: 1px solid var(--color-line); border-radius: var(--radius-xl2); padding: 8px 16px 16px; }
+.lx-file { display: block; width: 100%; min-height: var(--spacing-control); padding: 8px 12px; border: 1px solid var(--color-line-strong); border-radius: var(--radius-ctl); font-weight: 700; font-size: 0.95rem; }
+.lx-btn { display: inline-flex; min-height: var(--spacing-control); align-items: center; justify-content: center; gap: 8px; padding: 8px 20px; border-radius: var(--radius-ctl); font-weight: 700; font-size: 15px; line-height: 1.2; }
+.lx-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.lx-btn-save { background: var(--color-primary); color: #fff; }
+.lx-btn-save:hover:not(:disabled) { background: var(--color-primary-dark); }
+.lx-btn-cancel { background: var(--color-card); border: 1px solid var(--color-line); color: var(--color-ink); }
+.lx-btn-cancel:hover { background: var(--color-paper-2); border-color: var(--color-line-strong); }
+.lx-btn-light { background: var(--color-card); border: 1px solid var(--color-line); color: var(--color-ink); font-size: 14px; }
+.lx-btn-light:hover { background: var(--color-paper-2); border-color: var(--color-line-strong); }
+
+/* ---------- Library: top block (grade filters, search, My favorites) ----------
+   One signal per state, so frames never stack:
+   - selected  → white inner ring (inset box-shadow) on the colored filter;
+   - keyboard focus → the global 2px outline, 3px away (it used to add a coral box-shadow ring on
+     top of the selected outline, three frames at once);
+   - hover/press → lift/press only. Search and My favorites use 1px borders like every field. */
+.lib-filter {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: var(--spacing-filter); padding: 8px 16px; border-radius: var(--radius-xl2);
+  background: var(--c); color: #fff; font-family: var(--font-display); font-size: 1rem; font-weight: 800; line-height: 1.2;
+  text-align: center; text-shadow: 0 1px 1px rgb(0 0 0 / 0.18);
+  box-shadow: 0 3px 0 var(--shade);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+  outline-offset: 3px;
+}
+.lib-filter:hover { transform: translateY(-2px); box-shadow: 0 5px 0 var(--shade); }
+.lib-filter:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--shade); transition-duration: 60ms; }
+.lib-filter[aria-pressed="true"] { box-shadow: 0 3px 0 var(--shade), inset 0 0 0 3px rgb(255 255 255 / 0.95); }
+.lib-filter[aria-pressed="true"]:hover { box-shadow: 0 5px 0 var(--shade), inset 0 0 0 3px rgb(255 255 255 / 0.95); }
+.lib-filter:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }
+.lib-search {
+  display: flex; align-items: center; gap: 8px; min-height: var(--spacing-control-lg); padding: 0 12px 0 16px;
+  border: 1px solid var(--color-line-strong); border-radius: var(--radius-xl2); background: var(--color-card);
+}
+.lib-search:hover { border-color: var(--color-muted); }
+.lib-search:focus-within { border-color: var(--color-plum); box-shadow: 0 0 0 2px rgb(98 13 120 / 0.2); }
+.lib-search input { flex: 1; min-width: 0; height: 44px; background: transparent; font-size: 1rem; color: var(--color-ink); outline: none; }
+.lib-search input::placeholder { color: var(--color-muted); }
+.lib-fav {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--spacing-control-lg); padding: 0 16px;
+  border: 1px solid var(--color-line-strong); border-radius: var(--radius-xl2); background: var(--color-card); color: var(--color-ink); font-size: 1rem; font-weight: 800; line-height: 1.2; white-space: nowrap;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+.lib-fav > span { display: inline-flex; color: var(--color-berry); }
+.lib-fav:hover { border-color: var(--color-muted); background: var(--color-paper-2); }
+.lib-fav:active { transform: translateY(1px); }
+.lib-fav[aria-pressed="true"] { border-color: var(--color-berry); background: #fff0f7; }
+.lib-heart-on svg { fill: currentColor; }
+/* 44×44 tap area; the visible white disc stays 36px. */
+.lib-card-heart {
+  position: absolute; left: 4px; top: 4px; z-index: 10; display: grid; place-items: center;
+  width: 44px; height: 44px; border-radius: 9999px; color: #E81CC8; background: transparent;
+}
+.lib-card-heart::before {
+  content: ""; position: absolute; inset: 4px; border-radius: inherit; background: rgb(255 255 255 / 0.92);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12); z-index: -1;
+}
+.lib-card-heart svg { position: relative; }
+@media (prefers-reduced-motion: reduce) {
+  .lib-filter, .lib-filter:hover, .lib-filter:active, .lib-fav, .lib-fav:hover, .lib-fav:active { transition: none; transform: none; }
+}

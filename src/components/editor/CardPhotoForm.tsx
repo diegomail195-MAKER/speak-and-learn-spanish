@@ -216,14 +216,14 @@ function SearchPanel({ initialQuery, selected, onPick, onClose }: { initialQuery
                     aria-pressed={on}
                     aria-label={`${p.title} — ${p.author} (${p.license})`}
                     title={`${p.title} — ${p.author} (${p.license})`}
-                    className={`relative block w-full overflow-hidden rounded-xl border-2 bg-[#f4f6f7] ${on ? "border-[#1d6b52] ring-2 ring-[#1d6b52]/30" : "border-[#c9d3d6] hover:border-[#6b7f86]"}`}
+                    className={`relative block w-full overflow-hidden rounded-xl2 border-2 bg-paper-2 ${on ? "border-primary" : "border-line hover:border-line-strong"}`}
                     data-testid="photo-suggestion"
                   >
                     <span className="block aspect-[4/3]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={p.thumb} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-contain" />
                     </span>
-                    {on && <span aria-hidden className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-[#1d6b52] text-sm font-bold text-white">✓</span>}
+                    {on && <span aria-hidden className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-primary text-sm font-bold text-white">✓</span>}
                     <span className="block truncate px-2 py-1 text-left text-[11px] text-muted">{p.author} · {p.license}</span>
                   </button>
                 </li>

@@ -22,11 +22,11 @@ export default async function StudentViewPage({ params, searchParams }: { params
   const library = `/teacher/library${grade ? `?grade=${grade}` : ""}`;
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-full bg-[#F3E8F7] px-4 py-2 text-sm font-bold text-[#620D78]" data-testid="student-view-banner">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl2 bg-lavender py-2 pl-4 pr-2 text-sm font-bold text-plum" data-testid="student-view-banner">
         <span className="inline-flex items-center gap-2">
           <EyeIcon /> Student View · nothing is saved
         </span>
-        <Link href={library} className="rounded-full bg-white px-3 py-1 hover:underline" data-testid="student-view-exit">Exit to Library</Link>
+        <Link href={library} className="inline-flex min-h-control items-center rounded-ctl bg-card px-4 hover:bg-paper-2" data-testid="student-view-exit">Exit to Library</Link>
       </div>
       <TopicLesson
         mode="preview"

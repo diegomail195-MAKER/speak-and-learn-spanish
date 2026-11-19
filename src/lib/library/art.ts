@@ -194,6 +194,12 @@ export const ART: ArtApi = (function () {
     book: '<path d="M4 5 a2 2 0 0 1 2 -2 H12 V21 H6 a2 2 0 0 1 -2 -2Z M12 3 H18 a2 2 0 0 1 2 2 V19 a2 2 0 0 1 -2 2 H12"/>',
     cc: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 10 a2 2 0 1 0 0 4 M16 10 a2 2 0 1 0 0 4"/>',
     star: '<path d="M12 3 l2.8 5.8 6.2.9 -4.5 4.4 1 6.2 -5.5 -2.9 -5.5 2.9 1 -6.2 -4.5 -4.4 6.2 -.9Z"/>',
+    'book-open': '<path d="M12 7 C10 5.5 7 5 3 5.5 V18.5 C7 18 10 18.5 12 20 C14 18.5 17 18 21 18.5 V5.5 C17 5 14 5.5 12 7Z M12 7 V20"/>',
+    'grad-cap': '<path d="M2 9 L12 4 L22 9 L12 14Z M6 11 V16 C6 17.5 9 19 12 19 C15 19 18 17.5 18 16 V11 M22 9 V14"/>',
+    books: '<path d="M4 6 a2 2 0 0 1 2 -2 H19 V10 H6 a2 2 0 0 1 -2 -2Z M4 8 V16 M4 16 a2 2 0 0 1 2 -2 H19 V20 H6 a2 2 0 0 1 -2 -2Z M19 7 H21 M19 17 H21"/>',
+    sprout: '<path d="M12 21 V11 M12 11 C12 7 9 4.5 4 4.5 C4 9 7 11 12 11Z M12 11 C12 7 15 4.5 20 4.5 C20 9 17 11 12 11Z M8 21 H16"/>',
+    search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 L21 21"/>',
+    heart: '<path d="M12 20 C5 15.5 3 12.5 3 9 C3 6.2 5.2 4 8 4 C9.8 4 11.2 5 12 6.4 C12.8 5 14.2 4 16 4 C18.8 4 21 6.2 21 9 C21 12.5 19 15.5 12 20Z"/>',
   };
   const ico = (name, cls = '') =>
     `<svg class="ico ${cls}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${icon[name] || ''}</svg>`;

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/Panel";
+import { buttonClass } from "@/components/ui/Button";
+import { inputClass } from "@/components/ui/Field";
 import { deleteGame, duplicateGame, setGameStatus } from "@/lib/actions/games";
 import { db } from "@/lib/db";
 import { templateByKey } from "@/lib/games/templates";
@@ -31,23 +33,23 @@ type Loaded = Awaited<ReturnType<typeof loadActivities>>;
 
 export function ActivityFilters({ sp, categories }: { sp: ActivitySearch; categories: Loaded["categories"] }) {
   return (
-    <form className="mb-4 flex flex-wrap gap-2 text-sm">
-      <input name="q" defaultValue={sp.q} placeholder="Search title or topic" className="h-10 min-w-56 flex-1 rounded-full border border-line bg-card px-4" aria-label="Search" />
-      <select name="status" defaultValue={sp.status ?? ""} className="h-10 rounded-full border border-line bg-card px-3" aria-label="Status">
+    <form className="mb-4 flex flex-wrap gap-2">
+      <input name="q" defaultValue={sp.q} placeholder="Search title or topic" className={`${inputClass} flex-1 basis-full sm:basis-56`} aria-label="Search" />
+      <select name="status" defaultValue={sp.status ?? ""} className={`${inputClass} w-auto flex-1 basis-40 sm:flex-none sm:basis-auto`} aria-label="Status">
         <option value="">Drafts &amp; published</option>
         <option value="DRAFT">Drafts</option>
         <option value="PUBLISHED">Published</option>
         <option value="ARCHIVED">Archived</option>
       </select>
-      <select name="category" defaultValue={sp.category ?? ""} className="h-10 rounded-full border border-line bg-card px-3" aria-label="Category">
+      <select name="category" defaultValue={sp.category ?? ""} className={`${inputClass} w-auto flex-1 basis-40 sm:flex-none sm:basis-auto`} aria-label="Category">
         <option value="">All categories</option>
         {categories.map((c) => <option key={c.id} value={c.id}>{c.nameEn}</option>)}
       </select>
-      <select name="sort" defaultValue={sp.sort ?? ""} className="h-10 rounded-full border border-line bg-card px-3" aria-label="Sort">
+      <select name="sort" defaultValue={sp.sort ?? ""} className={`${inputClass} w-auto flex-1 basis-40 sm:flex-none sm:basis-auto`} aria-label="Sort">
         <option value="">Recently edited</option>
         <option value="title">Title A–Z</option>
       </select>
-      <button className="h-10 rounded-full bg-ink px-5 font-bold text-white">Filter</button>
+      <button className={buttonClass("primary", "md")}>Filter</button>
     </form>
   );
 }

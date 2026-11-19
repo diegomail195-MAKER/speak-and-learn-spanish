@@ -1,11 +1,15 @@
 import Link from "next/link";
-import { ButtonLink } from "@/components/ui/Button";
+import { ButtonLink, buttonClass } from "@/components/ui/Button";
+import { inputClass } from "@/components/ui/Field";
 import { Badge, EmptyState, PageHeader } from "@/components/ui/Panel";
 import { deleteVideo, setVideoStatus } from "@/lib/actions/videos";
 import { isPlatformAdmin } from "@/lib/auth/admin";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { toPlayVideo } from "@/lib/videos";
+
+/** Row actions (Watch, Assign, Publish…): 44px tap targets, 10px corners. */
+const rowAction = "inline-flex min-h-control items-center rounded-ctl px-3 text-ink-2 hover:bg-paper-2";
 
 export const metadata = { title: "Videos" };
 
@@ -45,28 +49,28 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
         }
       />
       {!admin && (
-        <p className={`mb-4 rounded-xl border px-4 py-3 text-sm ${sp.admin === "only" ? "border-coral bg-coral-soft text-coral-dark" : "border-line bg-paper-2 text-ink-2"}`} role="status">
+        <p className={`mb-4 rounded-xl2 border px-4 py-3 text-sm ${sp.admin === "only" ? "border-coral bg-coral-soft text-coral-dark" : "border-line bg-paper-2 text-ink-2"}`} role="status">
           Only the platform administrator can upload or edit videos. / Solo el administrador puede subir o editar videos.
         </p>
       )}
-      <form className="mb-4 flex flex-wrap gap-2 text-sm">
-        <input name="q" defaultValue={sp.q} placeholder="Search title, keyword" className="h-10 min-w-56 flex-1 rounded-full border border-line bg-card px-4" aria-label="Search" />
-        <select name="source" defaultValue={sp.source ?? ""} className="h-10 rounded-full border border-line bg-card px-3" aria-label="Source">
+      <form className="mb-4 flex flex-wrap gap-2">
+        <input name="q" defaultValue={sp.q} placeholder="Search title, keyword" className={`${inputClass} flex-1 basis-full sm:basis-56`} aria-label="Search" />
+        <select name="source" defaultValue={sp.source ?? ""} className={`${inputClass} w-auto flex-1 basis-40 sm:flex-none sm:basis-auto`} aria-label="Source">
           <option value="">All sources</option>
           <option value="HOSTED">Uploaded</option>
           <option value="YOUTUBE">YouTube</option>
         </select>
-        <select name="status" defaultValue={sp.status ?? ""} className="h-10 rounded-full border border-line bg-card px-3" aria-label="Status">
+        <select name="status" defaultValue={sp.status ?? ""} className={`${inputClass} w-auto flex-1 basis-40 sm:flex-none sm:basis-auto`} aria-label="Status">
           <option value="">Drafts &amp; published</option>
           <option value="DRAFT">Drafts</option>
           <option value="PUBLISHED">Published</option>
           <option value="ARCHIVED">Archived</option>
         </select>
-        <select name="category" defaultValue={sp.category ?? ""} className="h-10 rounded-full border border-line bg-card px-3" aria-label="Category">
+        <select name="category" defaultValue={sp.category ?? ""} className={`${inputClass} w-auto flex-1 basis-40 sm:flex-none sm:basis-auto`} aria-label="Category">
           <option value="">All categories</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.nameEn}</option>)}
         </select>
-        <button className="h-10 rounded-full bg-ink px-5 font-bold text-white">Filter</button>
+        <button className={buttonClass("primary", "md")}>Filter</button>
       </form>
       {videos.length === 0 ? (
         <EmptyState
@@ -96,28 +100,28 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
                 </Link>
                 <Badge tone={v.status === "PUBLISHED" ? "leaf" : v.status === "ARCHIVED" ? "coral" : "neutral"}>{v.status.toLowerCase()}</Badge>
                 <div className="flex flex-wrap items-center gap-1 text-sm font-bold">
-                  <Link href={`/teacher/videos/${v.id}`} className="rounded-full px-3 py-1.5 text-ink-2 hover:bg-paper-2">Watch</Link>
-                  {v.status === "PUBLISHED" && <Link href={`/teacher/assignments/new?videoId=${v.id}`} className="rounded-full px-3 py-1.5 text-teal-dark hover:bg-teal-soft">Assign</Link>}
+                  <Link href={`/teacher/videos/${v.id}`} className={rowAction}>Watch</Link>
+                  {v.status === "PUBLISHED" && <Link href={`/teacher/assignments/new?videoId=${v.id}`} className={`${rowAction} text-teal-dark hover:bg-teal-soft`}>Assign</Link>}
                   {admin && (<>
                   <form action={setVideoStatus}>
                     <input type="hidden" name="videoId" value={v.id} />
                     <input type="hidden" name="status" value={v.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED"} />
-                    <button className="rounded-full px-3 py-1.5 text-ink-2 hover:bg-paper-2">{v.status === "PUBLISHED" ? "Unpublish" : "Publish"}</button>
+                    <button className={rowAction}>{v.status === "PUBLISHED" ? "Unpublish" : "Publish"}</button>
                   </form>
                   {v.status !== "ARCHIVED" ? (
                     <form action={setVideoStatus}>
                       <input type="hidden" name="videoId" value={v.id} />
                       <input type="hidden" name="status" value="ARCHIVED" />
-                      <button className="rounded-full px-3 py-1.5 text-ink-2 hover:bg-paper-2">Archive</button>
+                      <button className={rowAction}>Archive</button>
                     </form>
                   ) : (
                     <details className="relative">
-                      <summary className="cursor-pointer list-none rounded-full px-3 py-1.5 text-coral-dark hover:bg-coral-soft">Delete…</summary>
-                      <form action={deleteVideo} className="absolute right-0 z-10 mt-1 w-64 rounded-xl border border-line bg-card p-3 text-xs font-normal shadow-soft">
+                      <summary className={`${rowAction} cursor-pointer list-none text-coral-dark hover:bg-coral-soft [&::-webkit-details-marker]:hidden`}>Delete…</summary>
+                      <form action={deleteVideo} className="absolute right-0 z-10 mt-2 w-64 max-w-[calc(100vw-32px)] rounded-xl2 border border-line bg-card p-4 text-sm font-normal shadow-[var(--shadow-menu)]">
                         <input type="hidden" name="videoId" value={v.id} />
                         <p>Deletes the video, its assignments and watch history. Type <strong>DELETE</strong> to confirm.</p>
-                        <input name="confirm" required pattern="DELETE" className="mt-2 w-full rounded-lg border border-line px-2 py-1" aria-label="Type DELETE" />
-                        <button className="mt-2 rounded-full bg-coral px-3 py-1 font-bold text-white">Delete forever</button>
+                        <input name="confirm" required pattern="DELETE" className={`${inputClass} mt-2`} aria-label="Type DELETE" />
+                        <button className={buttonClass("danger", "sm", "mt-2 w-full")}>Delete forever</button>
                       </form>
                     </details>
                   )}

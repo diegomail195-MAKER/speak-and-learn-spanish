@@ -27,14 +27,14 @@ export function UnsavedDrafts() {
   }, []);
   if (backups.length === 0) return null;
   return (
-    <div role="status" className="mb-4 rounded-xl2 border-2 border-sun bg-sun-soft px-4 py-3 text-sm">
+    <div role="status" className="mb-4 rounded-xl2 border border-sun bg-sun-soft p-4 text-sm">
       <p className="font-bold">
         {backups.length === 1 ? "You have an activity with unsaved changes on this device." : `You have ${backups.length} activities with unsaved changes on this device.`}
       </p>
       <ul className="mt-2 flex flex-wrap gap-2">
         {backups.map((b) => (
           <li key={b.id}>
-            <Link href={`/teacher/games/${b.id}/edit`} className="inline-flex items-center gap-1 rounded-full bg-card px-3 py-1.5 font-bold hover:bg-paper-2">
+            <Link href={`/teacher/games/${b.id}/edit`} className="inline-flex min-h-control max-w-full items-center gap-1 rounded-ctl border border-line bg-card px-4 py-2 font-bold leading-tight hover:border-line-strong hover:bg-paper-2">
               {b.title} · {b.items} {b.items === 1 ? "card" : "cards"} → Continue
             </Link>
           </li>

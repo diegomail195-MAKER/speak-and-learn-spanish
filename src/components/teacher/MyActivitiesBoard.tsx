@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type DragEvent, type ReactNode } from "react";
 import { PREVIEW_BG, TemplatePreview } from "@/components/editor/TemplatePreview";
 import { Button, ButtonLink } from "@/components/ui/Button";
+import { UiIcon } from "@/components/ui/icons";
 import { duplicateGame } from "@/lib/actions/games";
 import { createFolder, deleteFolder, emptyBin, moveFolder, moveGame, restoreGame, trashGame, updateFolder } from "@/lib/actions/folders";
 import { FOLDER_COLORS, folderColor, folderColorKey } from "@/lib/folders";
@@ -131,7 +132,7 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
   return (
     <div className={pending ? "cursor-progress" : undefined}>
       {/* Header: title or breadcrumb, folder / bin buttons, search, view */}
-      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl2 border border-line bg-card px-5 py-4 shadow-soft">
+      <div className="mb-4 flex flex-wrap items-center gap-4 rounded-xl2 border border-line bg-card p-4 sm:px-6">
         <div className="min-w-0 flex-1">
           {bin ? (
             <>
@@ -155,26 +156,26 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
               </h1>
             </>
           ) : (
-            <h1 className="whitespace-nowrap font-display text-3xl font-semibold">{q ? `Results for “${q}”` : "My Activities"}</h1>
+            <h1 className="min-w-0 font-display text-3xl font-semibold [overflow-wrap:anywhere]">{q ? `Results for “${q}”` : "My Activities"}</h1>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto">
           {!bin && <Button size="sm" variant="secondary" onClick={() => setDialog({ mode: "new" })}>{t.newFolderButton}</Button>}
           {!bin && <ButtonLink size="sm" variant="secondary" href={href({ bin: "1", view: keep.view })}><TrashIcon className="h-4 w-4" /> Recycle Bin</ButtonLink>}
-          <form action="/teacher/my-activities" className="flex">
+          <form action="/teacher/my-activities" className="order-last flex w-full min-w-0 sm:order-none sm:w-auto">
             {keep.view && <input type="hidden" name="view" value={keep.view} />}
-            <input name="q" defaultValue={q} placeholder="Search my activities…" aria-label="Search my activities" className="h-9 w-48 rounded-l-full border border-line bg-card px-4 text-sm sm:w-56" />
-            <button className="h-9 rounded-r-full border border-l-0 border-line bg-paper-2 px-3 text-sm font-bold" aria-label="Search">⌕</button>
+            <input name="q" defaultValue={q} placeholder="Search my activities…" aria-label="Search my activities" className="h-control min-w-0 flex-1 rounded-l-ctl border border-line bg-card px-4 text-[15px] focus:relative focus:z-10 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 sm:w-56 sm:flex-none" />
+            <button className="grid h-control w-11 shrink-0 place-items-center rounded-r-ctl border border-l-0 border-line bg-paper-2 text-ink-2 hover:bg-line focus-visible:relative focus-visible:z-10" aria-label="Search"><UiIcon name="search" /></button>
           </form>
-          <div className="flex overflow-hidden rounded-full border border-line text-sm" role="group" aria-label="View">
-            <Link href={href({ ...keep, view: null, bin: bin ? "1" : null, q: q || null })} aria-label="Large tiles" aria-current={view === "large" ? "true" : undefined} className={`px-3 py-1.5 ${view === "large" ? "bg-ink text-white" : "bg-card hover:bg-paper-2"}`}>▦</Link>
-            <Link href={href({ ...keep, view: "small", bin: bin ? "1" : null, q: q || null })} aria-label="Small tiles" aria-current={view === "small" ? "true" : undefined} className={`px-3 py-1.5 ${view === "small" ? "bg-ink text-white" : "bg-card hover:bg-paper-2"}`}>⋮⋮⋮</Link>
+          <div className="flex shrink-0 rounded-ctl border border-line bg-card p-0.5" role="group" aria-label="View">
+            <Link href={href({ ...keep, view: null, bin: bin ? "1" : null, q: q || null })} aria-label="Large tiles" aria-current={view === "large" ? "true" : undefined} className={`grid h-10 w-10 place-items-center rounded-lg ${view === "large" ? "bg-ink text-white" : "text-ink-2 hover:bg-paper-2"}`}><UiIcon name="grid" /></Link>
+            <Link href={href({ ...keep, view: "small", bin: bin ? "1" : null, q: q || null })} aria-label="Small tiles" aria-current={view === "small" ? "true" : undefined} className={`grid h-10 w-10 place-items-center rounded-lg ${view === "small" ? "bg-ink text-white" : "text-ink-2 hover:bg-paper-2"}`}><UiIcon name="gridSmall" /></Link>
           </div>
         </div>
       </div>
 
-      <div className="rounded-xl2 border border-line bg-card px-5 py-4">
-        <div className="mb-4 flex flex-wrap items-center justify-end gap-x-4 gap-y-2 text-sm">
+      <div className="rounded-xl2 border border-line bg-card p-4 sm:p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-start gap-x-1 gap-y-2 text-sm sm:justify-end sm:gap-x-2">
           {bin && shownActivities.length > 0 && (
             <Button size="sm" variant="danger" className="mr-auto" onClick={() => window.confirm(`Delete ${shownActivities.length} activities forever, with their student results? This can't be undone.`) && run(() => emptyBin())}>
               Empty Recycle Bin
@@ -189,7 +190,7 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
               <Link
                 key={by}
                 href={href({ ...keep, sort: by === "modified" && dir === "desc" ? null : by, dir: by === "modified" && dir === "desc" ? null : dir, bin: bin ? "1" : null, q: q || null })}
-                className={`inline-flex items-center gap-1 ${active ? "font-bold text-ink" : "text-ink-2 hover:text-ink"}`}
+                className={`inline-flex min-h-control items-center gap-1 rounded-ctl px-1.5 sm:px-2 ${active ? "font-bold text-ink" : "text-ink-2 hover:bg-paper-2 hover:text-ink"}`}
                 aria-current={active ? "true" : undefined}
               >
                 {by === "name" ? "Name" : by === "modified" ? "Modified" : "Last played"}
@@ -396,11 +397,11 @@ function Menu({ label, className = "", glyph = "⋮", size = "md", testId, child
           const r = ref.current?.getBoundingClientRect();
           setUp(!!r && window.innerHeight - r.bottom < 340 && r.top > window.innerHeight - r.bottom);
           setOpen((o) => !o);
-        }} className={`grid place-items-center rounded-lg border border-ink/15 bg-card/90 font-bold leading-none text-ink hover:bg-card ${size === "lg" ? "h-11 w-11 text-xl" : "h-9 w-9 text-lg"}`}>
+        }} className={`grid place-items-center rounded-lg border border-ink/15 bg-card/90 font-bold leading-none text-ink hover:bg-card ${size === "lg" ? "h-11 w-11 text-xl" : "h-10 w-10 text-lg"}`}>
         {glyph}
       </button>
       {open && (
-        <div role="menu" className={`absolute right-0 z-40 w-60 rounded-xl border border-line bg-card p-1.5 text-sm shadow-soft ${up ? "bottom-full mb-1" : "top-full mt-1"}`}>
+        <div role="menu" className={`absolute right-0 z-40 w-60 max-w-[calc(100vw-32px)] rounded-xl2 border border-line bg-card p-2 text-[15px] shadow-[var(--shadow-menu)] ${up ? "bottom-full mb-2" : "top-full mt-2"}`}>
           {children(() => setOpen(false))}
         </div>
       )}
@@ -409,7 +410,7 @@ function Menu({ label, className = "", glyph = "⋮", size = "md", testId, child
 }
 
 function MenuItem({ danger, className = "", ...props }: React.ComponentProps<"button"> & { danger?: boolean }) {
-  return <button type="button" role="menuitem" className={`block w-full rounded-lg px-3 py-2 text-left font-semibold ${danger ? "text-coral-dark hover:bg-coral-soft" : "hover:bg-paper-2"} ${className}`} {...props} />;
+  return <button type="button" role="menuitem" className={`flex min-h-control w-full items-center rounded-ctl px-3 py-2 text-left font-semibold leading-tight focus-visible:outline-offset-[-2px] ${danger ? "text-coral-dark hover:bg-coral-soft focus-visible:bg-coral-soft" : "hover:bg-paper-2 focus-visible:bg-paper-2"} ${className}`} {...props} />;
 }
 
 /** Clicking an activity plays it; an activity with nothing in it yet opens the editor. */
@@ -417,7 +418,7 @@ const openHref = (a: { id: string; items: number }) => (a.items > 0 ? `/play/pre
 
 function MenuLink({ href: to, hint, children }: { href: string; hint?: string; children: ReactNode }) {
   return (
-    <Link href={to} role="menuitem" title={hint} className="block rounded-lg px-3 py-2 font-semibold hover:bg-paper-2">
+    <Link href={to} role="menuitem" title={hint} className="flex min-h-control flex-col justify-center rounded-ctl px-3 py-2 font-semibold leading-tight hover:bg-paper-2 focus-visible:bg-paper-2 focus-visible:outline-offset-[-2px]">
       {children}
       {hint && <span className="block text-xs font-normal text-muted">{hint}</span>}
     </Link>

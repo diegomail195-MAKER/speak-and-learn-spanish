@@ -71,7 +71,7 @@ try {
   const gameId = editUrl.split("/").at(-2);
   await page.waitForSelector("text=Frente"); // Spanish labels (browser in Spanish)
   await page.getByLabel("Título de la actividad").fill("¿Cuál es tu color favorito?");
-  await page.click("text=+ Añadir instrucciones");
+  await page.getByRole("button", { name: "Añadir instrucciones" }).click();
   await page.getByLabel("Instrucciones para los estudiantes").fill("Escucha y di el color.");
 
   const row1 = page.locator("ol > li").first();

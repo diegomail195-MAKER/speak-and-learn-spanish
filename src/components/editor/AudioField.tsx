@@ -7,6 +7,8 @@ import { AUDIO_LANGUAGE_LABELS } from "@/lib/tts/voices";
 import type { TtsConfig } from "./AudioControl";
 import { useUi } from "./i18n";
 import { mediaSrc } from "./ImageField";
+import { inputClass } from "@/components/ui/Field";
+import { UiIcon } from "@/components/ui/icons";
 
 const speaker = typeof window !== "undefined" ? new Speaker() : null;
 
@@ -98,17 +100,17 @@ export function AudioField({
     <div className="relative flex min-w-0 max-w-full flex-wrap items-center gap-1">
       {has ? (
         <>
-          <button type="button" onClick={() => playFaceAudio(audio, rate)} className="inline-flex h-8 items-center gap-1 rounded-full bg-teal-soft px-2.5 text-xs font-bold text-teal-dark hover:bg-teal hover:text-white" title={audio!.text || audio!.name || t.play} aria-label={`${t.play}${label ? ` (${label})` : ""}`}>
+          <button type="button" onClick={() => playFaceAudio(audio, rate)} className="inline-flex h-11 items-center gap-1 rounded-ctl bg-teal-soft px-3 text-xs font-bold text-teal-dark hover:bg-teal hover:text-white" title={audio!.text || audio!.name || t.play} aria-label={`${t.play}${label ? ` (${label})` : ""}`}>
             ▶ <span className={`${inline ? "max-w-16" : "max-w-28"} truncate`}>{audio!.text || audio!.name || (audio!.source === "record" ? "🎙" : "♪")}</span> <span className="opacity-70">{SHORT(audio!.language)}</span>
           </button>
-          <button type="button" onClick={() => setOpen(true)} className="h-8 rounded-full px-2 text-xs font-bold text-muted hover:bg-paper-2 hover:text-ink" aria-label={`${t.replace}: ${t.addAudio}${label ? ` (${label})` : ""}`} title={t.edit}>✎</button>
-          <button type="button" onClick={() => onChange(null)} className="h-8 rounded-full px-1.5 text-xs font-bold text-muted hover:text-coral-dark" aria-label={`${t.remove}: ${t.addAudio}${label ? ` (${label})` : ""}`}>×</button>
+          <button type="button" onClick={() => setOpen(true)} className="grid h-11 w-11 place-items-center rounded-ctl text-sm font-bold text-muted hover:bg-paper-2 hover:text-ink" aria-label={`${t.replace}: ${t.addAudio}${label ? ` (${label})` : ""}`} title={t.edit}>✎</button>
+          <button type="button" onClick={() => onChange(null)} className="grid h-11 w-11 place-items-center rounded-ctl text-base font-bold text-muted hover:bg-coral-soft hover:text-coral-dark" aria-label={`${t.remove}: ${t.addAudio}${label ? ` (${label})` : ""}`}>×</button>
         </>
       ) : (
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className={`inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-paper-2 text-xs font-bold text-ink-2 hover:bg-sky-soft hover:text-sky ${inline ? "px-2" : "px-2.5"}`}
+          className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-ctl bg-paper-2 text-xs font-bold text-ink-2 hover:bg-sky-soft hover:text-sky ${inline ? "px-2.5" : "px-3"}`}
           aria-label={`${t.addAudio}${label ? ` (${label})` : ""}`}
           title={t.addAudio}
           data-testid="audio-button"
@@ -288,11 +290,11 @@ function AudioPanel({ audio, defaultText, defaultLanguage, tts, rate: activityRa
       <div role="dialog" aria-modal="true" aria-label={t.addAudio} className="w-full max-w-lg overflow-hidden rounded-xl2 bg-card shadow-soft" data-testid="audio-panel">
         <div className="flex items-center border-b border-line px-4 py-3">
           <h2 className="font-display text-lg font-semibold">{t.addAudio}</h2>
-          <button type="button" onClick={onClose} className="ml-auto rounded-full px-2 text-2xl leading-none text-muted hover:text-ink" aria-label={t.close}>×</button>
+          <button type="button" onClick={onClose} className="ml-auto grid h-11 w-11 place-items-center rounded-ctl text-muted hover:bg-paper-2 hover:text-ink" aria-label={t.close}><UiIcon name="x" /></button>
         </div>
-        <div className="flex gap-1 bg-paper-2 p-1.5 text-sm font-bold" role="tablist">
+        <div className="flex gap-1 bg-paper-2 p-1 text-sm font-bold" role="tablist">
           {tabs.map(([k, l]) => (
-            <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => (setTab(k), setClip(null), setError(""))} className={`flex-1 rounded-full px-2 py-1.5 ${tab === k ? "bg-card text-ink shadow-sm" : "text-muted"}`}>
+            <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => (setTab(k), setClip(null), setError(""))} className={`min-h-10 flex-1 rounded-lg px-2 py-1 leading-tight ${tab === k ? "bg-card text-ink shadow-sm" : "text-muted"}`}>
               {l}
             </button>
           ))}
@@ -301,12 +303,12 @@ function AudioPanel({ audio, defaultText, defaultLanguage, tts, rate: activityRa
           {tab === "tts" && (
             <label className="block">
               <span className="mb-1 block text-xs font-bold text-ink-2">{t.ttsText} <span className="font-normal text-muted">— {t.ttsHint}</span></span>
-              <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={300} rows={2} placeholder={language === "en-US" ? "red" : language === "fr-FR" ? "rouge" : "rojo"} className="w-full resize-y rounded-lg border border-line px-3 py-2" lang={language} data-testid="tts-text" />
+              <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={300} rows={2} placeholder={language === "en-US" ? "red" : language === "fr-FR" ? "rouge" : "rojo"} className={`${inputClass} resize-y`} lang={language} data-testid="tts-text" />
             </label>
           )}
           <label className="block">
             <span className="mb-1 block text-xs font-bold text-ink-2">{t.language}</span>
-            <select value={language} onChange={(e) => { const l = e.target.value as AudioLanguage; setLanguage(l); setVoice(defaultVoiceFor(l)); }} className="h-9 w-full rounded-lg border border-line bg-card px-2" data-testid="tts-language">
+            <select value={language} onChange={(e) => { const l = e.target.value as AudioLanguage; setLanguage(l); setVoice(defaultVoiceFor(l)); }} className={inputClass} data-testid="tts-language">
               {languages.map((l) => <option key={l} value={l}>{ui === "es" ? AUDIO_LANGUAGE_LABELS[l].es : AUDIO_LANGUAGE_LABELS[l].en}</option>)}
             </select>
           </label>
@@ -355,7 +357,7 @@ function AudioPanel({ audio, defaultText, defaultLanguage, tts, rate: activityRa
                             {v.description && <span className="block truncate text-xs text-muted">{v.description}</span>}
                           </span>
                         </label>
-                        <button type="button" onClick={() => sampleVoice(v.id)} disabled={!!sampling} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-card text-teal-dark ring-1 ring-line hover:bg-teal hover:text-white disabled:opacity-50" aria-label={`${t.sample}: ${v.label}`} title={t.sample}>
+                        <button type="button" onClick={() => sampleVoice(v.id)} disabled={!!sampling} className="grid h-11 w-11 shrink-0 place-items-center rounded-ctl border border-line bg-card text-teal-dark hover:bg-teal hover:text-white disabled:opacity-50" aria-label={`${t.sample}: ${v.label}`} title={t.sample}>
                           {sampling === v.id ? "…" : "▶"}
                         </button>
                       </div>
@@ -370,7 +372,7 @@ function AudioPanel({ audio, defaultText, defaultLanguage, tts, rate: activityRa
                 <span className="mb-1 block text-xs font-bold text-ink-2">{t.speed}</span>
                 <div className="flex gap-1" role="radiogroup" aria-label={t.speed}>
                   {RATE_STEPS.map((r) => (
-                    <button key={r} type="button" role="radio" aria-checked={Math.abs(rate - r) < 0.001} onClick={() => setRate(r)} className={`h-9 flex-1 rounded-full text-xs font-bold ring-1 ${Math.abs(rate - r) < 0.001 ? "bg-teal text-white ring-teal" : "bg-card text-ink-2 ring-line hover:bg-paper-2"}`}>
+                    <button key={r} type="button" role="radio" aria-checked={Math.abs(rate - r) < 0.001} onClick={() => setRate(r)} className={`h-control flex-1 rounded-ctl border text-xs font-bold ${Math.abs(rate - r) < 0.001 ? "border-teal bg-teal text-white" : "border-line bg-card text-ink-2 hover:bg-paper-2"}`}>
                       {rateLabel(r)}
                     </button>
                   ))}

@@ -142,7 +142,7 @@ export function ImageField({
         <button
           type="button"
           onClick={() => openEditor(assetId!, src)}
-          className={`shrink-0 overflow-hidden rounded-lg border border-line bg-paper ${inline ? "h-10 w-10" : "h-[72px] w-[72px] sm:h-20 sm:w-20"}`}
+          className={`shrink-0 overflow-hidden rounded-ctl border border-line bg-paper ${inline ? "h-11 w-11" : "h-[72px] w-[72px] sm:h-20 sm:w-20"}`}
           title={t.edit}
           aria-label={`${t.edit}: ${label ?? t.addImage}`}
         >
@@ -162,10 +162,10 @@ export function ImageField({
             <img src={src} alt={alt ?? ""} loading="lazy" decoding="async" className="h-full w-full object-contain" />
           </button>
           <div className="min-w-0 flex-1 space-y-1">
-            <div className="flex flex-wrap gap-1 text-[11px] font-bold">
-              <button type="button" onClick={() => openEditor(assetId!, src)} className="rounded-full bg-paper-2 px-2 py-0.5 text-ink-2 hover:bg-line">{t.edit}</button>
-              <button type="button" onClick={() => setPanel("search")} className="rounded-full bg-paper-2 px-2 py-0.5 text-ink-2 hover:bg-line">{t.replace}</button>
-              <button type="button" onClick={() => onChange(null)} className="rounded-full px-2 py-0.5 text-muted hover:text-coral-dark">{t.remove}</button>
+            <div className="flex flex-wrap gap-1 text-xs font-bold">
+              <button type="button" onClick={() => openEditor(assetId!, src)} className="inline-flex min-h-control items-center rounded-ctl bg-paper-2 px-3 text-ink-2 hover:bg-line">{t.edit}</button>
+              <button type="button" onClick={() => setPanel("search")} className="inline-flex min-h-control items-center rounded-ctl bg-paper-2 px-3 text-ink-2 hover:bg-line">{t.replace}</button>
+              <button type="button" onClick={() => onChange(null)} className="inline-flex min-h-control items-center rounded-ctl px-3 text-muted hover:bg-coral-soft hover:text-coral-dark">{t.remove}</button>
             </div>
             {onAlt && (
               <input
@@ -175,7 +175,7 @@ export function ImageField({
                 placeholder={t.altText}
                 title={t.altHint}
                 aria-label={`${t.altText}${label ? ` (${label})` : ""}`}
-                className="h-7 w-full rounded-md border border-line bg-card px-2 text-xs"
+                className="h-control w-full rounded-ctl border border-line bg-card px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
               />
             )}
           </div>
@@ -185,7 +185,7 @@ export function ImageField({
         <button
           type="button"
           onClick={() => (onSearch ? onSearch() : setPanel("search"))}
-          className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-lavender hover:text-plum"
+          className="grid h-11 w-11 place-items-center rounded-ctl text-muted hover:bg-lavender hover:text-plum"
           aria-label={`${t.searchWeb}${label ? ` (${label})` : ""}`}
           title={t.searchWeb}
         >
@@ -194,7 +194,7 @@ export function ImageField({
         <button
           type="button"
           onClick={() => setPanel("upload")}
-          className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-lavender hover:text-plum"
+          className="grid h-11 w-11 place-items-center rounded-ctl text-muted hover:bg-lavender hover:text-plum"
           aria-label={`${t.addImage}${label ? ` (${label})` : ""}`}
           title={t.uploadImage}
         >

@@ -99,7 +99,7 @@ export function RosterRow({ student: s }: { student: RosterStudent }) {
             width={220}
             testId="roster-menu"
             trigger={({ ref, props, open }) => (
-              <button ref={ref} {...props} aria-label={`More actions for ${fullName}`} className={`grid h-10 w-10 place-items-center rounded-[10px] border ${open ? "border-primary bg-primary-soft text-primary" : "border-line bg-card text-ink-2 hover:bg-paper-2"}`} data-testid="roster-more">
+              <button ref={ref} {...props} aria-label={`More actions for ${fullName}`} className={`grid size-11 place-items-center rounded-ctl border ${open ? "border-primary bg-primary-soft text-primary" : "border-line bg-card text-ink-2 hover:bg-paper-2"}`} data-testid="roster-more">
                 <UiIcon name="more" strokeWidth={3} />
               </button>
             )}
