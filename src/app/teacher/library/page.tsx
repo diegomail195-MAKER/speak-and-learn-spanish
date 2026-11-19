@@ -7,7 +7,7 @@ import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { libraryTopics } from "@/lib/library/service";
 import { teacherTopicSteps } from "@/lib/library/steps";
-import { KINDS, KIND_LABEL, type Grade, type Kind } from "@/lib/library/types";
+import { ACTIVE_KINDS, KIND_LABEL, displayKind, type Grade, type Kind } from "@/lib/library/types";
 
 export const metadata = { title: "Library" };
 
@@ -22,7 +22,9 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const grade: GradeFilter = GRADE_FILTERS.some((f) => f.id === sp.grade) ? (sp.grade as GradeFilter) : (LEGACY[sp.grade ?? ""] ?? "all");
   const band = BAND[grade];
-  const type = (KINDS as readonly string[]).includes(sp.type ?? "") ? (sp.type as Kind) : null;
+  // Old links to Printables open Worksheet (the two were merged).
+  const type = sp.type === "PRINTABLE" ? "WORKSHEET" : (ACTIVE_KINDS as readonly string[]).includes(sp.type ?? "") ? (sp.type as Kind) : null;
+  const ofType = (k: string) => displayKind(k) === type;
   const q = (sp.q ?? "").trim().slice(0, 80);
   const fav = sp.fav === "1";
   const [topics, favRows] = await Promise.all([
@@ -60,7 +62,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
 
       <nav aria-label="Browse by" className="mb-5 flex flex-wrap gap-2">
         <Link href={keep("")} className={tab(!type)}>Topics</Link>
-        {KINDS.map((k) => (
+        {ACTIVE_KINDS.map((k) => (
           <Link key={k} href={keep(k)} className={tab(type === k)}>{KIND_LABEL[k].plural}</Link>
         ))}
       </nav>
@@ -86,11 +88,11 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
         </ul>
       ) : (
         <div className="space-y-6">
-          {topics.filter((t) => t.resources.some((r) => r.resource.kind === type)).map((t) => (
+          {topics.filter((t) => t.resources.some((r) => ofType(r.resource.kind))).map((t) => (
             <section key={t.id}>
               <h2 className="mb-2 font-display text-xl font-extrabold">{t.titleEs} <span className="text-base font-bold text-muted">· {t.titleEn}</span></h2>
               <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {t.resources.filter((r) => r.resource.kind === type).map((r) => (
+                {t.resources.filter((r) => ofType(r.resource.kind)).map((r) => (
                   <li key={r.resource.id}>
                     <Link href={`/teacher/library/resources/${r.resource.id}`} className="flex items-center justify-between gap-3 rounded-[20px] bg-card p-4 shadow-pop hover:-translate-y-0.5">
                       <span className="font-bold">{r.resource.title}</span>

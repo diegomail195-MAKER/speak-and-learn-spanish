@@ -16,7 +16,9 @@ type TopicData = { id: string; slug: string; titleEn: string; titleEs: string; c
 
 const chip = "flex cursor-pointer items-center gap-2 rounded-full border border-line bg-card px-3 py-2 text-sm font-bold has-[:checked]:border-teal has-[:checked]:bg-teal-soft has-[:checked]:text-teal-dark";
 
-export function AssignTaskWizard({ classes, topics, initialClassId, initialTopicId, initialGrade, initialOnly }: { classes: ClassData[]; topics: TopicData[]; initialClassId: string; initialTopicId?: string; initialGrade?: Grade; initialOnly?: string }) {
+export function AssignTaskWizard({ classes, topics, classTopics = {}, initialClassId, initialTopicId, initialGrade, initialOnly }: { classes: ClassData[]; topics: TopicData[]; classTopics?: Record<string, Record<string, TopicData["resources"]>>; initialClassId: string; initialTopicId?: string; initialGrade?: Grade; initialOnly?: string }) {
+  // A topic's activities for a class: the setup confirmed for that class, or the teacher's default order.
+  const resourcesOf = (t: TopicData | undefined, cid: string) => (t ? (classTopics[cid]?.[t.id] ?? t.resources) : []);
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [classId, setClassId] = useState(initialClassId);
@@ -29,7 +31,7 @@ export function AssignTaskWizard({ classes, topics, initialClassId, initialTopic
   // Arriving from "Assign this topic": every activity of that topic (for the grade) starts selected.
   // "Assign" on one activity of the topic starts with only that one selected.
   const [selected, setSelected] = useState<Set<string>>(() => {
-    const all = (topics.find((t) => t.id === initialTopicId)?.resources ?? []).filter((r) => !initialGrade || r.grades.includes(initialGrade)).map((r) => r.id);
+    const all = resourcesOf(topics.find((t) => t.id === initialTopicId), initialClassId).filter((r) => !initialGrade || r.grades.includes(initialGrade)).map((r) => r.id);
     return new Set(initialOnly && all.includes(initialOnly) ? [initialOnly] : all);
   });
   const [title, setTitle] = useState(() => topics.find((t) => t.id === initialTopicId)?.titleEs ?? "");
@@ -41,16 +43,16 @@ export function AssignTaskWizard({ classes, topics, initialClassId, initialTopic
   const rec = useMemo(() => dedupeRecipients(cls.groups.filter((g) => groupIds.has(g.id)), [...studentIds]), [cls, groupIds, studentIds]);
   const categories = [...new Set(topics.map((t) => t.category))].sort();
   const visibleTopics = topics.filter(
-    (t) => (!category || t.category === category) && (!q || `${t.titleEn} ${t.titleEs}`.toLowerCase().includes(q.toLowerCase())) && (!grade || t.resources.some((r) => r.grades.includes(grade))),
+    (t) => (!category || t.category === category) && (!q || `${t.titleEn} ${t.titleEs}`.toLowerCase().includes(q.toLowerCase())) && (!grade || resourcesOf(t, classId).some((r) => r.grades.includes(grade))),
   );
   const topic = topics.find((t) => t.id === topicId);
-  const activities = topic ? topic.resources.filter((r) => !grade || r.grades.includes(grade)) : [];
+  const activities = resourcesOf(topic, classId).filter((r) => !grade || r.grades.includes(grade));
   const toggle = (set: Set<string>, id: string, fn: (s: Set<string>) => void) => { const n = new Set(set); if (n.has(id)) n.delete(id); else n.add(id); fn(n); };
 
   const chooseTopic = (id: string) => {
     setTopicId(id);
     const t = topics.find((x) => x.id === id)!;
-    setSelected(new Set(t.resources.filter((r) => !grade || r.grades.includes(grade)).map((r) => r.id)));
+    setSelected(new Set(resourcesOf(t, classId).filter((r) => !grade || r.grades.includes(grade)).map((r) => r.id)));
     setTitle(t.titleEs);
     setStep(3);
   };
@@ -78,7 +80,7 @@ export function AssignTaskWizard({ classes, topics, initialClassId, initialTopic
         <Panel className="space-y-5">
           <div className="max-w-sm">
             <Label htmlFor="cls">Class</Label>
-            <Select id="cls" value={classId} onChange={(e) => { setClassId(e.target.value); setGroupIds(new Set()); setStudentIds(new Set()); }}>
+            <Select id="cls" value={classId} onChange={(e) => { const cid = e.target.value; setClassId(cid); setGroupIds(new Set()); setStudentIds(new Set()); if (topic) setSelected(new Set(resourcesOf(topic, cid).filter((r) => !grade || r.grades.includes(grade)).map((r) => r.id))); }}>
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           </div>

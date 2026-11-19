@@ -75,8 +75,10 @@ enum ResourceKind {
   SONG
   FLASHCARDS
   GAME
+  // Old type: merged into WORKSHEET (same content). Kept so old rows and versions stay readable.
   PRINTABLE
   WORKSHEET
+  LISTENING
 }
 
 enum MasteryStatus {
@@ -903,18 +905,21 @@ model AssignmentActivity {
 // A teacher's lesson order for a Library topic: steps ("r:<resourceId>" library resources,
 // "g:<gameId>" the teacher's own activities) and the library resources they removed. Library
 // resources published later (not in steps, not hidden) are added at the end.
+// classroomId "" is the teacher's default; a class id is the setup confirmed for that class
+// (used when assigning the topic to it).
 model TopicPlan {
-  id        String   @id @default(cuid())
-  teacherId String
-  topicId   String
-  steps     String[]
+  id          String   @id @default(cuid())
+  teacherId   String
+  topicId     String
+  classroomId String   @default("")
+  steps       String[]
   hidden    String[]
   updatedAt DateTime @updatedAt
 
   teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   topic   Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
 
-  @@unique([teacherId, topicId])
+  @@unique([teacherId, topicId, classroomId])
 }
 
 model ActivityProgress {

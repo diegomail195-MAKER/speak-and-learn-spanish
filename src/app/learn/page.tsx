@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Art } from "@/components/ui/Art";
+import { StudentTopicRow } from "@/components/library/TopicRow";
 import { assignmentsForStudentWhere } from "@/lib/access";
 import { requireStudentPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { templateByKey } from "@/lib/games/templates";
+import { gameKind } from "@/lib/library/steps";
 
 export const metadata = { title: "My Activities" };
 
@@ -19,7 +20,19 @@ export default async function MyActivities() {
   });
   const tasks = await db.assignment.findMany({
     where: { ...assignmentsForStudentWhere(student), topicId: { not: null } },
-    include: { topic: true, activities: { select: { id: true, progress: { where: { studentId: student.id, completedAt: { not: null } }, select: { id: true }, take: 1 } } } },
+    include: {
+      topic: true,
+      activities: {
+        orderBy: { position: "asc" },
+        select: {
+          id: true,
+          resource: { select: { kind: true } },
+          version: { select: { title: true } },
+          game: { select: { title: true, templateKey: true } },
+          progress: { where: { studentId: student.id, completedAt: { not: null } }, select: { id: true }, take: 1 },
+        },
+      },
+    },
     orderBy: [{ dueAt: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }],
   });
   const withState = assignments.map((a) => {
@@ -39,17 +52,16 @@ export default async function MyActivities() {
       {tasks.length > 0 && (
         <section className="mt-8">
           <h2 className="mb-3 text-sm font-bold uppercase tracking-[0.16em] text-teal">My Tasks</h2>
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Each task is a topic row: the row opens the guided lesson (first step or saved
+              progress); the icons only show what it contains. */}
+          <ul className="topic-list" data-testid="student-tasks">
             {tasks.map((t) => {
               const done = t.activities.filter((a) => a.progress.length).length;
+              const kinds = t.activities.map((a) => ({ key: a.id, kind: a.game ? gameKind(a.game.templateKey) : (a.resource?.kind ?? "VIDEO"), title: a.version?.title ?? a.game?.title ?? "" }));
+              const topic = { id: t.id, titleEs: t.topic?.titleEs ?? t.title, titleEn: t.topic?.titleEn ?? "", description: t.topic?.description ?? "", color: t.topic?.color ?? "#FFC928", art: t.topic?.art ?? "" };
               return (
                 <li key={t.id}>
-                  <Link href={`/learn/tasks/${t.id}`} data-testid="student-task" className="flex flex-col items-center gap-2 rounded-[28px] p-5 text-center shadow-pop transition hover:-translate-y-0.5" style={{ background: t.topic?.color }}>
-                    <Art k={t.topic?.art} className="h-20 w-20" />
-                    <span className="font-display text-2xl font-extrabold leading-none">{t.topic?.titleEs}</span>
-                    <span className="text-sm font-bold text-ink/75">{t.topic?.titleEn}</span>
-                    <span className="mt-1 rounded-full bg-card px-3 py-1 text-sm font-extrabold">{done}/{t.activities.length} done</span>
-                  </Link>
+                  <StudentTopicRow topic={topic} href={`/learn/tasks/${t.id}`} kinds={kinds} done={done} total={t.activities.length} />
                 </li>
               );
             })}

@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { FormError, Input, Label, Select } from "@/components/ui/Field";
 import { addLibraryContent, deleteResource, publishResource, updateResourceMeta } from "@/lib/actions/library";
-import { GAME_TYPES, GAME_TYPE_LABEL, GRADES, GRADE_LABEL, KINDS, KIND_LABEL, UPLOAD_FOR, embedFor, libraryFileUrl, publicUrl, youtubeIdFrom, type Kind } from "@/lib/library/types";
+import { GAME_TYPES, GAME_TYPE_LABEL, GRADES, GRADE_LABEL, ACTIVE_KINDS, KIND_LABEL, UPLOAD_FOR, embedFor, libraryFileUrl, publicUrl, youtubeIdFrom, type Kind } from "@/lib/library/types";
 import { uploadLibraryFile, type Uploaded } from "./upload";
 
 type TopicOpt = { id: string; titleEn: string; titleEs: string };
@@ -47,11 +47,12 @@ const METHODS: Record<Kind, Method[]> = {
   WORKSHEET: ["link", "upload", "build"],
   FLASHCARDS: ["build", "link"],
   GAME: ["build", "link"],
+  LISTENING: ["upload", "link", "build"],
 };
 const METHOD_LABEL: Record<Method, (k: Kind) => string> = {
   link: (k) => (k === "VIDEO" ? "Add YouTube Link" : "Add Link"),
   upload: (k) => (k === "VIDEO" ? "Upload Video" : "Upload File"),
-  build: (k) => (k === "FLASHCARDS" || k === "GAME" ? "Create in LextroSpeak" : k === "PRINTABLE" || k === "WORKSHEET" ? "Build a sheet" : k === "SONG" ? "Open the editor (lyrics)" : "Open the editor (captions)"),
+  build: (k) => (k === "FLASHCARDS" || k === "GAME" ? "Create in LextroSpeak" : k === "PRINTABLE" || k === "WORKSHEET" ? "Build a sheet" : k === "SONG" ? "Open the editor (lyrics)" : k === "LISTENING" ? "Open the editor (transcript)" : "Open the editor (captions)"),
 };
 
 /** What each way of adding a video means for students (shown under "How do you want to add it?"). */
@@ -114,7 +115,7 @@ export function NewResourceForm({ topics, topicId }: { topics: TopicOpt[]; topic
       <fieldset>
         <legend className="mb-2 text-sm font-bold text-ink-2">Type of Content</legend>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {KINDS.map((k) => (
+          {ACTIVE_KINDS.map((k) => (
             <label key={k} className="flex cursor-pointer items-center gap-2 rounded-2xl border-2 border-line bg-card p-3 font-bold has-[:checked]:border-ink">
               <input type="radio" name="kind" value={k} checked={kind === k} onChange={() => chooseKind(k)} />
               <span className="h-3 w-3 rounded-full" style={{ background: KIND_LABEL[k].color }} /> {KIND_LABEL[k].label}

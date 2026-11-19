@@ -1,4 +1,5 @@
 import "server-only";
+import { assertStepOpen } from "@/lib/library/sequenceServer";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { HttpError } from "@/lib/auth/guards";
@@ -123,6 +124,7 @@ export async function practiceTarget(student: StudentRef, assignmentId: string, 
     // A teacher's activity that is a step of a Topic lesson.
     const act = await db.assignmentActivity.findFirst({ where: { id: activityId, assignmentId, gameId: { not: null }, assignment: assignmentsForStudentWhere(student) }, include: { assignment: true, game: { select: { id: true, schoolId: true } } } });
     if (!act?.game || act.game.schoolId !== student.schoolId) throw new HttpError(404, "Activity not found");
+    await assertStepOpen(student, assignmentId, act.id);
     return { assignment: act.assignment, gameId: act.game.id, video: null };
   }
   if (!videoId) {

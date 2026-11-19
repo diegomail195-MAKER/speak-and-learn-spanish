@@ -24,8 +24,9 @@ const LABEL: Record<string, { es: string; en: string }> = {
   GAME: { es: "Juego", en: "Game" },
   FLASHCARDS: { es: "Tarjetas", en: "Flashcards" },
   SPEAKING: { es: "Hablar", en: "Speaking" },
-  PRINTABLE: { es: "Imprimible", en: "Printable" },
+  PRINTABLE: { es: "Hoja de trabajo", en: "Worksheet" },
   WORKSHEET: { es: "Hoja de trabajo", en: "Worksheet" },
+  LISTENING: { es: "Escuchar", en: "Listening" },
 };
 const PURPLE = "#620D78";
 const VOICE_PREF = "lextro-lesson-voice";

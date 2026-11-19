@@ -46,7 +46,7 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
               <EyeIcon /> Student View
             </Link>
             <Link href={`/teacher/library/topics/${topic.slug}/lesson${q ? `?${q}` : ""}`} className={pill} data-testid="topic-lesson-order">
-              ↕ Lesson order
+              ↕ Set up for my class
             </Link>
             <ButtonLink href={assign} size="sm">Assign whole topic</ButtonLink>
           </span>

@@ -5,14 +5,14 @@ import { Badge, EmptyState, PageHeader } from "@/components/ui/Panel";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { templateByKey } from "@/lib/games/templates";
-import { KIND_LABEL } from "@/lib/library/types";
+import { ACTIVE_KINDS, KIND_LABEL, displayKind } from "@/lib/library/types";
 import { mediaUrl } from "@/lib/media/save";
 
 export const metadata = { title: "My Assignments" };
 
 type Kind = keyof typeof KIND_LABEL;
-const KINDS = Object.keys(KIND_LABEL) as Kind[];
-const ICON: Record<Kind, string> = { VIDEO: "🎬", SONG: "🎵", GAME: "🎮", FLASHCARDS: "🃏", PRINTABLE: "🖨️", WORKSHEET: "📝" };
+const KINDS: readonly Kind[] = ACTIVE_KINDS;
+const ICON: Record<Kind, string> = { VIDEO: "🎬", SONG: "🎵", GAME: "🎮", FLASHCARDS: "🃏", PRINTABLE: "📝", WORKSHEET: "📝", LISTENING: "🎧" };
 
 function recipientLabel(r: { type: string; classroom: { name: string } | null; level: { name: string } | null; group: { name: string; level: { name: string } } | null; student: { firstName: string; lastInitial: string } | null }) {
   if (r.type === "CLASSROOM") return r.classroom?.name ?? "Class";
@@ -45,7 +45,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams: 
       ? [a.game.templateKey === "FLASHCARDS" ? "FLASHCARDS" : "GAME"]
       : a.video || a.collectionId
         ? ["VIDEO"]
-        : [...new Set(a.activities.map((x) => (x.game ? (x.game.templateKey === "FLASHCARDS" ? "FLASHCARDS" : "GAME") : x.resource?.kind) as Kind))].filter((k) => k in KIND_LABEL);
+        : [...new Set(a.activities.map((x) => (x.game ? (x.game.templateKey === "FLASHCARDS" ? "FLASHCARDS" : "GAME") : x.resource?.kind && displayKind(x.resource.kind)) as Kind))].filter((k) => k in KIND_LABEL);
     const thumb = a.game?.items[0]?.imageAssetId ? mediaUrl(a.game.items[0].imageAssetId) : a.video?.youtubeId ? `https://i.ytimg.com/vi/${a.video.youtubeId}/mqdefault.jpg` : null;
     const detail = a.game
       ? `${templateByKey(a.game.templateKey)?.name ?? "Game"} · ${a.game._count.items} ${a.game.templateKey === "FLASHCARDS" ? "cards" : "items"}`

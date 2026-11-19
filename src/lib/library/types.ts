@@ -11,15 +11,25 @@ export const GRADE_LABEL: Record<Grade, { label: string; short: string; grades: 
   UPPER: { label: "Upper Elementary", short: "Upper", grades: "Grades 3–6 · ages 8–12" },
 };
 
-export const KINDS = ["VIDEO", "SONG", "GAME", "FLASHCARDS", "PRINTABLE", "WORKSHEET"] as const;
+export const KINDS = ["VIDEO", "SONG", "GAME", "FLASHCARDS", "PRINTABLE", "WORKSHEET", "LISTENING"] as const;
 export type Kind = (typeof KINDS)[number];
+/**
+ * Types offered when creating or filtering content. Printables were merged into Worksheet (same
+ * content); PRINTABLE stays readable for old data but is shown, filtered and created as Worksheet.
+ */
+export const ACTIVE_KINDS = ["VIDEO", "SONG", "GAME", "FLASHCARDS", "WORKSHEET", "LISTENING"] as const satisfies readonly Kind[];
+/** The category a kind is shown under (Printable → Worksheet). */
+export const displayKind = <K extends string>(k: K): K | "WORKSHEET" => (k === "PRINTABLE" ? "WORKSHEET" : k);
+/** Kinds stored under one shown category (Worksheet also finds old Printables). */
+export const storedKinds = (k: Kind): Kind[] => (k === "WORKSHEET" || k === "PRINTABLE" ? ["WORKSHEET", "PRINTABLE"] : [k]);
 export const KIND_LABEL: Record<Kind, { label: string; plural: string; verb: string; color: string; icon: string }> = {
   VIDEO: { label: "Video", plural: "Videos", verb: "Watch", color: "#4CB8F5", icon: "video" },
   SONG: { label: "Song", plural: "Songs", verb: "Listen", color: "#B57BFF", icon: "songs" },
   GAME: { label: "Game", plural: "Games", verb: "Play", color: "#F2559A", icon: "games" },
   FLASHCARDS: { label: "Flashcards", plural: "Flashcards", verb: "Open", color: "#3DD6A3", icon: "flashcards" },
-  PRINTABLE: { label: "Printable", plural: "Printables", verb: "Print", color: "#FFC93C", icon: "printables" },
+  PRINTABLE: { label: "Worksheet", plural: "Worksheets", verb: "Open", color: "#FF9F5A", icon: "book" },
   WORKSHEET: { label: "Worksheet", plural: "Worksheets", verb: "Open", color: "#FF9F5A", icon: "book" },
+  LISTENING: { label: "Listening", plural: "Listening", verb: "Listen", color: "#7C6CF2", icon: "songs" },
 };
 
 export const GAME_TYPES = ["MEMORY", "MATCH", "LISTEN", "QUIZ"] as const;
@@ -84,6 +94,8 @@ export const contentSchemas = {
     sheet: z.object({ style: z.enum(["dictionary", "write", "connect"]), heading: text(160), words: z.array(pair).max(16) }).nullish(),
     link: linkRef.nullish(),
   }),
+  // An audio recording to listen to (uploaded file or link), with an optional transcript.
+  LISTENING: z.object({ file: fileRef.nullish(), transcript: text(4000), link: linkRef.nullish() }),
 } satisfies Record<Kind, z.ZodTypeAny>;
 
 export type ContentFor<K extends Kind> = z.infer<(typeof contentSchemas)[K]>;
@@ -153,6 +165,10 @@ export function publishProblem(kind: Kind, content: AnyContent): string | null {
       const c = content as ContentFor<"PRINTABLE">;
       return c.file || (c.sheet && c.sheet.words.length) ? null : "Upload a PDF or image, or build a sheet from words.";
     }
+    case "LISTENING": {
+      const c = content as ContentFor<"LISTENING">;
+      return c.file ? null : "Upload an audio file or paste a link.";
+    }
   }
 }
 
@@ -218,6 +234,7 @@ export const UPLOAD_FOR: Partial<Record<Kind, { accept: string; label: string; t
   VIDEO: { accept: "video/mp4,video/webm", label: "Video file (MP4 or WebM)", test: (m) => m.startsWith("video/") },
   SONG: { accept: "audio/mpeg,audio/mp4,audio/wav,audio/ogg,.mp3,.m4a,.wav,.ogg", label: "Song (MP3, M4A, WAV or OGG)", test: (m) => m.startsWith("audio/") },
   PRINTABLE: { accept: "application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,image/gif", label: "Document (PDF, DOCX or image)", test: (m) => m === "application/pdf" || m === DOCX_MIME || m.startsWith("image/") },
+  LISTENING: { accept: "audio/mpeg,audio/mp4,audio/wav,audio/ogg,.mp3,.m4a,.wav,.ogg", label: "Audio (MP3, M4A, WAV or OGG)", test: (m) => m.startsWith("audio/") },
   WORKSHEET: { accept: "application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,image/gif", label: "Document (PDF, DOCX or image)", test: (m) => m === "application/pdf" || m === DOCX_MIME || m.startsWith("image/") },
 };
 

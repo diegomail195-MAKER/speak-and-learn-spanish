@@ -249,6 +249,17 @@ export function ContentEditor({ resourceId, kind, initial }: { resourceId: strin
         <Button type="button" variant="secondary" size="sm" onClick={() => ops.add({ es: "", en: "" })}>+ Add line</Button>
       </div>
     );
+  } else if (kind === "LISTENING") {
+    const l = c as ContentFor<"LISTENING">;
+    body = (
+      <div className="space-y-4">
+        <FilePicker label="Audio (MP3, M4A, WAV or OGG)" accept="audio/*" test={(m) => m.startsWith("audio/")} value={l.file} onChange={(file) => set({ file } as Partial<AnyContent>)} testId="listening-upload" />
+        <div>
+          <Label htmlFor="transcript" hint="optional">Transcript shown under the audio</Label>
+          <textarea id="transcript" rows={5} className={inputClass} value={l.transcript} maxLength={4000} onChange={(e) => set({ transcript: e.target.value } as Partial<AnyContent>)} />
+        </div>
+      </div>
+    );
   } else {
     const p = c as ContentFor<"PRINTABLE">;
     body = (

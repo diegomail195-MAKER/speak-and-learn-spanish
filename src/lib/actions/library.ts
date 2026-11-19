@@ -8,7 +8,7 @@ import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { assertFilesReady } from "@/lib/library/service";
-import { GAME_TYPES, GRADES, KINDS, UPLOAD_FOR, emptyContent, parseContent, publicUrl, publishProblem, youtubeIdFrom, type AnyContent, type Kind } from "@/lib/library/types";
+import { GAME_TYPES, GRADES, KINDS, UPLOAD_FOR, displayKind, emptyContent, parseContent, publicUrl, publishProblem, youtubeIdFrom, type AnyContent, type Kind } from "@/lib/library/types";
 
 // Administrator-only operations on the content library. Every action starts with requireAdmin(),
 // so a teacher or student calling them directly gets 403.
@@ -49,7 +49,7 @@ export async function createResource(_: LibState, form: FormData): Promise<LibSt
   const { user } = await requireAdmin();
   const m = meta.safeParse(Object.fromEntries(form));
   if (!m.success) return { error: m.error.issues[0].message };
-  const kind = z.enum(KINDS).safeParse(form.get("kind"));
+  const kind = z.enum(KINDS).transform((k): Kind => displayKind(k)).safeParse(form.get("kind")); // Printable → Worksheet
   if (!kind.success) return { error: "Choose the type of content." };
   const grades = readGrades(form);
   if (!grades.length) return { error: "Choose at least one grade." };
@@ -191,7 +191,7 @@ export async function addLibraryContent(_: LibState, form: FormData): Promise<Li
   const { user } = await requireAdmin();
   const title = z.string().trim().min(2, "Write a title.").max(120).safeParse(form.get("title"));
   if (!title.success) return { error: title.error.issues[0].message };
-  const kind = z.enum(KINDS).safeParse(form.get("kind"));
+  const kind = z.enum(KINDS).transform((k): Kind => displayKind(k)).safeParse(form.get("kind")); // Printable → Worksheet
   if (!kind.success) return { error: "Choose the type of content." };
   const method = z.enum(["link", "upload", "build"]).safeParse(form.get("method"));
   if (!method.success) return { error: "Choose how to add it: Add Link, Upload File or the editor." };

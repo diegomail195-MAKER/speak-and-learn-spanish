@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type Reac
 import { Art } from "@/components/ui/Art";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { recordActivityProgress } from "@/lib/actions/tasks";
+import { KIND_ICON_3D } from "@/lib/library/kindIcons";
 import { HERO_CATEGORIES, type HeroCategoryKey, type HeroData, type HeroItem, type HeroVideo } from "@/lib/library/topicHero";
 
 // The Topic page: a featured video framed in purple on a mango background, a carousel of the
@@ -294,11 +295,11 @@ function CategoryPanel({ data, category, videoIndex, onPlayVideo, selectedVideo 
       )}
       {data.more.length > 0 && (
         <div className="mt-6">
-          <h2 className="mb-2 font-display text-lg font-extrabold" style={{ color: PURPLE }}>Printables &amp; worksheets</h2>
+          <h2 className="mb-2 font-display text-lg font-extrabold" style={{ color: PURPLE }}>Worksheets &amp; listening</h2>
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {data.more.map((it) => (
               <li key={it.id}>
-                <ItemCard item={it} />
+                <ItemCard item={it} icon={KIND_ICON_3D[it.kind]} />
               </li>
             ))}
           </ul>

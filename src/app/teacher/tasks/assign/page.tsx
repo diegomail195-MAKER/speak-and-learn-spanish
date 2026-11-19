@@ -4,9 +4,12 @@ import { PageHeader } from "@/components/ui/Panel";
 import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { libraryTopics } from "@/lib/library/service";
-import { teacherTopicSteps } from "@/lib/library/steps";
+import { teacherTopicSteps, type TopicStep } from "@/lib/library/steps";
 
 export const metadata = { title: "Assign Task" };
+
+type TopicResources = Array<{ id: string; kind: string; title: string; grades: string[]; href: string }>;
+const resourceOf = (s: TopicStep): TopicResources[number] => ({ id: s.key, kind: s.kind, title: s.title, grades: s.grades ?? ["LOWER", "UPPER"], href: s.resourceId ? `/teacher/library/resources/${s.resourceId}` : `/play/preview/${s.gameId}` });
 
 export default async function AssignTaskPage({ searchParams }: { searchParams: Promise<{ classroomId?: string; topicId?: string; grade?: string; only?: string }> }) {
   const { user, teacher } = await requireTeacherPage();
@@ -34,10 +37,18 @@ export default async function AssignTaskPage({ searchParams }: { searchParams: P
       const { steps } = await teacherTopicSteps({ id: teacher.id, schoolId: user.schoolId }, t.id);
       return {
         id: t.id, slug: t.slug, titleEn: t.titleEn, titleEs: t.titleEs, category: t.category, color: t.color, art: t.art,
-        resources: steps.map((s) => ({ id: s.key, kind: s.kind, title: s.title, grades: s.grades ?? ["LOWER", "UPPER"], href: s.resourceId ? `/teacher/library/resources/${s.resourceId}` : `/play/preview/${s.gameId}` })),
+        resources: steps.map(resourceOf),
       };
     }),
   );
+  // Setups the teacher confirmed for one class (Topic setup): assigning that topic to that class
+  // starts from them instead of the default order.
+  const classPlans = await db.topicPlan.findMany({ where: { teacherId: teacher.id, classroomId: { in: classes.map((c) => c.id) }, topicId: { in: topics.map((t) => t.id) } }, select: { topicId: true, classroomId: true } });
+  const classTopics: Record<string, Record<string, TopicResources>> = {};
+  for (const p of classPlans) {
+    const { steps } = await teacherTopicSteps({ id: teacher.id, schoolId: user.schoolId }, p.topicId, null, p.classroomId);
+    (classTopics[p.classroomId] ??= {})[p.topicId] = steps.map(resourceOf);
+  }
   const initialClass = data.find((c) => c.id === sp.classroomId)?.id ?? data[0]?.id ?? "";
   return (
     <>
@@ -51,7 +62,7 @@ export default async function AssignTaskPage({ searchParams }: { searchParams: P
       {data.length === 0 ? (
         <p className="rounded-[22px] border-2 border-dashed border-line p-8 text-center font-bold text-ink-2">Create a class and add students first.</p>
       ) : (
-        <AssignTaskWizard classes={data} topics={topicData} initialClassId={initialClass} initialTopicId={sp.topicId} initialGrade={sp.grade === "LOWER" || sp.grade === "UPPER" ? sp.grade : undefined} initialOnly={sp.only} />
+        <AssignTaskWizard classes={data} topics={topicData} classTopics={classTopics} initialClassId={initialClass} initialTopicId={sp.topicId} initialGrade={sp.grade === "LOWER" || sp.grade === "UPPER" ? sp.grade : undefined} initialOnly={sp.only} />
       )}
     </>
   );

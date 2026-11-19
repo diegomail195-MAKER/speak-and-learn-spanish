@@ -301,17 +301,30 @@ body {
 }
 
 /* ---------- Library: topic rows (horizontal list) ---------- */
+/* Teachers' Library and the students' tasks. The whole row opens the topic; hover and keyboard
+   focus only change colors and shadow, so nothing moves. */
 .topic-list { display: flex; flex-direction: column; gap: 16px; }
 .topic-row {
-  box-sizing: border-box; display: flex; align-items: center; gap: 20px; padding: 16px 20px;
-  background: #fff; border: 1px solid #E2E6EC; border-radius: 12px; min-width: 0;
+  position: relative; box-sizing: border-box; display: flex; align-items: center; gap: 20px; padding: 16px 20px;
+  background: #fff; border: 1px solid #E2E6EC; border-radius: 12px; min-width: 0; color: inherit;
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
+.topic-row:hover, .topic-row:has(.topic-row-link:focus-visible), a.topic-row:focus-visible {
+  background: #F8F5FF; border-color: #8B5CD6; box-shadow: 0 0 0 1px #8B5CD6, 0 10px 24px -14px rgb(98 13 120 / 0.35);
+}
+.topic-row:has(.topic-row-link:focus-visible), a.topic-row:focus-visible { outline: 3px solid #FF5148; outline-offset: 3px; }
+.topic-row-link { outline: none; }
+/* The title link covers the whole row (thumbnail included); the tools and accesses sit above it. */
+.topic-row-link::after { content: ""; position: absolute; inset: 0; border-radius: 12px; }
+.topic-row-tools, .topic-accesses-interactive { position: relative; z-index: 1; }
+.topic-row:has([aria-expanded="true"]) { z-index: 5; }
 .topic-thumb {
   flex: none; display: grid; place-items: center; width: 96px; height: 96px; border-radius: 12px; overflow: hidden;
 }
 .topic-title { font-family: var(--font-display); font-size: 20px; line-height: 1.2; font-weight: 800; color: #1F1A2E; min-width: 0; overflow-wrap: anywhere; }
 .topic-title-en { margin-left: 8px; font-size: 14px; font-weight: 700; color: #6B7385; }
 .topic-desc { margin-top: 4px; font-size: 15px; line-height: 1.45; color: #3B4252; overflow-wrap: anywhere; }
+.topic-progress { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 9999px; background: #F1EAFB; color: #4B1F7A; font-size: 13px; font-weight: 800; white-space: nowrap; }
 .topic-row-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .topic-tool {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 12px;
@@ -324,10 +337,13 @@ body {
 .topic-access {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   min-width: 72px; min-height: 64px; padding: 6px 8px; border-radius: 10px; color: #1F2433;
-  transition: background-color 150ms ease, transform 150ms ease;
+  transition: background-color 150ms ease;
 }
-.topic-access:hover { background: #F4F1F8; transform: translateY(-1px); }
-.topic-access[aria-expanded="true"] { background: #F1E6F6; }
+button.topic-access, a.topic-access { cursor: pointer; }
+button.topic-access:hover, a.topic-access:hover { background: #EDE5FA; }
+.topic-access[aria-expanded="true"] { background: #E6DAF7; }
+/* Students: what the topic contains (not buttons). */
+.topic-indicator { cursor: inherit; }
 .topic-access-img { display: block; width: 32px; height: 32px; object-fit: contain; }
 .topic-access-label { font-size: 13px; font-weight: 600; line-height: 1.1; white-space: nowrap; }
 .topic-access-count {
@@ -351,4 +367,4 @@ body {
   .topic-access { min-width: 56px; padding: 4px 2px; }
   .topic-access-label { font-size: 12px; }
 }
-@media (prefers-reduced-motion: reduce) { .topic-access, .topic-access:hover { transition: none; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .topic-row, .topic-access { transition: none; } }
