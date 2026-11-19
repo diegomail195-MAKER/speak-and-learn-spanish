@@ -227,16 +227,44 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phaseKey, voice.ready]);
 
+  // Student: a finished step is saved before Next unlocks (the server only opens the next step
+  // once this one is recorded). Up to 3 tries, then "Retry".
+  const [saveState, setSaveState] = useState<Record<number, "saving" | "error">>({});
+  const save = useCallback(
+    async (i: number, score: number, max: number) => {
+      const step = steps[i];
+      setSaveState((s) => ({ ...s, [i]: "saving" }));
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await recordActivityProgress({ assignmentId: assignmentId!, activityId: step.id, score: Math.min(score, 1000), total: Math.min(max, 1000) });
+          setSaveState(({ [i]: _, ...rest }) => rest);
+          return;
+        } catch {
+          await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+        }
+      }
+      sent.current.delete(step.id);
+      setSaveState((s) => ({ ...s, [i]: "error" }));
+    },
+    [assignmentId, steps],
+  );
+  const lastScore = useRef<Record<number, [number, number]>>({});
   const complete = useCallback(
     (i: number, score = 1, max = 1, practice = false) => {
       setCompleted((c) => (c.has(i) ? c : new Set(c).add(i)));
       const step = steps[i];
       if (mode !== "student" || practice || !assignmentId || sent.current.has(step.id) || step.done) return;
       sent.current.add(step.id);
-      void recordActivityProgress({ assignmentId, activityId: step.id, score: Math.min(score, 1000), total: Math.min(max, 1000) }).catch(() => sent.current.delete(step.id));
+      lastScore.current[i] = [score, max];
+      void save(i, score, max);
     },
-    [assignmentId, mode, steps],
+    [assignmentId, mode, steps, save],
   );
+  const retrySave = (i: number) => {
+    const [score, max] = lastScore.current[i] ?? [1, 1];
+    sent.current.add(steps[i].id);
+    void save(i, score, max);
+  };
 
   const start = (i: number, practice = false) => {
     voice.stop(); // the voice never plays over the video or the microphone
@@ -329,7 +357,8 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
   if (phase.t === "play") {
     const { i, practice } = phase;
     const s = steps[i];
-    const ready = practice || completed.has(i);
+    const saving = !practice && saveState[i];
+    const ready = practice || (completed.has(i) && !saving);
     const onDone = (score: number, max: number) => complete(i, score, max, practice);
     let player;
     if (s.game) {
@@ -357,7 +386,14 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
             </button>
           ) : (
             <>
-              {!ready && <span className="px-3 text-sm font-bold text-ink-2" data-testid="lesson-next-hint">Termina la actividad para seguir · Finish the activity to continue</span>}
+              {saving === "saving" && <span role="status" className="px-3 text-sm font-bold text-ink-2" data-testid="lesson-saving">Guardando… · Saving…</span>}
+              {saving === "error" && (
+                <span role="alert" className="flex items-center gap-2 px-3 text-sm font-bold text-[#B42318]" data-testid="lesson-save-error">
+                  No se pudo guardar · Couldn&apos;t save
+                  <button type="button" onClick={() => retrySave(i)} className="inline-flex h-11 items-center rounded-full px-4 font-bold text-white" style={{ background: PURPLE }} data-testid="lesson-save-retry">Reintentar · Retry</button>
+                </span>
+              )}
+              {!ready && !saving && <span className="px-3 text-sm font-bold text-ink-2" data-testid="lesson-next-hint">Termina la actividad para seguir · Finish the activity to continue</span>}
               <button type="button" onClick={() => next(i)} disabled={!ready} data-testid="lesson-next" className="inline-flex h-12 items-center rounded-full px-6 font-extrabold text-white transition disabled:cursor-not-allowed disabled:opacity-40" style={{ background: ready ? "#FF5148" : PURPLE }}>
                 {i + 1 < total ? "Siguiente actividad · Next Activity →" : "Terminar · Finish →"}
               </button>

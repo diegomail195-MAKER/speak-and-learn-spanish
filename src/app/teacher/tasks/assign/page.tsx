@@ -46,10 +46,8 @@ export default async function AssignTaskPage({ searchParams }: { searchParams: P
   // starts from them instead of the default order.
   const classPlans = await db.topicPlan.findMany({ where: { teacherId: teacher.id, classroomId: { in: classes.map((c) => c.id) }, topicId: { in: topics.map((t) => t.id) } }, select: { topicId: true, classroomId: true } });
   const classTopics: Record<string, Record<string, TopicResources>> = {};
-  for (const p of classPlans) {
-    const { steps } = await teacherTopicSteps({ id: teacher.id, schoolId: user.schoolId }, p.topicId, null, p.classroomId);
-    (classTopics[p.classroomId] ??= {})[p.topicId] = steps.map(resourceOf);
-  }
+  const classSteps = await Promise.all(classPlans.map((p) => teacherTopicSteps({ id: teacher.id, schoolId: user.schoolId }, p.topicId, null, p.classroomId)));
+  classPlans.forEach((p, i) => ((classTopics[p.classroomId] ??= {})[p.topicId] = classSteps[i].steps.map(resourceOf)));
   const initialClass = data.find((c) => c.id === sp.classroomId)?.id ?? data[0]?.id ?? "";
   return (
     <>
