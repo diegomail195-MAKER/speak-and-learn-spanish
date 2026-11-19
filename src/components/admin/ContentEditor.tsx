@@ -265,7 +265,7 @@ export function ContentEditor({ resourceId, kind, initial }: { resourceId: strin
             <div className="grid min-w-56 flex-1 gap-2">
               <Input aria-label={`Phrase to say ${i + 1}`} placeholder="Phrase to say · Spanish (Me llamo Ana)" value={pr.say} maxLength={160} onChange={(e) => ops.update(i, { say: e.target.value })} />
               <Input aria-label={`Meaning ${i + 1}`} placeholder="Meaning · English (My name is Ana)" value={pr.meaning} maxLength={160} onChange={(e) => ops.update(i, { meaning: e.target.value })} />
-              <Input aria-label={`Other accepted answers ${i + 1}`} placeholder="Other accepted answers, separated by ; (optional)" defaultValue={pr.accepted.join("; ")} maxLength={600}
+              <Input aria-label={`Other accepted answers ${i + 1}`} placeholder="Also accepted (a; b)" defaultValue={pr.accepted.join("; ")} maxLength={600}
                 onBlur={(e) => ops.update(i, { accepted: e.target.value.split(";").map((x) => x.trim()).filter(Boolean).slice(0, 8) })} />
             </div>
             <div className="w-72"><ImagePicker value={pr.image} onChange={(image) => ops.update(i, { image })} label={`Prompt ${i + 1} picture`} /></div>

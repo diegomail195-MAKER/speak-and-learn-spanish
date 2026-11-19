@@ -10,6 +10,8 @@ export function SettingsForm({ settings }: { settings: PlatformSettingsData }) {
   const [state, action, pending] = useActionState(updateSettings, undefined);
   return (
     <form action={action} className="grid gap-5" data-testid="settings-form">
+      {/* Remounted after each save, so the fields show the saved values (forms reset after an action). */}
+      <div key={settings.updatedAt?.toISOString() ?? "new"} className="grid gap-5">
       <label className="flex min-h-11 cursor-pointer items-start gap-3">
         <input type="checkbox" name="signupOpen" defaultChecked={settings.signupOpen} className="mt-1 h-5 w-5 accent-[#2563EB]" data-testid="setting-signup" />
         <span>
@@ -35,6 +37,7 @@ export function SettingsForm({ settings }: { settings: PlatformSettingsData }) {
           <input id="supportEmail" name="supportEmail" type="email" defaultValue={settings.supportEmail} maxLength={200} className="ws-input" placeholder="help@yourschool.org" data-testid="setting-support" />
           <p className="mt-1 text-sm text-[#5B6577]">Teachers see it in My Account under “Need help?”.</p>
         </div>
+      </div>
       </div>
       <FormError message={state?.error} />
       {state?.message && <p role="status" className="font-bold text-[#146C2E]">{state.message}</p>}

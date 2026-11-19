@@ -312,6 +312,155 @@ try {
   await b.goto(`${BASE}/teacher/classes/${ue1.c.id}`);
   assert((await b.getByTestId("class-teachers").textContent()).includes("Diego Admin"), "owner sees the co-teacher");
 
+  // ── Speaking resource: admin creates and publishes it ──
+  a.on("dialog", (d) => d.accept());
+  const spTitle = `Presentarse ${stamp % 100000}`;
+  await a.goto(`${BASE}/admin/content/new`);
+  await a.fill("#title", spTitle);
+  await a.check("input[name=kind][value=SPEAKING]");
+  await a.click("form button:text-is('Save')");
+  await a.waitForFunction(() => /\/admin\/content\/[^/]+$/.test(location.pathname) && !location.pathname.endsWith("/new"), null, { timeout: 30000 });
+  const spId = new URL(a.url()).pathname.split("/").at(-1);
+  for (const [i, [say, meaning]] of [["Me llamo Ana", "My name is Ana"], ["Tengo siete años", "I am seven"]].entries()) {
+    await a.click("button:text-is('+ Add phrase')");
+    await a.fill(`input[aria-label='Phrase to say ${i + 1}']`, say);
+    await a.fill(`input[aria-label='Meaning ${i + 1}']`, meaning);
+  }
+  assert((await a.getByTestId("speaking-row").count()) === 2, "speaking editor: 2 phrases");
+  await a.click("button:text-is('Save draft')");
+  await a.waitForSelector("text=Unsaved changes", { state: "detached" });
+  await a.click("button:text-is('Publish')");
+  let sp = null;
+  for (let i = 0; i < 40 && !(sp?.status === "PUBLISHED"); i++) { await a.waitForTimeout(250); sp = await db.libraryResource.findUnique({ where: { id: spId } }); }
+  assert(sp?.status === "PUBLISHED" && sp.currentVersionId && sp.kind === "SPEAKING", `speaking resource published (${sp?.status})`);
+  await shot(a, "admin-speaking-editor");
+  await a.goto(`${BASE}/admin/library`);
+  assert(await a.locator("a[href='/admin/content?kind=SPEAKING']").count(), "Content Library: Speaking card lists Speaking resources");
+  // Teacher preview plays it (typed fallback; nothing recorded).
+  await a.goto(`${BASE}/teacher/library/resources/${spId}`);
+  await a.getByTestId("speaking-player").waitFor();
+  assert((await a.getByTestId("speaking-phrase").textContent()) === "Me llamo Ana", "teacher preview shows the first phrase");
+  log("speaking: admin created, edited and published a Speaking resource; the teacher preview plays it");
+
+  // ── Student does the Speaking step (no microphone: typed) → it goes to Review ──
+  const spTask = await db.assignment.create({
+    data: {
+      schoolId: school.id, teacherId: admin.teacher.id, topicId, title: `Speaking ${stamp % 100000}`,
+      recipients: { create: [{ type: "GROUP", groupId: group.id }] },
+      activities: { create: [{ resourceId: spId, versionId: sp.currentVersionId, position: 0 }] },
+    },
+  });
+  await s.goto(`${BASE}/learn/tasks/${spTask.id}`);
+  await s.getByTestId("lesson-start").click();
+  await s.getByTestId("speaking-player").waitFor();
+  for (const said of ["me yamo ana", "tengo siete"]) {
+    // Once a student types (no microphone), the next phrases open with the box ready.
+    if (!(await s.getByTestId("speaking-typed").count())) await s.click("button:has-text('Type it')");
+    await s.fill("[data-testid=speaking-typed]", said);
+    await s.click("[data-testid=speaking-player] button:text-is('Save')");
+    await s.getByTestId("speaking-next").click();
+  }
+  await s.getByTestId("speaking-done").waitFor();
+  let prog = null;
+  for (let i = 0; i < 40 && !prog; i++) { await s.waitForTimeout(250); prog = await db.activityProgress.findFirst({ where: { studentId: ana, activity: { assignmentId: spTask.id } } }); }
+  assert(prog && Array.isArray(prog.details) && prog.details.length === 2 && prog.details.every((d) => d.outcome === "UNCERTAIN"), `speaking answers saved for review (${JSON.stringify(prog?.details)})`);
+  log("student Ana did the Speaking step: 2 answers saved as unsure");
+
+  // ── Teacher reviews ──
+  await a.goto(`${BASE}/teacher`);
+  await a.getByTestId("stat-review").waitFor();
+  const toReview = Number(await a.getByTestId("stat-review").getByTestId("stat-value").textContent());
+  assert(toReview >= 1, `dashboard: To review = ${toReview}`);
+  await a.getByTestId("stat-review").click();
+  await a.waitForURL(`${BASE}/teacher/review`);
+  await shot(a, "teacher-review-queue");
+  await a.getByTestId("review-row").filter({ hasText: "Ana" }).filter({ hasText: spTitle }).click();
+  await a.waitForURL(/\/teacher\/review\/p/);
+  assert((await a.getByTestId("review-answer").count()) === 2, "review: 2 answers");
+  // Saving without deciding is refused.
+  await a.evaluate(() => document.querySelectorAll("[data-testid=review-form] input[required]").forEach((x) => x.removeAttribute("required")));
+  await a.getByTestId("review-save").click();
+  await a.waitForSelector("text=marked “Unsure” first");
+  await a.reload();
+  await a.getByTestId("review-form").waitFor();
+  await a.getByTestId("review-answer").nth(0).locator("input[value=CORRECT]").check();
+  await a.getByTestId("review-answer").nth(1).locator("input[value=INCORRECT]").check();
+  await a.fill("#note", "Muy bien. Practica «años».");
+  await shot(a, "teacher-review-work");
+  await a.getByTestId("review-save").click();
+  await a.waitForURL(`${BASE}/teacher/review`);
+  const reviewed = await db.activityProgress.findUnique({ where: { id: prog.id } });
+  assert(reviewed.reviewedAt && reviewed.score === 1 && reviewed.details[0].teacher === "CORRECT" && reviewed.details[1].teacher === "INCORRECT" && reviewed.reviewNote.includes("Practica"), "review saved: decisions, score 1/2 and note");
+  assert(!(await a.getByTestId("review-row").filter({ hasText: spTitle }).count()), "reviewed work leaves the queue");
+  await a.goto(`${BASE}/teacher/review?tab=reviewed`);
+  assert(await a.getByTestId("review-row").filter({ hasText: "Ana" }).count(), "it is listed under Reviewed");
+  // Another school's teacher can't open it.
+  const { ctx: cctx2, p: c2 } = await signedIn(teacherC.email);
+  const rres = await c2.goto(`${BASE}/teacher/review/p:${prog.id}`);
+  assert(rres.status() === 404, `other school teacher gets 404 on the review (${rres.status()})`);
+  assert(!(await c2.goto(`${BASE}/teacher/review`), await c2.getByTestId("review-row").count()), "other school's teacher has an empty queue");
+  await cctx2.close();
+  log("review: KPI → queue → decide both answers + note → reviewed (score 1/2); other school gets 404");
+
+  // ── Settings ──
+  const notice = `Nuevas actividades de Speaking ${stamp % 1000}`;
+  await a.goto(`${BASE}/admin/settings`);
+  await a.getByTestId("settings-form").waitFor();
+  await a.uncheck("[data-testid=setting-signup]");
+  await a.fill("[data-testid=setting-announcement]", notice);
+  await a.selectOption("[data-testid=setting-language]", "en");
+  await a.fill("[data-testid=setting-support]", "help@lextro.test");
+  await a.getByTestId("settings-save").click();
+  await a.waitForSelector("text=Settings saved.");
+  assert((await a.inputValue("[data-testid=setting-language]")) === "en" && !(await a.isChecked("[data-testid=setting-signup]")), "the form shows the saved values");
+  await shot(a, "admin-settings");
+  await a.goto(`${BASE}/teacher`);
+  assert((await a.getByTestId("platform-notice").textContent()).includes(notice), "the notice shows in Teacher View");
+  await a.goto(`${BASE}/teacher/account`);
+  assert((await a.getByTestId("support-card").textContent()).includes("help@lextro.test"), "My Account shows the support email");
+  await a.goto(`${BASE}/admin/topics/new`);
+  assert((await a.inputValue("#language")) === "en", "new topics preselect the default language");
+  const anon = await browser.newContext();
+  const ap = await anon.newPage();
+  await ap.goto(`${BASE}/signup`);
+  assert(await ap.getByTestId("signup-closed").count(), "sign-up page is closed");
+  await a.goto(`${BASE}/admin/settings`);
+  await a.check("[data-testid=setting-signup]");
+  await a.fill("[data-testid=setting-announcement]", "");
+  await a.selectOption("[data-testid=setting-language]", "es");
+  await a.fill("[data-testid=setting-support]", "");
+  await a.getByTestId("settings-save").click();
+  await a.waitForSelector("text=Settings saved.");
+  await ap.goto(`${BASE}/signup`);
+  assert(!(await ap.getByTestId("signup-closed").count()) && (await ap.locator("form").count()), "sign-up open again");
+  await anon.close();
+  assert(await db.auditLog.count({ where: { action: "settings.update", actorId: admin.user.id } }) >= 2, "settings changes are in the Activity Log");
+  log("settings: sign-up switch, notice, default language and support email work (and were restored)");
+
+  // ── Move a teacher between schools; merge a school ──
+  const dora = await teacherUser("Dora Mover", `dora-${stamp}@lextro.test`, "TEACHER", other.id);
+  const doraCls = await makeClass(dora, "Clase Dora", code("E"), ["Ines", "Jose"]);
+  await db.classroomTeacher.create({ data: { classroomId: doraCls.c.id, teacherId: teacherC.teacher.id } });
+  await a.goto(`${BASE}/admin/users?q=${encodeURIComponent(dora.email)}`);
+  await a.getByTestId("move-user").click();
+  await a.selectOption("[data-testid=move-school-select]", school.id);
+  await a.getByTestId("move-user-submit").click();
+  await a.waitForSelector("text=moved to");
+  const doraNow = await db.user.findUnique({ where: { id: dora.user.id } });
+  const clsNow = await db.classroom.findUnique({ where: { id: doraCls.c.id }, include: { students: { include: { user: true } }, coTeachers: true } });
+  assert(doraNow.schoolId === school.id && clsNow.schoolId === school.id && clsNow.students.every((x) => x.schoolId === school.id && x.user.schoolId === school.id) && clsNow.coTeachers.length === 0, "move: teacher, class and students moved; cross-school co-teacher removed");
+  const solo = await db.school.create({ data: { name: `Solo ${stamp % 100000}` } });
+  const eli = await teacherUser("Eli Solo", `eli-${stamp}@lextro.test`, "TEACHER", solo.id);
+  const eliCls = await makeClass(eli, "Clase Eli", code("F"), ["Kiko"]);
+  await a.goto(`${BASE}/admin/users?tab=schools&q=${encodeURIComponent(solo.name)}`);
+  await a.getByTestId("merge-school").click();
+  await a.selectOption("[data-testid=merge-into-select]", other.id);
+  await a.getByTestId("merge-school-submit").click();
+  await a.getByTestId("users-done").waitFor();
+  assert(!(await db.school.findUnique({ where: { id: solo.id } })), "merge: the old school is deleted");
+  assert((await db.user.findUnique({ where: { id: eli.user.id } })).schoolId === other.id && (await db.classroom.findUnique({ where: { id: eliCls.c.id } })).schoolId === other.id, "merge: teacher and class are in the other school");
+  log("users: a teacher moved with their class; a school merged into another");
+
   // ── Phones ──
   for (const [ctx, url, name] of [
     [actx, `${BASE}/admin`, "admin-overview-mobile"],
@@ -321,7 +470,7 @@ try {
     const mctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, storageState: st });
     const m = watch(await mctx.newPage());
     // Every workspace page, once its streamed content is in (on a phone innerWidth grows with the content, so compare with 390).
-    for (const path of (url.endsWith("/admin") ? ["/admin", "/admin/topics", "/admin/users", "/admin/users?tab=schools", "/admin/activity", "/admin/content"] : ["/teacher", "/teacher/classes", "/teacher/assignments", "/teacher/progress", "/teacher/account"])) {
+    for (const path of (url.endsWith("/admin") ? ["/admin", "/admin/topics", "/admin/users", "/admin/users?tab=schools", "/admin/activity", "/admin/content"] : ["/teacher", "/teacher/classes", "/teacher/assignments", "/teacher/progress", "/teacher/review", "/teacher/account"])) {
       await m.goto(BASE + path);
       await m.getByTestId("loading-state").waitFor({ state: "detached" }).catch(() => {});
       await m.waitForLoadState("networkidle");

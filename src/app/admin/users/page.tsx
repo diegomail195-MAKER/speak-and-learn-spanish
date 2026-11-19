@@ -16,13 +16,14 @@ const ROLE_LABEL: Record<string, string> = { ADMIN: "Administrator", TEACHER: "T
 
 // Platform Admin › Users & Schools. Students are managed by their teachers (classes); here they are
 // listed for support. Administrator access goes through the project's grant process.
-export default async function UsersAndSchools({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; role?: string; school?: string; page?: string }> }) {
+export default async function UsersAndSchools({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; role?: string; school?: string; page?: string; merged?: string }> }) {
   const { user: me } = await requireAdminPage();
   const sp = await searchParams;
   const tab = sp.tab === "schools" ? "schools" : "users";
   const page = Math.max(1, Number(sp.page) || 1);
   const role = ROLES.find((r) => r === sp.role);
   const q = sp.q?.trim();
+  const merged = sp.merged ? await db.school.findUnique({ where: { id: sp.merged }, select: { name: true } }) : null;
 
   const tabLink = (t: string, label: string) => (
     <Link href={t === "users" ? "/admin/users" : "/admin/users?tab=schools"} aria-current={tab === t ? "page" : undefined} className="inline-flex min-h-11 items-center rounded-full border border-[#E2E6EC] bg-white px-5 font-bold text-[#3D4759] aria-[current=page]:border-[#2563EB] aria-[current=page]:bg-[#E8EFFF] aria-[current=page]:text-[#1D4ED8]">
@@ -34,6 +35,7 @@ export default async function UsersAndSchools({ searchParams }: { searchParams: 
     <>
       <PageTitle title="Users & Schools" subtitle="Accounts, roles and schools. Every change is recorded in the Activity Log." />
       <nav aria-label="Sections" className="mb-5 flex gap-2">{tabLink("users", "Users")}{tabLink("schools", "Schools")}</nav>
+      {merged && <p role="status" className="mb-4 rounded-xl border border-[#ABEFC6] bg-[#ECFDF3] px-4 py-3 font-bold text-[#067647] [overflow-wrap:anywhere]" data-testid="users-done">The school was merged into {merged.name}: its accounts, classes, activities and assignments are there now.</p>}
       {tab === "users" ? <Users me={me.id} q={q} role={role} school={sp.school} page={page} /> : <Schools q={q} page={page} />}
     </>
   );

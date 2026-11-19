@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { grantAdmin } from "@/lib/admin-grant";
 import { audit } from "@/lib/audit";
@@ -176,5 +177,6 @@ export async function mergeSchool(_: AdminState, form: FormData): Promise<AdminS
   );
   await audit(into.id, user.id, "school.merge", "School", into.id, { from: from.name, into: into.name, ...counts });
   revalidatePath("/admin/users");
-  return { message: `${from.name} was merged into ${into.name} (${counts.users} accounts, ${counts.classes} classes).` };
+  // The merged school's row (and this form) disappears, so the result is shown on the page.
+  redirect(`/admin/users?tab=schools&merged=${into.id}`);
 }
