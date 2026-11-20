@@ -36,7 +36,7 @@ export default async function ActivityMaterials({ params }: { params: Promise<{ 
             <section key={resourceId} data-testid="material">
               <KindBadge kind={kind} />
               <h2 className="mb-4 mt-2 font-display text-2xl font-extrabold">{v.title}</h2>
-              <ResourcePlayer kind={kind} content={safeContent(kind, v.content) as AnyContent} title={v.title} focus continueHref={`/play/${a.id}`} />
+              <ResourcePlayer kind={kind} content={safeContent(kind, v.content) as AnyContent} title={v.title} focus lockSeek continueHref={`/play/${a.id}`} />
             </section>
           );
         })}

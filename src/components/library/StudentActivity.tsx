@@ -22,5 +22,5 @@ export function StudentActivity({ assignmentId, activityId, kind, content, title
     },
     [assignmentId, activityId],
   );
-  return <ResourcePlayer kind={kind} content={content} title={title} onDone={onDone} focus continueHref={saved ? continueHref : undefined} />;
+  return <ResourcePlayer kind={kind} content={content} title={title} onDone={onDone} focus lockSeek continueHref={saved ? continueHref : undefined} />;
 }

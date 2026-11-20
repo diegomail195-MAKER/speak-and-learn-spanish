@@ -58,7 +58,7 @@ function KindIcon({ kind, size = "h-24 w-24" }: { kind: string; size?: string })
 }
 
 /** Videos and music videos: the video's picture (YouTube thumbnail or a frame of the file) and its title, as on the Topic page. */
-function MediaThumb({ step, kindLabel }: { step: LessonStep; kindLabel: string }) {
+function MediaThumb({ step, kindLabel, onPlay }: { step: LessonStep; kindLabel: string; onPlay: () => void }) {
   const c = (step.content ?? {}) as { file?: { fileId?: string; mime?: string } | null; youtubeId?: string | null; link?: { url?: string } | null };
   const yt = c.youtubeId || (c.link?.url ? youtubeIdFrom(c.link.url) : null);
   const file = step.kind === "VIDEO" && c.file?.fileId ? libraryFileUrl(c.file.fileId) : null;
@@ -75,11 +75,12 @@ function MediaThumb({ step, kindLabel }: { step: LessonStep; kindLabel: string }
             <KindIcon kind={step.kind} size="h-28 w-28" />
           </span>
         )}
-        <span className="absolute inset-0 grid place-items-center" aria-hidden>
-          <span className="grid h-16 w-16 place-items-center rounded-full border-4 border-white text-white shadow-lg" style={{ background: PURPLE }}>
+        {/* The play circle is a real button: it starts the activity, like "Start" below. */}
+        <button type="button" onClick={onPlay} aria-label={`Play ${step.title}`} data-testid="lesson-thumb-play" className="group absolute inset-0 grid cursor-pointer select-none place-items-center caret-transparent focus-visible:outline-none">
+          <span className="grid h-16 w-16 place-items-center rounded-full border-4 border-white text-white shadow-lg transition-transform duration-150 group-hover:scale-110 group-active:scale-95 group-focus-visible:outline group-focus-visible:outline-4 group-focus-visible:outline-offset-4 group-focus-visible:outline-white motion-reduce:transition-none" style={{ background: PURPLE }} aria-hidden>
             <svg viewBox="0 0 24 24" className="ml-1 h-7 w-7 fill-current"><path d="M8 5v14l11-7z" /></svg>
           </span>
-        </span>
+        </button>
       </div>
       <figcaption className="px-4 pb-2 pt-3 text-center text-white">
         <h1 className="font-display text-2xl font-extrabold leading-tight sm:text-3xl" data-testid="lesson-step-title">{step.title}</h1>
@@ -329,7 +330,7 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
             Paso {phase.i + 1} de {total} · Step {phase.i + 1} of {total}
           </span>
           {s.kind === "VIDEO" || s.kind === "SONG" ? (
-            <MediaThumb step={s} kindLabel={label.es === label.en ? label.es : `${label.es} · ${label.en}`} />
+            <MediaThumb step={s} kindLabel={label.es === label.en ? label.es : `${label.es} · ${label.en}`} onPlay={() => start(phase.i)} />
           ) : (
             <>
               <KindIcon kind={s.kind} />
@@ -369,7 +370,7 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
           <GamePlayer key={`${i}-${run}`} game={s.game} mode="preview" previewNote={null} onFinish={() => complete(i, 1, 1, practice)} exitHref={lessonHref} />
         );
     } else if (s.content) {
-      player = <ResourcePlayer key={`${i}-${run}`} kind={s.kind as never} content={s.content} title={s.title} onDone={onDone} focus />;
+      player = <ResourcePlayer key={`${i}-${run}`} kind={s.kind as never} content={s.content} title={s.title} onDone={onDone} focus autoPlay lockSeek={mode === "student" && !practice} />;
     }
     return (
       <div data-testid="topic-lesson" data-phase="play" data-step={i}>

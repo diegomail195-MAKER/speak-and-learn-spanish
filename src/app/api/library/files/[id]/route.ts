@@ -3,6 +3,7 @@ import { HttpError, requireUser } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { canReadLibraryFile } from "@/lib/library/service";
 import { storage } from "@/lib/storage";
+import { isMediaOpenedAsPage } from "@/lib/media/noDownload";
 
 // Serves a library file after the access check (admin; teachers for published content;
 // students only for files in a task assigned to them). Byte ranges for audio/video seeking.
@@ -11,6 +12,7 @@ export const GET = handle(async (req: Request, ctx: { params: Promise<{ id: stri
   const { id } = await ctx.params;
   const file = await db.libraryFile.findUnique({ where: { id } });
   if (!file || !file.ready || !(await canReadLibraryFile(user, id))) throw new HttpError(404, "Not found");
+  if (isMediaOpenedAsPage(req, file.mimeType)) throw new HttpError(403, "This video or song can only be played inside LextroSpeak.");
   const store = storage();
   if (store.signedUrl) {
     const url = await store.signedUrl(file.storageKey, 3600);

@@ -3,6 +3,7 @@ import { HttpError, requireUser } from "@/lib/auth/guards";
 import { isCommunityImage } from "@/lib/community";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
+import { isMediaOpenedAsPage } from "@/lib/media/noDownload";
 
 // Streams (or, with remote storage, redirects to) a private media file to signed-in users of the same school
 // (plus Community card pictures for teachers), with byte ranges so
@@ -14,6 +15,7 @@ export const GET = handle(async (req: Request, ctx: { params: Promise<{ id: stri
   // Teachers and the admin also see the card pictures of Community activities from other schools.
   if (!asset && user.role !== "STUDENT" && (await isCommunityImage(id))) asset = await db.mediaAsset.findFirst({ where: { id, kind: "IMAGE" } });
   if (!asset) throw new HttpError(404, "Not found");
+  if (isMediaOpenedAsPage(req, asset.mimeType)) throw new HttpError(403, "This video or song can only be played inside LextroSpeak.");
   const store = storage();
   // ?direct=1 on a picture: send the bytes from this site instead of redirecting, so printables
   // can draw it into a PDF (a cross-site redirect would block reading the image).

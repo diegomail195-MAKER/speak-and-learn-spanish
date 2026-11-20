@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PlayVideo } from "@/lib/videos";
+import { protectedMediaProps, STUDENT_MAX_RATE, useNoSeekAhead, watchedToEnd } from "./protect";
 
 // Hosted videos use the native <video> element (play/pause, volume, fullscreen, captions and
 // keyboard support built in) plus our speed control and resume. YouTube videos use YouTube's
 // official IFrame API on the privacy-enhanced youtube-nocookie.com domain. YouTube ads and
 // restrictions are controlled by YouTube, not by this platform.
+// Every player hides the download option. With `lockSeek` (students) the video can go back but
+// never past the furthest point watched, so an activity can't be finished by skipping to the end.
 
 type YTPlayer = {
   getCurrentTime(): number;
@@ -14,6 +17,7 @@ type YTPlayer = {
   getPlayerState(): number;
   seekTo(s: number, allow: boolean): void;
   setPlaybackRate(r: number): void;
+  getPlaybackRate(): number;
   getAvailablePlaybackRates(): number[];
   destroy(): void;
 };
@@ -58,6 +62,7 @@ export function VideoPlayer({
   onEnded,
   bare = false,
   autoPlay = false,
+  lockSeek = false,
 }: {
   video: PlayVideo;
   startAt?: number;
@@ -65,6 +70,8 @@ export function VideoPlayer({
   bare?: boolean;
   /** Start playing at once: only after the person pressed Play on a cover. */
   autoPlay?: boolean;
+  /** Students: rewinding is allowed, skipping ahead past what they have watched is not. */
+  lockSeek?: boolean;
   /** Called every ~10 s while playing, on pause, on end and when leaving the page. */
   onProgress?: (p: ProgressReport, opts?: { beacon?: boolean }) => void;
   onEnded?: () => void;
@@ -80,6 +87,7 @@ export function VideoPlayer({
   const watched = useRef(0); // playback seconds not yet reported
   const lastT = useRef<number | null>(null);
   const lastReported = useRef<number | null>(null);
+  const furthest = useNoSeekAhead(videoRef, lockSeek && video.source === "HOSTED", startAt > 5 ? startAt : 0);
 
   const current = useCallback(() => (video.source === "HOSTED" ? videoRef.current?.currentTime ?? 0 : yt.current?.getCurrentTime() ?? 0), [video.source]);
   const duration = useCallback(() => {
@@ -135,7 +143,7 @@ export function VideoPlayer({
     const onEnd = () => {
       tick();
       report();
-      onEnded?.();
+      if (watchedToEnd(furthest.current, el.duration, lockSeek)) onEnded?.();
     };
     el.addEventListener("loadedmetadata", onMeta);
     el.addEventListener("play", onPlay);
@@ -149,7 +157,7 @@ export function VideoPlayer({
       el.removeEventListener("pause", onPause);
       el.removeEventListener("ended", onEnd);
     };
-  }, [video.source, startAt, report, onEnded, tick]);
+  }, [video.source, startAt, report, onEnded, tick, furthest, lockSeek]);
 
   // YouTube
   useEffect(() => {
@@ -168,12 +176,16 @@ export function VideoPlayer({
         // Documented parameters only (developers.google.com/youtube/player_parameters). rel=0 limits
         // end-of-video suggestions to the same channel; it does not remove them. The deprecated
         // modestbranding flag is not used: YouTube's logo and title links can still open YouTube.
-        playerVars: { rel: 0, playsinline: 1, autoplay: autoPlay ? 1 : 0, iv_load_policy: 3, start: startAt > 5 ? Math.floor(startAt) : 0, cc_lang_pref: "es", hl: "es" },
+        // Students (lockSeek): no keyboard shortcuts, so the arrow keys can't jump ahead.
+        playerVars: { rel: 0, playsinline: 1, autoplay: autoPlay ? 1 : 0, iv_load_policy: 3, start: startAt > 5 ? Math.floor(startAt) : 0, cc_lang_pref: "es", hl: "es", ...(lockSeek ? { disablekb: 1 } : {}) },
         events: {
           onReady: () => {
             clearTimeout(timeout);
             const d = yt.current?.getDuration();
             if (d) setDur(d);
+          },
+          onPlaybackRateChange: () => {
+            if (lockSeek && (yt.current?.getPlaybackRate() ?? 1) > STUDENT_MAX_RATE) yt.current?.setPlaybackRate(1);
           },
           onError: () => setYtError("This YouTube video can't be played here (it may be private, removed or not allowed to be embedded)."),
           onStateChange: (e: { data: number }) => {
@@ -187,7 +199,8 @@ export function VideoPlayer({
             if (e.data === S.ENDED) {
               tick();
               report();
-              onEnded?.();
+              if (watchedToEnd(ytFurthest.current, yt.current?.getDuration(), lockSeek)) onEnded?.();
+              else yt.current?.seekTo(ytFurthest.current, true); // jumped to the end: back to where they were
             }
           },
         },
@@ -201,6 +214,27 @@ export function VideoPlayer({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [video.source, video.youtubeId]);
+
+  // YouTube, students: its own progress bar can't be changed from outside, so the position is
+  // checked several times a second and a jump past the furthest point watched is undone.
+  const ytFurthest = useRef(startAt > 5 ? startAt : 0);
+  useEffect(() => {
+    if (video.source !== "YOUTUBE" || !lockSeek) return;
+    let last: number | null = null;
+    const i = setInterval(() => {
+      const p = yt.current;
+      if (!p?.getCurrentTime) return;
+      const t = p.getCurrentTime();
+      if (t > ytFurthest.current + 1.5) {
+        p.seekTo(ytFurthest.current, true);
+        last = ytFurthest.current;
+        return;
+      }
+      if (t > ytFurthest.current && last != null && t - last <= 1.5) ytFurthest.current = t;
+      last = t;
+    }, 250);
+    return () => clearInterval(i);
+  }, [video.source, lockSeek]);
 
   // Sample position every second; report every 10 s; final report when leaving.
   useEffect(() => {
@@ -236,7 +270,7 @@ export function VideoPlayer({
 
   if (bare) {
     return video.source === "HOSTED" ? (
-      <video ref={videoRef} data-testid="video-file" src={video.url ?? undefined} controls playsInline autoPlay={autoPlay} preload="metadata" poster={video.coverUrl ?? undefined} className="h-full w-full bg-black object-contain" crossOrigin="anonymous">
+      <video ref={videoRef} data-testid="video-file" src={video.url ?? undefined} controls {...protectedMediaProps(lockSeek)} playsInline autoPlay={autoPlay} preload="metadata" poster={video.coverUrl ?? undefined} className="h-full w-full cursor-pointer bg-black object-contain" crossOrigin="anonymous">
         {video.captionsUrl && <track kind="subtitles" src={video.captionsUrl} srcLang={video.captionsLanguage} label={video.captionsLanguage === "es" ? "Español" : video.captionsLanguage} default />}
       </video>
     ) : ytError ? (
@@ -246,11 +280,12 @@ export function VideoPlayer({
     );
   }
 
+  // caret-transparent + select-none: clicking the picture never shows a blinking text cursor.
   return (
-    <div>
+    <div className="select-none caret-transparent">
       <div className="overflow-hidden rounded-2xl bg-ink">
         {video.source === "HOSTED" ? (
-          <video ref={videoRef} data-testid="video-file" src={video.url ?? undefined} controls playsInline preload="metadata" poster={video.coverUrl ?? undefined} className="aspect-video w-full bg-black" crossOrigin="anonymous">
+          <video ref={videoRef} data-testid="video-file" src={video.url ?? undefined} controls {...protectedMediaProps(lockSeek)} playsInline autoPlay={autoPlay} preload="metadata" poster={video.coverUrl ?? undefined} className="aspect-video w-full cursor-pointer bg-black" crossOrigin="anonymous">
             {video.captionsUrl && <track kind="subtitles" src={video.captionsUrl} srcLang={video.captionsLanguage} label={video.captionsLanguage === "es" ? "Español" : video.captionsLanguage} default />}
           </video>
         ) : ytError ? (
