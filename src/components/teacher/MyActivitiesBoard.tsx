@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type DragEvent, type ReactNode } from "react";
 import { PREVIEW_BG, TemplatePreview } from "@/components/editor/TemplatePreview";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { setCommunityShared } from "@/lib/actions/community";
 import { duplicateGame } from "@/lib/actions/games";
 import { createFolder, deleteFolder, emptyBin, moveFolder, moveGame, restoreGame, trashGame, updateFolder } from "@/lib/actions/folders";
 import { FOLDER_COLORS, folderColor } from "@/lib/folders";
@@ -23,8 +22,6 @@ export type BoardActivity = {
   updatedAt: string;
   lastPlayed: string | null;
   folderName: string | null;
-  /** Shared with the Community. */
-  shared: boolean;
 };
 /** Where the board lives: Teacher View or Platform Admin. Both show the same activities. */
 export type MyActivitiesBase = "/teacher/my-activities" | "/admin/my-activities";
@@ -81,14 +78,6 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
         if (hide) setHidden((h) => { const n = new Set(h); n.delete(hide); return n; });
       }
       router.refresh();
-    });
-  }
-
-  /** Shares an activity with the Community, or takes it out. The activity itself doesn't change. */
-  function share(gameId: string, shared: boolean) {
-    run(async () => {
-      const r = await setCommunityShared({ gameId, shared });
-      if (!r.ok) throw new Error(r.error);
     });
   }
 
@@ -277,11 +266,6 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
                   )}
                   {a.status === "PUBLISHED" && <span className="absolute left-2 top-2 rounded-full bg-leaf px-2 py-0.5 text-[11px] font-bold text-white">Published</span>}
                   {a.status === "DRAFT" && <span className="absolute left-2 top-2 rounded-full bg-card/90 px-2 py-0.5 text-[11px] font-bold text-ink-2">Draft</span>}
-                  {a.shared && !bin && (
-                    <span data-testid="community-badge" className="absolute left-2 top-8 rounded-full bg-sky px-2 py-0.5 text-[11px] font-bold text-white" title="Shared with the Community">
-                      Community
-                    </span>
-                  )}
                   {a.assignments > 0 && (
                     <span data-testid="assigned-badge" className="absolute right-2 top-2 rounded-full bg-teal px-2 py-0.5 text-[11px] font-bold text-white" title={`Assigned ${a.assignments} time${a.assignments === 1 ? "" : "s"}`}>
                       ✓ Assigned{a.assignments > 1 ? ` ×${a.assignments}` : ""}
@@ -318,11 +302,6 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
                             <input type="hidden" name="workspace" value={base === "/admin/my-activities" ? "admin" : "teacher"} />
                             <MenuItem type="submit">Duplicate</MenuItem>
                           </form>
-                          {a.shared ? (
-                            <MenuItem onClick={() => (close(), share(a.id, false))}>Remove from Community</MenuItem>
-                          ) : (
-                            <MenuItem onClick={() => (close(), share(a.id, true))} title="Every teacher can copy it and adapt their copy. Your activity stays yours.">Share to Community</MenuItem>
-                          )}
                           <MoveMenu tree={tree} current={q ? "" : folder?.id ?? null} onPick={(t) => (close(), moveTo({ kind: "game", id: a.id }, t))} />
                           <MenuItem danger onClick={() => (close(), run(() => trashGame({ gameId: a.id }), a.id))}>Move to Recycle Bin</MenuItem>
                         </>

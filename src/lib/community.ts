@@ -6,12 +6,12 @@ import { db } from "@/lib/db";
 import { extFor } from "@/lib/media/validate";
 import { storage } from "@/lib/storage";
 
-// Community: activities that their owners share with every teacher and the platform admin.
-// Nobody edits someone else's original. "Copy to My Activities" makes a full, independent copy in
+// Community: every activity that teachers (and the platform admin) create shows up here
+// automatically, for every teacher and the platform admin. Nobody edits someone else's original. "Copy to My Activities" makes a full, independent copy in
 // the reader's own account (with its pictures and audio), which they can then edit and adapt.
 
-/** Prisma filter: activities that are in the Community right now (shared and not in a Recycle Bin). */
-export const communityWhere = { communitySharedAt: { not: null }, status: { not: "ARCHIVED" as const } };
+/** Prisma filter: activities that are in the Community right now: every one that is not in a Recycle Bin. */
+export const communityWhere = { status: { not: "ARCHIVED" as const } };
 
 /** True when the asset is a picture shown on a Community activity's cards (for the Community thumbnails). */
 export async function isCommunityImage(assetId: string): Promise<boolean> {
