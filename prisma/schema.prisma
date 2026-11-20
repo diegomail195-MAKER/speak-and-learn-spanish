@@ -428,6 +428,11 @@ model Game {
   settings           Json          @default("{}")
   // My Activities folder (null = top level). Removing a folder never deletes its activities.
   folderId           String?
+  // Community: set while the owner shares the activity with every teacher on the platform. Others
+  // never edit the original; they copy it into their own My Activities and adapt the copy.
+  communitySharedAt  DateTime?
+  // The Community activity this one was copied from (no relation: the original may be deleted).
+  copiedFromId       String?
   publishedAt        DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
@@ -448,6 +453,8 @@ model Game {
   @@index([schoolId, status])
   @@index([teacherId])
   @@index([folderId])
+  @@index([communitySharedAt])
+  @@index([copiedFromId])
 }
 
 model GameItem {

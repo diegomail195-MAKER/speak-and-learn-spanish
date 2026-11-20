@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type DragEvent, type ReactNode } from "react";
 import { PREVIEW_BG, TemplatePreview } from "@/components/editor/TemplatePreview";
 import { Button, ButtonLink } from "@/components/ui/Button";
+import { setCommunityShared } from "@/lib/actions/community";
 import { duplicateGame } from "@/lib/actions/games";
 import { createFolder, deleteFolder, emptyBin, moveFolder, moveGame, restoreGame, trashGame, updateFolder } from "@/lib/actions/folders";
 import { FOLDER_COLORS, folderColor } from "@/lib/folders";
@@ -22,7 +23,11 @@ export type BoardActivity = {
   updatedAt: string;
   lastPlayed: string | null;
   folderName: string | null;
+  /** Shared with the Community. */
+  shared: boolean;
 };
+/** Where the board lives: Teacher View or Platform Admin. Both show the same activities. */
+export type MyActivitiesBase = "/teacher/my-activities" | "/admin/my-activities";
 export type BoardSort = { by: "name" | "modified" | "played"; dir: "asc" | "desc" };
 
 type Props = {
@@ -35,20 +40,25 @@ type Props = {
   view: "large" | "small";
   q: string;
   bin: boolean;
+  base?: MyActivitiesBase;
 };
 
 type Drag = { kind: "game" | "folder"; id: string };
 const DRAG_TYPE = "application/x-lextro-item";
 
 /** Builds a My Activities URL that keeps the current view settings. */
-function href(p: Record<string, string | null | undefined>) {
+function boardHref(base: MyActivitiesBase, p: Record<string, string | null | undefined>) {
   const u = new URLSearchParams();
   for (const [k, v] of Object.entries(p)) if (v) u.set(k, v);
   const s = u.toString();
-  return `/teacher/my-activities${s ? `?${s}` : ""}`;
+  return `${base}${s ? `?${s}` : ""}`;
 }
 
-export function MyActivitiesBoard({ folder, path, folders, activities, tree, sort, view, q, bin }: Props) {
+export function MyActivitiesBoard({ folder, path, folders, activities, tree, sort, view, q, bin, base = "/teacher/my-activities" }: Props) {
+  const href = (p: Record<string, string | null | undefined>) => boardHref(base, p);
+  // Editor and "Create activity" stay in the same workspace (Platform Admin or Teacher View).
+  const games = base === "/admin/my-activities" ? "/admin/games" : "/teacher/games";
+  const openHref = (a: { id: string; items: number }) => (a.items > 0 ? `/play/preview/${a.id}` : `${games}/${a.id}/edit`);
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState("");
@@ -71,6 +81,14 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
         if (hide) setHidden((h) => { const n = new Set(h); n.delete(hide); return n; });
       }
       router.refresh();
+    });
+  }
+
+  /** Shares an activity with the Community, or takes it out. The activity itself doesn't change. */
+  function share(gameId: string, shared: boolean) {
+    run(async () => {
+      const r = await setCommunityShared({ gameId, shared });
+      if (!r.ok) throw new Error(r.error);
     });
   }
 
@@ -156,7 +174,9 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
         <div className="flex flex-wrap items-center gap-2">
           {!bin && <Button size="sm" variant="secondary" onClick={() => setDialog({ mode: "new" })}>+ New folder</Button>}
           {!bin && <ButtonLink size="sm" variant="secondary" href={href({ bin: "1", view: keep.view })}><TrashIcon className="h-4 w-4" /> Recycle Bin</ButtonLink>}
-          <form action="/teacher/my-activities" className="flex">
+          {!bin && <ButtonLink size="sm" variant="secondary" href={`${base}/community`} data-testid="community-button"><CommunityIcon className="h-4 w-4" /> Community</ButtonLink>}
+          {!bin && <ButtonLink size="sm" href={`${games}/new`} data-testid="create-activity-button">+ Create activity</ButtonLink>}
+          <form action={base} className="flex">
             {keep.view && <input type="hidden" name="view" value={keep.view} />}
             <input name="q" defaultValue={q} placeholder="Search my activities…" aria-label="Search my activities" className="h-9 w-48 rounded-l-full border border-line bg-card px-4 text-sm sm:w-56" />
             <button className="h-9 rounded-r-full border border-l-0 border-line bg-paper-2 px-3 text-sm font-bold" aria-label="Search">⌕</button>
@@ -200,7 +220,7 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
           <div className="grid place-items-center gap-3 py-14 text-center">
             <p className="font-display text-xl font-semibold">{bin ? "The Recycle Bin is empty" : q ? "No activities match your search" : "You haven't created any activities yet"}</p>
             {!bin && !q && <p className="max-w-md text-sm text-muted">Every activity you create is saved here. Make folders to organise them, then drag activities into the folders.</p>}
-            {!bin && !q && <ButtonLink href="/teacher/games/new">+ Create Activity</ButtonLink>}
+            {!bin && !q && <ButtonLink href={`${games}/new`}>+ Create Activity</ButtonLink>}
           </div>
         ) : (folder || shownFolders.length > 0) && (
           <ul className={`grid gap-4 ${grid}`}>
@@ -257,6 +277,11 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
                   )}
                   {a.status === "PUBLISHED" && <span className="absolute left-2 top-2 rounded-full bg-leaf px-2 py-0.5 text-[11px] font-bold text-white">Published</span>}
                   {a.status === "DRAFT" && <span className="absolute left-2 top-2 rounded-full bg-card/90 px-2 py-0.5 text-[11px] font-bold text-ink-2">Draft</span>}
+                  {a.shared && !bin && (
+                    <span data-testid="community-badge" className="absolute left-2 top-8 rounded-full bg-sky px-2 py-0.5 text-[11px] font-bold text-white" title="Shared with the Community">
+                      Community
+                    </span>
+                  )}
                   {a.assignments > 0 && (
                     <span data-testid="assigned-badge" className="absolute right-2 top-2 rounded-full bg-teal px-2 py-0.5 text-[11px] font-bold text-white" title={`Assigned ${a.assignments} time${a.assignments === 1 ? "" : "s"}`}>
                       ✓ Assigned{a.assignments > 1 ? ` ×${a.assignments}` : ""}
@@ -281,17 +306,23 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
                         </>
                       ) : (
                         <>
-                          <MenuLink href={`/teacher/games/${a.id}/edit`}>Edit</MenuLink>
+                          <MenuLink href={`${games}/${a.id}/edit`}>Edit</MenuLink>
                           <MenuLink href={`/play/preview/${a.id}`}>Play</MenuLink>
                           {a.status === "PUBLISHED" ? (
                             <MenuLink href={`/teacher/assignments/new?gameId=${a.id}`}>Assign</MenuLink>
                           ) : (
-                            <MenuLink href={`/teacher/games/${a.id}/edit`} hint="Publish it in the editor to assign it">Assign…</MenuLink>
+                            <MenuLink href={`${games}/${a.id}/edit`} hint="Publish it in the editor to assign it">Assign…</MenuLink>
                           )}
                           <form action={duplicateGame}>
                             <input type="hidden" name="gameId" value={a.id} />
+                            <input type="hidden" name="workspace" value={base === "/admin/my-activities" ? "admin" : "teacher"} />
                             <MenuItem type="submit">Duplicate</MenuItem>
                           </form>
+                          {a.shared ? (
+                            <MenuItem onClick={() => (close(), share(a.id, false))}>Remove from Community</MenuItem>
+                          ) : (
+                            <MenuItem onClick={() => (close(), share(a.id, true))} title="Every teacher can copy it and adapt their copy. Your activity stays yours.">Share to Community</MenuItem>
+                          )}
                           <MoveMenu tree={tree} current={q ? "" : folder?.id ?? null} onPick={(t) => (close(), moveTo({ kind: "game", id: a.id }, t))} />
                           <MenuItem danger onClick={() => (close(), run(() => trashGame({ gameId: a.id }), a.id))}>Move to Recycle Bin</MenuItem>
                         </>
@@ -350,6 +381,15 @@ function FolderGlyph({ color }: { color: string }) {
   );
 }
 
+export function CommunityIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3 20a6 6 0 0 1 12 0M16 4.5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 6" />
+    </svg>
+  );
+}
+
 function TrashIcon({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
@@ -397,8 +437,6 @@ function MenuItem({ danger, className = "", ...props }: React.ComponentProps<"bu
   return <button type="button" role="menuitem" className={`block w-full rounded-lg px-3 py-2 text-left font-semibold ${danger ? "text-coral-dark hover:bg-coral-soft" : "hover:bg-paper-2"} ${className}`} {...props} />;
 }
 
-/** Clicking an activity plays it; an activity with nothing in it yet opens the editor. */
-const openHref = (a: { id: string; items: number }) => (a.items > 0 ? `/play/preview/${a.id}` : `/teacher/games/${a.id}/edit`);
 
 function MenuLink({ href: to, hint, children }: { href: string; hint?: string; children: ReactNode }) {
   return (

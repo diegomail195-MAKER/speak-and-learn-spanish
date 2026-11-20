@@ -39,7 +39,7 @@ export default async function AdminSettings() {
       <PageTitle title="Settings" subtitle="Platform options, the classification used by topics and the status of the platform services." />
       <div className="grid gap-6 xl:grid-cols-2">
         <Card title="General" className="xl:col-span-2" testId="settings-general">
-          {settings.updatedAt && <p className="-mt-2 mb-4 text-sm text-[#5B6577]">Last changed <LocalTime iso={settings.updatedAt.toISOString()} /> (details in the Activity Log).</p>}
+          {settings.updatedAt && <p className="-mt-2 mb-4 text-sm text-[#5B6577]">Last changed <LocalTime iso={settings.updatedAt.toISOString()} />.</p>}
           <SettingsForm settings={settings} />
         </Card>
         <Card title="Grades" testId="settings-grades">

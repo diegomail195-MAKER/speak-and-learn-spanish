@@ -465,3 +465,13 @@ button.topic-access:hover, a.topic-access:hover { background: #EDE5FA; }
 /* Primary buttons inside the workspaces are blue (unlayered, so they win over bg-coral). */
 .ws .btn-primary { background: var(--ws-blue); box-shadow: 0 2px 0 var(--ws-blue-dark); }
 .ws .btn-primary:hover { background: var(--ws-blue-dark); }
+
+/* Videos: the mouse turns into a hand over a video, its picture or its play button, and back into
+   the arrow when it leaves. In the base layer so a disabled state (cursor-not-allowed) still wins. */
+@layer base {
+  video,
+  button:not(:disabled):has(video, img[src*="i.ytimg.com"]),
+  [role="button"]:has(video, img[src*="i.ytimg.com"]) {
+    cursor: pointer;
+  }
+}

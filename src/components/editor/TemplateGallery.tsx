@@ -34,7 +34,7 @@ function CreateButton({ name }: { name: string }) {
   );
 }
 
-export function TemplateGallery({ templates }: { templates: TemplateDef[] }) {
+export function TemplateGallery({ templates, workspace = "teacher" }: { templates: TemplateDef[]; workspace?: "teacher" | "admin" }) {
   const [filter, setFilter] = useState<TemplateFilter | "all">("all");
   const ready = templates.filter((t) => t.available);
   const show = (t: TemplateDef) => filter === "all" || t.filters.includes(filter);
@@ -44,6 +44,7 @@ export function TemplateGallery({ templates }: { templates: TemplateDef[] }) {
 
   return (
     <form action={createGame}>
+      <input type="hidden" name="workspace" value={workspace} />
       <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Filter templates">
         {FILTERS.map((f) => (
           <button
