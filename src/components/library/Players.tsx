@@ -454,8 +454,41 @@ export function VideoPlayer({ content, title = "Video", onDone, continueHref, lo
 }
 
 // ---------- Printables / worksheets ----------
+/**
+ * "I finished" for activities done outside the screen (worksheets, links): opening them doesn't
+ * count, the student says they finished. Only shown where completion is tracked (`onDone`).
+ */
+function FinishedButton({ onDone, label = "Terminé la hoja · I finished the worksheet" }: { onDone?: Done; label?: string }) {
+  const [done, setDone] = useState(false);
+  if (!onDone) return null;
+  return (
+    <div className="no-print mt-4 flex justify-center">
+      <button
+        type="button"
+        disabled={done}
+        onClick={() => {
+          setDone(true);
+          onDone(1, 1);
+        }}
+        data-testid="activity-finished"
+        className="inline-flex h-12 items-center gap-2 rounded-full bg-leaf px-6 font-extrabold text-white shadow-[0_3px_0_rgba(0,0,0,.2)] disabled:opacity-60"
+      >
+        {done ? "✓ Listo · Done" : `✓ ${label}`}
+      </button>
+    </div>
+  );
+}
+
 export function PrintablePlayer({ content, title, onDone }: { content: ContentFor<"PRINTABLE">; title: string; onDone?: Done }) {
-  useEffect(() => { onDone?.(1, 1); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <>
+      <PrintableView content={content} title={title} />
+      {(content.file || content.sheet) && <FinishedButton onDone={onDone} />}
+    </>
+  );
+}
+
+function PrintableView({ content, title }: { content: ContentFor<"PRINTABLE">; title: string }) {
   if (content.file) {
     const url = libraryFileUrl(content.file.fileId);
     const isPdf = content.file.mime === "application/pdf" || content.file.name.toLowerCase().endsWith(".pdf");
@@ -541,11 +574,11 @@ function ConnectSheet({ words }: { words: Pair[] }) {
  * In student focus mode LextroSpeak adds no buttons to other sites: non-embeddable links show a note.
  */
 export function LinkPlayer({ url, title, onDone, focus = false }: { url: string; title: string; onDone?: Done; focus?: boolean }) {
-  useEffect(() => { onDone?.(1, 1); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const safe = publicUrl(url);
-  if (!safe) return <p className="text-muted">This link isn&apos;t available.</p>;
+  // A link that can't be shown can't be finished here either: the student confirms and continues.
+  if (!safe) return <><p className="text-muted">This link isn&apos;t available.</p><FinishedButton onDone={onDone} label="Continuar · Continue" /></>;
   const embed = embedFor(safe);
-  if (focus && !embed) return <p className="rounded-[22px] bg-card p-5 text-ink-2" data-testid="link-unavailable">This material lives on another website, so it can&apos;t be shown here. Ask your teacher about it.</p>;
+  if (focus && !embed) return <><p className="rounded-[22px] bg-card p-5 text-ink-2" data-testid="link-unavailable">This material lives on another website, so it can&apos;t be shown here. Ask your teacher about it.</p><FinishedButton onDone={onDone} label="Continuar · Continue" /></>;
   return (
     <div className="mx-auto max-w-3xl space-y-3">
       {embed && (
@@ -554,6 +587,7 @@ export function LinkPlayer({ url, title, onDone, focus = false }: { url: string;
         </div>
       )}
       {!focus && <a href={safe} target="_blank" rel="noopener noreferrer" data-testid="open-link" className={embed ? "inline-flex text-sm font-bold text-sky hover:underline" : "inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3 font-bold text-white"}>Open Link ↗</a>}
+      <FinishedButton onDone={onDone} label="Terminé · I finished" />
     </div>
   );
 }

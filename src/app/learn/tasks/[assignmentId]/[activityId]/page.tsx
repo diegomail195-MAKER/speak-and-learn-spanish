@@ -16,8 +16,10 @@ export default async function StudentActivityPage({ params }: { params: Promise<
     if (e instanceof HttpError) notFound();
     throw e;
   }
-  // The teacher's own activities play inside the guided lesson.
+  // The teacher's own activities play inside the guided lesson. A finished step is repeated from
+  // the lesson once the whole topic is completed (free repetition starts then).
   if (!data.kind || !data.content) redirect(`/learn/tasks/${assignmentId}`);
+  if (data.step.done && !data.step.topicCompleted) redirect(`/learn/tasks/${assignmentId}`);
   return (
     <>
       <Link href={`/learn/tasks/${assignmentId}`} className="no-print font-bold text-sky hover:underline">‹ {data.act.assignment.title || "My task"}</Link>

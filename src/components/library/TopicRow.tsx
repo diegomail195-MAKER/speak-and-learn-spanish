@@ -33,7 +33,7 @@ function Thumb({ topic }: { topic: RowTopic }) {
  * of resource, generated from the topic's resources in the teacher's order. The whole row opens
  * the topic; each access opens a preview of its resources (several of a type → a list of titles).
  */
-export function TopicRow({ topic, href, studentViewHref, steps, favorite, editHref }: { topic: RowTopic; href: string; studentViewHref: string; steps: RowStep[]; favorite: { on: boolean; refresh?: boolean }; editHref?: string }) {
+export function TopicRow({ topic, href, previewHref, studentViewHref, steps, favorite, editHref }: { topic: RowTopic; href: string; previewHref?: string; studentViewHref: string; steps: RowStep[]; favorite: { on: boolean; refresh?: boolean }; editHref?: string }) {
   const groups = groupSteps(steps);
   return (
     <article className="topic-row" data-testid="topic-row" aria-labelledby={`topic-${topic.id}`}>
@@ -46,6 +46,11 @@ export function TopicRow({ topic, href, studentViewHref, steps, favorite, editHr
           </h2>
           <div className="topic-row-tools">
             <FavoriteButton topicId={topic.id} title={topic.titleEs} initial={favorite.on} refresh={favorite.refresh} inline />
+            {previewHref && (
+              <Link href={previewHref} className="topic-tool" data-testid="topic-preview" aria-label={`Preview: ${topic.titleEs}`}>
+                ▶ <span className="topic-tool-text">Preview</span>
+              </Link>
+            )}
             <Link href={studentViewHref} className="topic-tool" data-testid="student-view" aria-label={`Student View: ${topic.titleEs}`}>
               <EyeIcon /> <span className="topic-tool-text">Student View</span>
             </Link>
@@ -88,7 +93,7 @@ export function StudentTopicRow({ topic, href, kinds, done, total }: { topic: Ro
             {topic.titleEs}
             <span className="topic-title-en">{topic.titleEn}</span>
           </span>
-          <span className="topic-progress" data-testid="task-progress">{done === total && total > 0 ? "✓ Done" : `${done}/${total} done`}</span>
+          <span className="topic-progress" data-testid="task-progress">{done === total && total > 0 ? "✓ Done · Repeat" : `${done}/${total} done`}</span>
         </span>
         {topic.description && <span className="topic-desc block">{topic.description}</span>}
         {groups.length > 0 && (

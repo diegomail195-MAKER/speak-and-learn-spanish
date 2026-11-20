@@ -78,6 +78,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
               <TopicRow
                 topic={t}
                 href={`/teacher/library/topics/${t.slug}${gradeQs}`}
+                previewHref={`/teacher/library/topics/${t.slug}/preview${gradeQs}`}
                 studentViewHref={`/teacher/library/topics/${t.slug}/student-view${gradeQs}`}
                 steps={stepsByTopic.get(t.id) ?? []}
                 favorite={{ on: favorites.has(t.id), refresh: fav }}

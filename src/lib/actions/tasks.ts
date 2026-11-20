@@ -5,7 +5,7 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { ownedClassroom } from "@/lib/access";
 import { audit } from "@/lib/audit";
-import { requireStudent, requireTeacher } from "@/lib/auth/guards";
+import { HttpError, requireStudent, requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { activityForStudent } from "@/lib/library/service";
 import { speakingResult, type SpeakingResult } from "@/lib/library/types";
@@ -97,6 +97,12 @@ export async function recordActivityProgress(input: { assignmentId: string; acti
     })
     .parse(input);
   const { act } = await activityForStudent(student, d.assignmentId, d.activityId);
+  // A teacher's activity (Speaking, flashcards deck) counts only when the student finished an
+  // attempt at it in this assignment (saved by the attempts API); opening it is not enough.
+  if (act.gameId) {
+    const finished = await db.studentAttempt.findFirst({ where: { studentId: student.id, assignmentId: d.assignmentId, gameId: act.gameId, completedAt: { not: null } }, select: { id: true } });
+    if (!finished) throw new HttpError(409, "Finish the activity first.");
+  }
   const details = d.details?.length ? (d.details as Prisma.InputJsonValue) : undefined;
   await db.activityProgress.create({ data: { activityId: act.id, studentId: student.id, completedAt: new Date(), score: d.score ?? null, total: d.total ?? null, details } });
   revalidatePath(`/learn/tasks/${d.assignmentId}`);

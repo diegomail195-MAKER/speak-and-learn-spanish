@@ -18,7 +18,7 @@ import { KIND_ICON_3D } from "@/lib/library/kindIcons";
 // assignment, My Assignments). Student View runs the same lesson and records nothing.
 
 const ICON = KIND_ICON_3D;
-const LABEL: Record<string, { es: string; en: string }> = {
+export const LABEL: Record<string, { es: string; en: string }> = {
   VIDEO: { es: "Video", en: "Video" },
   SONG: { es: "Video musical", en: "Music video" },
   GAME: { es: "Juego", en: "Game" },
@@ -28,10 +28,10 @@ const LABEL: Record<string, { es: string; en: string }> = {
   WORKSHEET: { es: "Hoja de trabajo", en: "Worksheet" },
   LISTENING: { es: "Escuchar", en: "Listening" },
 };
-const PURPLE = "#620D78";
+export const PURPLE = "#620D78";
 const VOICE_PREF = "lextro-lesson-voice";
 
-type Phase = { t: "intro"; i: number } | { t: "play"; i: number; practice: boolean } | { t: "final" } | { t: "menu" };
+type Phase = { t: "intro"; i: number } | { t: "play"; i: number; practice: boolean } | { t: "final" } | { t: "menu" } | { t: "alldone" };
 
 export interface TopicLessonProps {
   mode: "student" | "preview";
@@ -46,9 +46,13 @@ export interface TopicLessonProps {
   nextHref: string | null;
   /** My Assignments (student) or the Library (Student View). */
   exitHref: string;
+  /** Student, completed topic: a step chosen on the URL (?step=3) opens as a repeat. Checked on the server. */
+  startAt?: number | null;
+  /** Shown above the lesson (e.g. a link to a locked step was opened). */
+  notice?: string | null;
 }
 
-function KindIcon({ kind, size = "h-24 w-24" }: { kind: string; size?: string }) {
+export function KindIcon({ kind, size = "h-24 w-24" }: { kind: string; size?: string }) {
   return ICON[kind] ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={ICON[kind]} alt="" width={160} height={160} className={`${size} object-contain`} />
@@ -58,7 +62,7 @@ function KindIcon({ kind, size = "h-24 w-24" }: { kind: string; size?: string })
 }
 
 /** Videos and music videos: the video's picture (YouTube thumbnail or a frame of the file) and its title, as on the Topic page. */
-function MediaThumb({ step, kindLabel, onPlay }: { step: LessonStep; kindLabel: string; onPlay: () => void }) {
+export function MediaThumb({ step, kindLabel, onPlay }: { step: LessonStep; kindLabel: string; onPlay: () => void }) {
   const c = (step.content ?? {}) as { file?: { fileId?: string; mime?: string } | null; youtubeId?: string | null; link?: { url?: string } | null };
   const yt = c.youtubeId || (c.link?.url ? youtubeIdFrom(c.link.url) : null);
   const file = step.kind === "VIDEO" && c.file?.fileId ? libraryFileUrl(c.file.fileId) : null;
@@ -91,7 +95,7 @@ function MediaThumb({ step, kindLabel, onPlay }: { step: LessonStep; kindLabel: 
 }
 
 /** The lesson voice: natural clips (Spanish voice, then English), the device voice if a clip is missing. */
-function useLessonVoice(title: string) {
+export function useLessonVoice(title: string) {
   const [clips, setClips] = useState<Record<string, string> | null>(null);
   const [muted, setMuted] = useState(false);
   const [blocked, setBlocked] = useState(false);
@@ -174,10 +178,17 @@ function useLessonVoice(title: string) {
   return { ready: clips !== null, say, stop, muted, toggleMute, blocked, speaking };
 }
 
-export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHref, nextHref, exitHref }: TopicLessonProps) {
+export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHref, nextHref, exitHref, startAt = null, notice = null }: TopicLessonProps) {
   const storageKey = `lesson:${mode}:${assignmentId ?? lessonHref}`;
   const firstUndone = steps.findIndex((s) => !s.done);
-  const [phase, setPhase] = useState<Phase>(() => (steps.length === 0 ? { t: "final" } : firstUndone < 0 ? { t: "final" } : { t: "intro", i: firstUndone }));
+  const [phase, setPhase] = useState<Phase>(() => {
+    if (steps.length === 0) return { t: "final" };
+    if (firstUndone < 0) return startAt !== null && startAt >= 0 && startAt < steps.length ? { t: "play", i: startAt, practice: true } : { t: "final" };
+    return { t: "intro", i: firstUndone };
+  });
+  // "Repeat this Topic": the same sequence again from the first step (each step unlocks the next
+  // when it is finished); new attempts are recorded, the earlier completion stays.
+  const [round, setRound] = useState<"first" | "replay">("first");
   const [completed, setCompleted] = useState<Set<number>>(() => new Set(steps.flatMap((s, i) => (s.done ? [i] : []))));
   const [run, setRun] = useState(0);
   const [note, setNote] = useState("");
@@ -254,12 +265,24 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
     (i: number, score = 1, max = 1, practice = false, details?: SpeakingResult[]) => {
       setCompleted((c) => (c.has(i) ? c : new Set(c).add(i)));
       const step = steps[i];
-      if (mode !== "student" || practice || !assignmentId || sent.current.has(step.id) || step.done) return;
+      if (mode !== "student" || !assignmentId) return;
+      // Once per play of a step: players may report the end again on later renders (e.g. after
+      // the page data refreshes and the step shows as done).
+      const key = `${step.id}:${run}`;
+      if (sent.current.has(key)) return;
+      sent.current.add(key);
+      if (practice || round === "replay" || step.done) {
+        // A repeat after the topic was completed: a new attempt in the results (history kept), it
+        // never blocks the student and never undoes the completion.
+        void recordActivityProgress({ assignmentId, activityId: step.id, score: Math.min(score, 1000), total: Math.min(max, 1000), details }).catch(() => sent.current.delete(key));
+        return;
+      }
+      if (sent.current.has(step.id)) return;
       sent.current.add(step.id);
       lastScore.current[i] = [score, max, details];
       void save(i, score, max, details);
     },
-    [assignmentId, mode, steps, save],
+    [assignmentId, mode, steps, save, round, run],
   );
   const retrySave = (i: number) => {
     const [score, max, details] = lastScore.current[i] ?? [1, 1, undefined];
@@ -278,13 +301,45 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
     window.scrollTo({ top: 0 });
   };
   const previewOnly = (what: string) => setNote(`Student View: here the student would go to ${what}.`);
+  const repeatTopic = () => {
+    voice.stop();
+    setRound("replay");
+    setCompleted(new Set());
+    setNote("");
+    setPhase({ t: "intro", i: 0 });
+    window.scrollTo({ top: 0 });
+  };
+  const continueAssignments = () => {
+    voice.stop();
+    if (mode === "preview") return previewOnly("their next assignment (or the “all done” screen when nothing is left)");
+    setPhase({ t: "alldone" });
+  };
 
+  // The topic's icons show what each step is; steps after the current one are locked until it is
+  // finished. Not links: the sequence is followed with Start / Next only.
+  const inRepeat = phase.t === "play" && phase.practice;
   const progress = (
-    <ol className="flex flex-wrap items-center gap-1.5" aria-label="Lesson steps">
+    <ol className="mt-1 flex flex-wrap items-center gap-1.5" aria-label="Lesson steps" data-testid="lesson-steps">
       {steps.map((s, i) => {
         const cur = (phase.t === "intro" || phase.t === "play") && phase.i === i;
+        const done = completed.has(i);
+        const locked = !done && !cur && !inRepeat && phase.t !== "final" && phase.t !== "menu" && phase.t !== "alldone";
+        const state = done ? "done" : cur ? "current" : locked ? "locked" : "open";
         return (
-          <li key={s.id} className={`h-2.5 rounded-full transition-all motion-reduce:transition-none ${cur ? "w-8" : "w-2.5"}`} style={{ background: completed.has(i) ? "#4CAF50" : cur ? PURPLE : "rgba(98,13,120,.2)" }} aria-label={`${i + 1}. ${s.title}${completed.has(i) ? " ✓" : ""}`} aria-current={cur ? "step" : undefined} />
+          <li
+            key={s.id}
+            data-testid="lesson-step-icon"
+            data-state={state}
+            aria-label={`${i + 1}. ${s.title}: ${done ? "completed" : cur ? "current" : locked ? "locked" : "not done"}`}
+            aria-current={cur ? "step" : undefined}
+            className={`relative grid h-9 w-9 place-items-center rounded-full bg-white ring-2 transition motion-reduce:transition-none ${cur ? "scale-110 ring-[#620D78]" : done ? "ring-[#4CAF50]" : "ring-[#620D78]/15"}`}
+          >
+            <span className={locked ? "opacity-40 grayscale" : ""}>
+              <KindIcon kind={s.kind} size="h-7 w-7" />
+            </span>
+            {done && <span className="absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full bg-[#4CAF50] text-[10px] font-black text-white" aria-hidden>✓</span>}
+            {locked && <span className="absolute -bottom-1 -right-1 text-[11px]" aria-hidden>🔒</span>}
+          </li>
         );
       })}
     </ol>
@@ -314,6 +369,11 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
         <Link href={exitHref} onClick={voice.stop} className="rounded-full px-3 py-2 text-sm font-bold text-sky hover:underline" data-testid="lesson-exit">
           ‹ Mis tareas · My Assignments
         </Link>
+      )}
+      {notice && (
+        <p role="status" className="w-full rounded-2xl bg-[#FFF3CC] px-4 py-2 text-sm font-bold text-ink" data-testid="lesson-notice">
+          🔒 {notice}
+        </p>
       )}
     </div>
   );
@@ -364,8 +424,8 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
     let player;
     if (s.game) {
       player =
-        mode === "student" && !practice && assignmentId ? (
-          <StudentPlay key={`${i}-${run}`} game={s.game} assignmentId={assignmentId} videoId={null} activityId={s.id} done={s.doneQuestions ?? {}} exitHref={lessonHref} onComplete={() => complete(i)} />
+        mode === "student" && assignmentId ? (
+          <StudentPlay key={`${i}-${run}`} game={s.game} assignmentId={assignmentId} videoId={null} activityId={s.id} done={s.doneQuestions ?? {}} exitHref={lessonHref} onComplete={() => complete(i, 1, 1, practice)} />
         ) : (
           <GamePlayer key={`${i}-${run}`} game={s.game} mode="preview" previewNote={null} onFinish={() => complete(i, 1, 1, practice)} exitHref={lessonHref} />
         );
@@ -376,7 +436,7 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
       <div data-testid="topic-lesson" data-phase="play" data-step={i}>
         {header}
         <p className="mb-2 text-sm font-extrabold" style={{ color: PURPLE }}>
-          {practice ? "Practicar otra vez · Practice again" : `Paso ${i + 1} de ${total} · Step ${i + 1} of ${total}`}
+          {practice ? "Repetir actividad · Repeat activity" : `${round === "replay" ? "Repetir Topic · Repeat Topic — " : ""}Paso ${i + 1} de ${total} · Step ${i + 1} of ${total}`}
         </p>
         <h1 className="mb-4 font-display text-3xl font-extrabold">{s.title}</h1>
         <div data-testid="lesson-activity">{player}</div>
@@ -410,19 +470,20 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
       <div data-testid="topic-lesson" data-phase="menu">
         {header}
         <section className="mx-auto max-w-2xl rounded-[32px] bg-card p-6 shadow-pop">
-          <h1 className="font-display text-3xl font-extrabold">Practicar otra vez · Practice again</h1>
-          <p className="mb-4 text-ink-2">Elige una actividad. · Choose an activity. Your lesson stays completed.</p>
+          <h1 className="font-display text-3xl font-extrabold">Repetir una actividad · Repeat an activity</h1>
+          <p className="mb-4 text-ink-2">Elige una actividad. · Choose an activity. Your topic stays completed.</p>
           <ul className="grid gap-2 sm:grid-cols-2">
-            {steps.map((s, i) =>
-              completed.has(i) ? (
-                <li key={s.id}>
-                  <button type="button" onClick={() => start(i, true)} data-testid="practice-item" className="flex w-full items-center gap-3 rounded-2xl border-2 border-[#620D78]/10 bg-white p-3 text-left hover:border-[#620D78]">
-                    <KindIcon kind={s.kind} size="h-12 w-12" />
-                    <span className="min-w-0 flex-1 font-display font-extrabold">{s.title}</span>
-                  </button>
-                </li>
-              ) : null,
-            )}
+            {steps.map((s, i) => (
+              <li key={s.id}>
+                <button type="button" onClick={() => start(i, true)} data-testid="practice-item" className="flex w-full items-center gap-3 rounded-2xl border-2 border-[#620D78]/10 bg-white p-3 text-left hover:border-[#620D78]">
+                  <KindIcon kind={s.kind} size="h-12 w-12" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-extrabold uppercase tracking-wide text-ink-2">{i + 1} of {total}</span>
+                    <span className="block font-display font-extrabold">{s.title}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
           </ul>
           <div className="mt-5 flex flex-wrap gap-3">
             <button type="button" onClick={() => setPhase({ t: "final" })} className="inline-flex h-11 items-center rounded-full px-5 font-bold ring-1 ring-line hover:bg-paper-2">‹ Volver · Back</button>
@@ -434,34 +495,52 @@ export function TopicLesson({ mode, title, topic, steps, assignmentId, lessonHre
     );
   }
 
-  // Final screen.
+  if (phase.t === "alldone") {
+    return (
+      <div data-testid="topic-lesson" data-phase="alldone">
+        {header}
+        <section className="mx-auto flex max-w-2xl flex-col items-center gap-4 rounded-[32px] bg-card p-6 text-center shadow-pop sm:p-10" data-testid="lesson-all-done">
+          <Pinita mood="happy" className="h-24 w-24" />
+          <h1 className="font-display text-3xl font-extrabold">¡Todo listo! · All done!</h1>
+          <p className="font-semibold text-ink-2">No tienes más tareas pendientes. · You have no more pending assignments.</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <button type="button" onClick={() => setPhase({ t: "final" })} className="inline-flex h-12 items-center rounded-full px-5 font-bold ring-1 ring-line hover:bg-paper-2">‹ Volver · Back</button>
+            <MyAssignments mode={mode} exitHref={exitHref} onPreview={previewOnly} primary />
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  // Final screen: the topic is completed. Repeat an activity, repeat the topic, or continue.
+  const optionCls = "inline-flex h-12 items-center rounded-full px-6 font-extrabold";
   return (
     <div data-testid="topic-lesson" data-phase="final">
       {header}
       <section className="mx-auto flex max-w-2xl flex-col items-center gap-4 rounded-[32px] p-6 text-center shadow-pop sm:p-10" style={{ background: topic.color || "#FFC928" }} data-testid="lesson-final">
         <Pinita mood="happy" className="h-24 w-24" />
-        <h1 className="font-display text-3xl font-extrabold">¡Terminaste la lección! · You finished the lesson!</h1>
+        <h1 className="font-display text-3xl font-extrabold">¡Terminaste el Topic! · You completed this Topic!</h1>
         <div className="w-full rounded-2xl bg-white/85 px-5 py-4" data-testid="lesson-line">
           <span className="block font-display text-xl font-extrabold" lang="es">{finalLine.es}</span>
           <span className="block font-semibold text-ink-2" lang="en">{finalLine.en}</span>
         </div>
         {voiceButtons([finalLine])}
         <div className="mt-2 flex flex-wrap justify-center gap-3">
-          <button type="button" onClick={() => setPhase({ t: "menu" })} data-testid="lesson-practice" className="inline-flex h-12 items-center rounded-full bg-white px-6 font-extrabold ring-2 ring-[#620D78]/30" style={{ color: PURPLE }}>
-            Practicar otra vez · Practice Again
+          <button type="button" onClick={() => setPhase({ t: "menu" })} data-testid="lesson-practice" className={`${optionCls} bg-white ring-2 ring-[#620D78]/30`} style={{ color: PURPLE }}>
+            Repetir una actividad · Repeat an activity
           </button>
-          {mode === "preview" ? (
-            <button type="button" onClick={() => previewOnly("their next assignment")} data-testid="lesson-next-assignment" className="inline-flex h-12 items-center rounded-full px-6 font-extrabold text-white" style={{ background: PURPLE }}>
-              Siguiente tarea · Next Assignment
-            </button>
+          <button type="button" onClick={repeatTopic} data-testid="lesson-repeat-topic" className={`${optionCls} bg-white ring-2 ring-[#620D78]/30`} style={{ color: PURPLE }}>
+            ↺ Repetir este Topic · Repeat this Topic
+          </button>
+          {mode === "student" && nextHref ? (
+            <Link href={nextHref} onClick={voice.stop} data-testid="lesson-next-assignment" className={`${optionCls} text-white`} style={{ background: PURPLE }}>
+              Continuar con mis tareas · Continue with my assignments →
+            </Link>
           ) : (
-            nextHref && (
-              <Link href={nextHref} onClick={voice.stop} data-testid="lesson-next-assignment" className="inline-flex h-12 items-center rounded-full px-6 font-extrabold text-white" style={{ background: PURPLE }}>
-                Siguiente tarea · Next Assignment
-              </Link>
-            )
+            <button type="button" onClick={continueAssignments} data-testid={mode === "preview" ? "lesson-next-assignment" : "lesson-continue"} className={`${optionCls} text-white`} style={{ background: PURPLE }}>
+              Continuar con mis tareas · Continue with my assignments →
+            </button>
           )}
-          <MyAssignments mode={mode} exitHref={exitHref} onPreview={previewOnly} primary={mode === "student" && !nextHref} />
         </div>
         {note && <p className="text-sm font-bold text-ink" role="status" data-testid="lesson-preview-note">{note}</p>}
       </section>

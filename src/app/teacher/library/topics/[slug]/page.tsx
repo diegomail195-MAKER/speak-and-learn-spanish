@@ -42,6 +42,9 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
         <>
           <Link href={`/teacher/library${q ? `?${q}` : ""}`} className="text-sm font-bold text-sky hover:underline">‹ Library</Link>
           <span className="flex flex-wrap items-center gap-2">
+            <Link href={`/teacher/library/topics/${topic.slug}/preview${q ? `?${q}` : ""}`} className={pill} data-testid="topic-preview">
+              ▶ Preview
+            </Link>
             <Link href={`/teacher/library/topics/${topic.slug}/student-view${q ? `?${q}` : ""}`} className={pill} data-testid="topic-student-view">
               <EyeIcon /> Student View
             </Link>
