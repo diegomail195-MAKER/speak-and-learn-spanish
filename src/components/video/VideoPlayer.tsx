@@ -270,7 +270,7 @@ export function VideoPlayer({
 
   if (bare) {
     return video.source === "HOSTED" ? (
-      <video ref={videoRef} data-testid="video-file" src={video.url ?? undefined} controls {...protectedMediaProps(lockSeek)} playsInline autoPlay={autoPlay} preload="metadata" poster={video.coverUrl ?? undefined} className="h-full w-full bg-black object-contain" crossOrigin="anonymous">
+      <video ref={videoRef} data-testid="video-file" src={video.url ?? undefined} controls {...protectedMediaProps(lockSeek)} playsInline autoPlay={autoPlay} preload="metadata" poster={video.coverUrl ?? undefined} className="h-full w-full cursor-pointer bg-black object-contain" crossOrigin="anonymous">
         {video.captionsUrl && <track kind="subtitles" src={video.captionsUrl} srcLang={video.captionsLanguage} label={video.captionsLanguage === "es" ? "Español" : video.captionsLanguage} default />}
       </video>
     ) : ytError ? (
@@ -285,7 +285,7 @@ export function VideoPlayer({
     <div className="select-none caret-transparent">
       <div className="overflow-hidden rounded-2xl bg-ink">
         {video.source === "HOSTED" ? (
-          <video ref={videoRef} data-testid="video-file" src={video.url ?? undefined} controls {...protectedMediaProps(lockSeek)} playsInline autoPlay={autoPlay} preload="metadata" poster={video.coverUrl ?? undefined} className="aspect-video w-full bg-black" crossOrigin="anonymous">
+          <video ref={videoRef} data-testid="video-file" src={video.url ?? undefined} controls {...protectedMediaProps(lockSeek)} playsInline autoPlay={autoPlay} preload="metadata" poster={video.coverUrl ?? undefined} className="aspect-video w-full cursor-pointer bg-black" crossOrigin="anonymous">
             {video.captionsUrl && <track kind="subtitles" src={video.captionsUrl} srcLang={video.captionsLanguage} label={video.captionsLanguage === "es" ? "Español" : video.captionsLanguage} default />}
           </video>
         ) : ytError ? (

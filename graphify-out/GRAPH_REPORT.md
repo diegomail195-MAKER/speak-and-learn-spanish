@@ -1,7 +1,7 @@
 # Graph Report - speak-and-learn-spanish  (2026-11-20)
 
 ## Corpus Check
-- 393 files · ~233,733 words
+- 393 files · ~233,739 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 8 file(s) not represented in the graph (top: .example 1, (none) 1, .vtt 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b260e3a9`
+- Built from commit: `ef6c1585`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -141,16 +141,16 @@
 10. `PageHeader()` - 46 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `main()` --calls--> `seedLibrary()`  [EXTRACTED]
-  prisma/seed.ts → src/lib/library/seed.ts
-- `POST` --calls--> `requireTeacher()`  [EXTRACTED]
-  src/app/api/text/keep/route.ts → src/lib/auth/guards.ts
+- `Segment` --references--> `AudioLanguage`  [EXTRACTED]
+  src/lib/text/segments.ts → src/lib/tts/voices.ts
+- `VoiceGamePlayer()` --indirect_call--> `DiagramBoard()`  [INFERRED]
+  src/components/player/GamePlayer.tsx → src/components/player/boards/DiagramBoard.tsx
+- `ProfileForm()` --indirect_call--> `updateProfile()`  [INFERRED]
+  src/components/teacher/ProfileForm.tsx → src/lib/actions/account.ts
+- `TopicStatusMenu()` --indirect_call--> `setTopicStatus()`  [INFERRED]
+  src/components/admin/TopicStatusMenu.tsx → src/lib/actions/library.ts
 - `GradeForm()` --indirect_call--> `createGrade()`  [INFERRED]
   src/components/admin/GradeForm.tsx → src/lib/actions/library.ts
-- `NewResourceForm()` --indirect_call--> `addLibraryContent()`  [INFERRED]
-  src/components/admin/ResourceForms.tsx → src/lib/actions/library.ts
-- `MetaForm()` --indirect_call--> `updateResourceMeta()`  [INFERRED]
-  src/components/admin/ResourceForms.tsx → src/lib/actions/library.ts
 
 ## Import Cycles
 - 2-file cycle: `src/components/library/Players.tsx -> src/components/library/SpeakingPlayer.tsx -> src/components/library/Players.tsx`
@@ -584,15 +584,15 @@ Nodes (5): html-to-image@1.11.13, jspdf@4.2.1, html-to-image, jspdf, downloadPdf
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `react` connect `react` to `parts.tsx`, `db.ts`, `AudioField.tsx`, `layout.ts`, `topics/[id]/page.tsx`, `Dependencias (package.json)`, `Segmentación de texto`, `MyActivitiesBoard.tsx`, `TopicLesson.tsx`, `AuthLayout`, `useVoiceSession.ts`, `preview/[id]/page.tsx`, `Scripts de package.json`, `Button`, `GameEditor.tsx`, `WsIcon`, `ImageField.tsx`, `session.ts`, `[slug]/page.tsx`, `autocorrect.ts`, `Players.tsx`, `lessonData.ts`, `auth.ts`, `plainText`, `CardPhotoForm.tsx`, `TopicRow.tsx`, `teacher/page.tsx`, `VideoPlayer.tsx`, `VideoForm.tsx`, `admin/page.tsx`, `users/page.tsx`, `roster/page.tsx`, `Button.tsx`, `lib/review.ts`, `settings/page.tsx`, `DashBits.tsx`, `TopicHero.tsx`, `States.tsx`?**
-  _High betweenness centrality (0.178) - this node is a cross-community bridge._
+  _High betweenness centrality (0.165) - this node is a cross-community bridge._
 - **Should `parts.tsx` be split into smaller, more focused modules?**
   _Cohesion score 0.10412299091544375 - nodes in this community are weakly interconnected._
 - **Why does `next` connect `next` to `db.ts`, `games/service.ts`, `topics/[id]/page.tsx`, `mediaUrl`, `Dependencias (package.json)`, `webhook.ts`, `react`, `MyActivitiesBoard.tsx`, `actions/videos.ts`, `TopicLesson.tsx`, `library.ts`, `AuthLayout`, `preview/[id]/page.tsx`, `Scripts de package.json`, `Button`, `GameEditor.tsx`, `PublicHeader`, `WsIcon`, `Layout raíz`, `session.ts`, `[slug]/page.tsx`, `Players.tsx`, `lessonData.ts`, `auth.ts`, `gateway.ts`, `HttpError`, `TopicRow.tsx`, `classroom.ts`, `teacher/page.tsx`, `verify.ts`, `VideoForm.tsx`, `games.ts`, `admin/page.tsx`, `users/page.tsx`, `rateLimit`, `roster/page.tsx`, `Button.tsx`, `lib/review.ts`, `settings/page.tsx`, `DashBits.tsx`, `activity.ts`, `checkout/route.ts`, `TopicHero.tsx`, `States.tsx`?**
-  _High betweenness centrality (0.169) - this node is a cross-community bridge._
+  _High betweenness centrality (0.156) - this node is a cross-community bridge._
 - **Should `db.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.09226190476190477 - nodes in this community are weakly interconnected._
 - **Why does `@prisma/client` connect `next` to `games/service.ts`, `Dependencias (package.json)`, `webhook.ts`, `MyActivitiesBoard.tsx`, `library.ts`, `flow.e2e.mjs`, `ref_node_path`, `Scripts de package.json`, `lextro.e2e.mjs`, `lessonData.ts`, `HttpError`, `photo-form.e2e.mjs`, `topic-lesson.e2e.mjs`, `voice.e2e.mjs`, `library.e2e.mjs`, `video-player.e2e.mjs`, `flashcards-printables.e2e.mjs`, `admin/page.tsx`, `ref_node_fs`, `users/page.tsx`, `lib/review.ts`, `reports.ts`, `dashboards.e2e.mjs`, `activity.ts`?**
-  _High betweenness centrality (0.092) - this node is a cross-community bridge._
+  _High betweenness centrality (0.113) - this node is a cross-community bridge._
 - **Should `20261025012814_init/migration.sql` be split into smaller, more focused modules?**
   _Cohesion score 0.14532019704433496 - nodes in this community are weakly interconnected._
 - **Should `AudioField.tsx` be split into smaller, more focused modules?**

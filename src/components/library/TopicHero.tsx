@@ -85,7 +85,7 @@ export function TopicHero({ title, subtitle, art, shapes, data, assignmentId, to
                     />
                   </div>
                 ) : (
-                  <button type="button" onClick={() => setPlaying(true)} className="group absolute inset-0 block focus-visible:outline-none" aria-label={`Play ${video.title}`} data-testid="hero-play">
+                  <button type="button" onClick={() => setPlaying(true)} className="group absolute inset-0 block cursor-pointer focus-visible:outline-none" aria-label={`Play ${video.title}`} data-testid="hero-play">
                     <Cover video={video} eager onDuration={noteDuration} />
                     <span className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" aria-hidden />
                     <span
@@ -199,7 +199,7 @@ function Carousel({ videos, selected, durations, onChoose, onDuration }: { video
   }
 
   const arrow =
-    "absolute top-[calc(50%-1.25rem)] z-10 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full text-white shadow-[0_6px_16px_-6px_rgba(98,13,120,0.7)] transition hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-0 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#FF5148] motion-reduce:transition-none sm:grid";
+    "absolute top-[calc(50%-1.25rem)] z-10 hidden h-11 w-11 cursor-pointer -translate-y-1/2 place-items-center rounded-full text-white shadow-[0_6px_16px_-6px_rgba(98,13,120,0.7)] transition hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-0 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#FF5148] motion-reduce:transition-none sm:grid";
 
   return (
     <div className="relative mt-5" role="region" aria-roledescription="carousel" aria-label="Videos in this topic" data-testid="hero-carousel">
@@ -222,7 +222,7 @@ function Carousel({ videos, selected, durations, onChoose, onDuration }: { video
                 aria-current={on ? "true" : undefined}
                 aria-label={`${v.title}${on ? " (selected)" : ""}`}
                 data-testid="carousel-card"
-                className={`group block w-full rounded-2xl p-1.5 text-left transition duration-150 motion-reduce:transition-none hover:-translate-y-1 hover:shadow-[0_10px_22px_-12px_rgba(98,13,120,0.6)] active:translate-y-0 active:scale-[0.98] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#FF5148] ${on ? "bg-[#F3E8F7] ring-[3px] ring-[#620D78]" : "bg-white ring-1 ring-black/5"}`}
+                className={`group block w-full cursor-pointer rounded-2xl p-1.5 text-left transition duration-150 motion-reduce:transition-none hover:-translate-y-1 hover:shadow-[0_10px_22px_-12px_rgba(98,13,120,0.6)] active:translate-y-0 active:scale-[0.98] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#FF5148] ${on ? "bg-[#F3E8F7] ring-[3px] ring-[#620D78]" : "bg-white ring-1 ring-black/5"}`}
               >
                 <span className="relative block aspect-video overflow-hidden rounded-xl bg-[#2a0634]">
                   <Cover video={v} onDuration={onDuration} />
@@ -327,7 +327,7 @@ function ItemCard({ item, icon, active, onPlay }: { item: HeroItem; icon?: strin
     </>
   );
   const card = onPlay ? (
-    <button type="button" onClick={onPlay} className={cls} data-testid="category-item">{body}</button>
+    <button type="button" onClick={onPlay} className={`${cls} cursor-pointer`} data-testid="category-item">{body}</button>
   ) : (
     <Link href={item.href} className={cls} data-testid="category-item">{body}</Link>
   );
