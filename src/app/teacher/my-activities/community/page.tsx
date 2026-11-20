@@ -5,6 +5,6 @@ export const metadata = { title: "Community" };
 
 export default async function CommunityPage({ searchParams }: { searchParams: Promise<CommunitySearch> }) {
   const sp = await searchParams;
-  const { user, teacher } = await requireTeacherPage();
-  return <CommunityView sp={sp} user={user} teacher={teacher} base="/teacher/my-activities" />;
+  const { teacher } = await requireTeacherPage();
+  return <CommunityView sp={sp} teacher={teacher} base="/teacher/my-activities" />;
 }

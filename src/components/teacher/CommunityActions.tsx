@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { buttonClass } from "@/components/ui/Button";
-import { copyFromCommunity, setCommunityShared } from "@/lib/actions/community";
+import { copyFromCommunity } from "@/lib/actions/community";
 
 function CopyButton() {
   const { pending } = useFormStatus();
@@ -16,11 +14,8 @@ function CopyButton() {
   );
 }
 
-/** A Community card's buttons: copy it to My Activities; the owner (or the admin) can also take it out. */
-export function CommunityActions({ gameId, title, own, canRemove, from }: { gameId: string; title: string; own: boolean; canRemove: boolean; from: "teacher" | "admin" }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  const [error, setError] = useState("");
+/** A Community card's buttons: copy it to My Activities; the owner can also open the original. */
+export function CommunityActions({ gameId, own, from }: { gameId: string; own: boolean; from: "teacher" | "admin" }) {
   return (
     <div className="space-y-2">
       <form action={copyFromCommunity}>
@@ -28,36 +23,11 @@ export function CommunityActions({ gameId, title, own, canRemove, from }: { game
         <input type="hidden" name="from" value={from} />
         <CopyButton />
       </form>
-      {(own || canRemove) && (
-        <div className="flex gap-2">
-          {own && (
-            <Link href={`/${from}/games/${gameId}/edit`} className={buttonClass("secondary", "sm", "flex-1")}>
-              Edit original
-            </Link>
-          )}
-          <button
-            type="button"
-            className={buttonClass("danger", "sm", "flex-1")}
-            disabled={pending}
-            data-testid="community-remove"
-            onClick={() => {
-              const msg = own
-                ? `Take “${title}” out of the Community? It stays in your My Activities, and copies other teachers made stay theirs.`
-                : `Take “${title}” out of the Community? The teacher keeps it in their My Activities, and existing copies are not affected.`;
-              if (!window.confirm(msg)) return;
-              setError("");
-              start(async () => {
-                const r = await setCommunityShared({ gameId, shared: false });
-                if (!r.ok) setError(r.error);
-                router.refresh();
-              });
-            }}
-          >
-            {pending ? "Removing…" : "Remove"}
-          </button>
-        </div>
+      {own && (
+        <Link href={`/${from}/games/${gameId}/edit`} className={buttonClass("secondary", "sm", "w-full")}>
+          Edit original
+        </Link>
       )}
-      {error && <p role="alert" className="text-xs font-semibold text-coral-dark">{error}</p>}
     </div>
   );
 }

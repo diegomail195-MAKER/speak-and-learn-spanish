@@ -2,7 +2,7 @@
 //  - Platform Admin › My Activities lists the admin's own activities, the same as Teacher View;
 //  - "Create activity" and "Community" buttons in the My Activities header;
 //  - sharing an activity (owner only; needs a title and cards), the Community badge;
-//  - Community: teachers from any school see shared activities (with their pictures), "Copy & edit"
+//  - Community: teachers from any school see every teacher activity (with their pictures), "Copy & edit"
 //    makes an independent copy in their own school (pictures, card backs and audio copied too),
 //    the original never changes; the owner or the admin can take an activity out;
 //  - access: a teacher can't open Platform Admin, private pictures stay private.
@@ -78,7 +78,7 @@ function flash(teacher, schoolId, title, items, extra = {}) {
 const animales = await flash(carlos.teacher, other.id, `Animales ${stamp % 1000}`, [
   { position: 0, text: "perro", imageAssetId: dog.id, data: { back: { text: "dog", imageAssetId: cat.id }, audio: { mediaId: wav.id, text: "perro", language: "es-419" } }, questions: { create: [{ prompt: "perro", expectedAnswer: "perro", promptAudioId: audio.id, acceptedAnswers: { create: [{ text: "el perro" }] } }] } },
   { position: 1, text: "gato", data: { back: { text: "cat" } }, questions: { create: [{ prompt: "gato", expectedAnswer: "gato" }] } },
-], { communitySharedAt: new Date() });
+], {});
 await flash(carlos.teacher, other.id, "Privada", [{ position: 0, text: "rojo", imageAssetId: secret.id, questions: { create: [{ prompt: "rojo", expectedAnswer: "rojo" }] } }]);
 const adminGame = await flash(admin.teacher, school.id, `Colores del admin ${stamp % 1000}`, [{ position: 0, text: "rojo", questions: { create: [{ prompt: "rojo", expectedAnswer: "rojo" }] } }], { settings: {} });
 const beaGame = await flash(bea.teacher, school.id, `Saludos de Bea ${stamp % 1000}`, [{ position: 0, text: "hola", questions: { create: [{ prompt: "hola", expectedAnswer: "hola" }] } }], { settings: {} });
@@ -152,18 +152,18 @@ try {
 
   // ── Admin: Community shows other schools' shared activities (with their pictures) ──
   await a.goto(`${BASE}/admin/my-activities/community`);
-  const card = a.getByTestId("community-activity").filter({ hasText: animales.title });
+  const card = a.getByTestId("community-activity").filter({ hasText: animales.title }).filter({ hasText: "by Carlos Otro" });
   await card.waitFor();
   assert(await card.getByText("by Carlos Otro").count(), "author shown");
-  assert((await a.getByTestId("community-activity").filter({ hasText: "Privada" }).count()) === 0, "private activity not in the Community");
+  // Every teacher activity is in the Community automatically, even one nobody "shared".
+  await a.getByTestId("community-activity").filter({ hasText: "Privada" }).first().waitFor();
   assert((await imgLoaded(card, "img")) > 0, "Community thumbnail from another school loads");
   await shot(a, "2-admin-community");
-  // A private picture stays private
   const secretStatus = await a.evaluate((id) => fetch(`/api/media/${id}`, { cache: "no-store" }).then((r) => r.status), secret.id);
-  assert(secretStatus === 404, `private picture is still private (got ${secretStatus})`);
+  assert(secretStatus === 200 || secretStatus === 302, `card pictures of every Community activity load (got ${secretStatus})`);
   const wavStatus = await a.evaluate((id) => fetch(`/api/media/${id}`, { cache: "no-store" }).then((r) => r.status), wav.id);
   assert(wavStatus === 404, "other files of a Community activity are not served across schools");
-  log("Community: shared activity from another school, thumbnail visible, private media stays private");
+  log("Community: every activity from another school, thumbnails visible, audio stays private");
 
   // Copy & edit
   await card.getByTestId("community-copy").click();
@@ -188,44 +188,36 @@ try {
   await shot(a, "3-copy-in-editor");
   log("Copy & edit: independent copy with pictures, card backs and audio, opened in the editor");
 
-  // ── Bea: share her activity (owner only), see it in the Community ──
+  // ── Bea: her activities are in the Community without sharing anything ──
   const { p: b } = await signedIn(bea.email);
   await b.goto(`${BASE}/teacher/my-activities`);
   const tile = b.getByTestId("activity").filter({ hasText: beaGame.title });
   await tile.getByRole("button", { name: `Options for ${beaGame.title}` }).click();
-  await b.getByRole("menuitem", { name: "Share to Community" }).click();
-  await tile.getByTestId("community-badge").waitFor();
-  const shared = await db.game.findUnique({ where: { id: beaGame.id } });
-  assert(shared.communitySharedAt && shared.updatedAt.getTime() === beaGame.updatedAt.getTime(), "sharing doesn't change Modified");
-  await shot(b, "4-teacher-shared-badge");
-  // Untitled activity can't be shared
-  const untitled = b.getByTestId("activity").filter({ hasText: "Untitled activity" });
-  await untitled.getByRole("button", { name: "Options for Untitled activity" }).click();
-  await b.getByRole("menuitem", { name: "Share to Community" }).click();
-  await b.getByRole("alert").filter({ hasText: "title" }).waitFor();
-  assert(!(await db.game.findUnique({ where: { id: beaEmpty.id } })).communitySharedAt, "untitled not shared");
-  log("teacher: Share to Community (badge, Modified unchanged), untitled refused");
+  assert((await b.getByRole("menuitem", { name: "Share to Community" }).count()) === 0, "no Share to Community: everything is in the Community");
+  await b.keyboard.press("Escape");
+  log("teacher: no share step in My Activities");
 
   await b.getByTestId("community-button").click();
   await b.waitForURL(`${BASE}/teacher/my-activities/community`);
   const mine = b.getByTestId("community-activity").filter({ hasText: beaGame.title });
   await mine.getByText("Yours").waitFor();
   assert(await mine.getByRole("link", { name: "Edit original" }).count(), "owner can edit the original");
-  const carlosCard = b.getByTestId("community-activity").filter({ hasText: animales.title });
-  assert((await carlosCard.getByTestId("community-remove").count()) === 0, "a teacher can't remove someone else's activity");
-  await b.getByRole("link", { name: "Shared by me" }).click();
+  await b.getByTestId("community-activity").filter({ hasText: animales.title }).filter({ hasText: "by Carlos Otro" }).waitFor();
+  assert((await b.getByTestId("community-activity").filter({ hasText: adminGame.title }).count()) === 1, "the admin's activities are in the Community too");
+  assert((await b.getByTestId("community-remove").count()) === 0, "nobody removes activities from the Community");
+  await b.getByRole("link", { name: "Mine" }).click();
   await b.waitForURL(/mine=1/);
-  assert((await b.getByTestId("community-activity").count()) === 1, "Shared by me filter");
+  assert((await b.getByTestId("community-activity").count()) === 2, "Mine filter: Bea's two activities");
   await shot(b, "5-teacher-community-mine");
   // Bea copies Carlos's activity too
   await b.goto(`${BASE}/teacher/my-activities/community`);
-  await b.getByTestId("community-activity").filter({ hasText: animales.title }).getByTestId("community-copy").click();
+  await b.getByTestId("community-activity").filter({ hasText: animales.title }).filter({ hasText: "by Carlos Otro" }).getByTestId("community-copy").click();
   await b.waitForURL(/\/teacher\/games\/[^/]+\/edit$/);
   const beaCopy = await db.game.findUnique({ where: { id: b.url().split("/").at(-2) }, include: { items: true } });
   assert(beaCopy.teacherId === bea.teacher.id && beaCopy.items[0].imageAssetId === copy.items[0].imageAssetId, "same picture reused within the school");
   await b.goto(`${BASE}/teacher/my-activities/community`);
-  await b.getByTestId("community-activity").filter({ hasText: animales.title }).getByText("copied 2 times").waitFor();
-  log("teacher: Community (Yours, Edit original, no Remove on others), copy reuses pictures in the school");
+  await b.getByTestId("community-activity").filter({ hasText: animales.title }).filter({ hasText: "by Carlos Otro" }).getByText("copied 2 times").waitFor();
+  log("teacher: Community (all teacher activities, Yours, Edit original), copy reuses pictures in the school");
 
   // Teachers can't open Platform Admin
   await b.goto(`${BASE}/admin/my-activities`);
@@ -233,19 +225,13 @@ try {
   await b.goto(`${BASE}/admin/my-activities/community`);
   assert(!b.url().includes("/admin/"), "teacher redirected away from admin Community");
 
-  // ── Admin removes Bea's activity from the Community ──
   await a.goto(`${BASE}/admin/my-activities/community`);
-  a.once("dialog", (d) => d.accept());
-  await a.getByTestId("community-activity").filter({ hasText: beaGame.title }).getByTestId("community-remove").click();
-  await a.getByTestId("community-activity").filter({ hasText: beaGame.title }).waitFor({ state: "detached" });
-  assert(!(await db.game.findUnique({ where: { id: beaGame.id } })).communitySharedAt, "admin took it out");
-  assert((await db.game.count({ where: { id: beaGame.id, teacherId: bea.teacher.id } })) === 1, "Bea keeps her activity");
-  log("admin: removed an activity from the Community; the owner keeps it");
+  await a.getByTestId("community-activity").filter({ hasText: beaGame.title }).waitFor();
 
   // Archived activities leave the Community
   await db.game.update({ where: { id: animales.id }, data: { status: "ARCHIVED" } });
   await a.reload();
-  assert((await a.getByTestId("community-activity").filter({ hasText: animales.title }).count()) === 0, "archived activity hidden");
+  assert((await a.getByTestId("community-activity").filter({ hasText: animales.title }).filter({ hasText: "by Carlos Otro" }).count()) === 0, "archived activity hidden");
   const thumbAfter = await a.evaluate((id) => fetch(`/api/media/${id}`, { cache: "no-store" }).then((r) => r.status), dog.id);
   assert(thumbAfter === 404, "pictures of an activity out of the Community are private again");
   await db.game.update({ where: { id: animales.id }, data: { status: "PUBLISHED" } });

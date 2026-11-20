@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { TEMPLATES, templateByKey } from "@/lib/games/templates";
 import { mediaUrl } from "@/lib/media/save";
 
-// Community: activities shared by teachers (and the platform admin) with everyone on LextroSpeak.
+// Community: every activity that teachers (and the platform admin) create, for everyone on LextroSpeak.
 // Reading is open to every teacher; changing means "Copy & edit", which makes your own copy.
 // Shown in Teacher View (/teacher/my-activities/community) and Platform Admin (/admin/my-activities/community).
 
@@ -16,11 +16,10 @@ export type CommunitySearch = { q?: string; type?: string; mine?: string; gone?:
 
 const LIMIT = 120;
 
-export async function CommunityView({ sp, user, teacher, base }: { sp: CommunitySearch; user: { role: string }; teacher: { id: string }; base: MyActivitiesBase }) {
+export async function CommunityView({ sp, teacher, base }: { sp: CommunitySearch; teacher: { id: string }; base: MyActivitiesBase }) {
   const q = (sp.q ?? "").trim().slice(0, 100);
   const type = TEMPLATES.some((t) => t.key === sp.type) ? sp.type! : "";
   const mine = sp.mine === "1";
-  const admin = user.role === "ADMIN";
   const self = `${base}/community`;
 
   const games = await db.game.findMany({
@@ -30,7 +29,7 @@ export async function CommunityView({ sp, user, teacher, base }: { sp: Community
       ...(mine ? { teacherId: teacher.id } : {}),
       ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { topic: { contains: q, mode: "insensitive" as const } }, { level: { contains: q, mode: "insensitive" as const } }] } : {}),
     },
-    orderBy: { communitySharedAt: "desc" },
+    orderBy: { updatedAt: "desc" },
     take: LIMIT,
     include: {
       teacher: { select: { user: { select: { displayName: true } } } },
@@ -68,13 +67,12 @@ export async function CommunityView({ sp, user, teacher, base }: { sp: Community
 
       <div className="rounded-xl2 border border-line bg-card px-5 py-4">
         <p className="mb-4 max-w-3xl text-sm text-ink-2">
-          Activities that teachers share with everyone on LextroSpeak. Use <b>Copy &amp; edit</b> to get your own copy in My Activities and adapt it as you like; the original never changes.
-          To share one of yours, open its <b>⋮</b> menu in My Activities and choose <b>Share to Community</b>.
+          Every activity that teachers create on LextroSpeak appears here automatically. Use <b>Copy &amp; edit</b> to get your own copy in My Activities and adapt it as you like; the original never changes.
         </p>
 
         <nav aria-label="Filter" className="mb-4 flex flex-wrap gap-2 text-sm">
           <Link href={link({ q, mine: mine ? "" : "1", type })} aria-current={mine ? "true" : undefined} className={`rounded-full px-3 py-1.5 font-bold ring-1 ${mine ? "bg-ink text-white ring-ink" : "bg-card ring-line hover:bg-paper-2"}`}>
-            Shared by me
+            Mine
           </Link>
           <Link href={link({ q, mine: mine ? "1" : "" })} aria-current={!type ? "true" : undefined} className={`rounded-full px-3 py-1.5 font-bold ring-1 ${!type ? "bg-ink text-white ring-ink" : "bg-card ring-line hover:bg-paper-2"}`}>
             All types
@@ -91,7 +89,7 @@ export async function CommunityView({ sp, user, teacher, base }: { sp: Community
         {games.length === 0 ? (
           <div className="grid place-items-center gap-3 py-14 text-center" data-testid="community-empty">
             <p className="font-display text-xl font-semibold">{q || type || mine ? "No Community activities match" : "The Community is empty for now"}</p>
-            <p className="max-w-md text-sm text-muted">Share an activity from My Activities (⋮ › Share to Community) and every teacher will be able to copy and adapt it.</p>
+            <p className="max-w-md text-sm text-muted">Activities appear here as soon as teachers create them, and every teacher can copy and adapt them.</p>
             <ButtonLink href={base} variant="secondary">Go to My Activities</ButtonLink>
           </div>
         ) : (
@@ -124,14 +122,14 @@ export async function CommunityView({ sp, user, teacher, base }: { sp: Community
                         {n > 0 ? ` · copied ${n} ${n === 1 ? "time" : "times"}` : ""}
                       </p>
                     </div>
-                    <CommunityActions gameId={g.id} title={g.title} own={own} canRemove={admin} from={from} />
+                    <CommunityActions gameId={g.id} own={own} from={from} />
                   </div>
                 </li>
               );
             })}
           </ul>
         )}
-        {games.length === LIMIT && <p className="mt-4 text-xs text-muted">Showing the {LIMIT} most recently shared. Search or filter to find others.</p>}
+        {games.length === LIMIT && <p className="mt-4 text-xs text-muted">Showing the {LIMIT} most recently changed. Search or filter to find others.</p>}
       </div>
     </div>
   );

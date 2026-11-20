@@ -57,7 +57,6 @@ export async function MyActivitiesView({ sp, teacher, base }: { sp: MyActivities
     updatedAt: g.updatedAt.toISOString(),
     lastPlayed: lastPlayed.get(g.id)?.toISOString() ?? null,
     folderName: q && g.folderId ? byId.get(g.folderId)?.name ?? null : null,
-    shared: !!g.communitySharedAt,
   }));
   const sign = sort.dir === "asc" ? 1 : -1;
   activities.sort((a, b) => {
