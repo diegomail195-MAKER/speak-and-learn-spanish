@@ -88,7 +88,7 @@ export async function MyActivitiesView({ sp, teacher, base }: { sp: MyActivities
 
   return (
     <>
-      {!bin && <UnsavedDrafts />}
+      {!bin && <UnsavedDrafts editorBase={base === "/admin/my-activities" ? "/admin/games" : "/teacher/games"} />}
       <MyActivitiesBoard
         key={`${current?.id ?? "root"}-${bin}-${q}`}
         folder={current ? { id: current.id, name: current.name, color: current.color, parentId: current.parentId } : null}

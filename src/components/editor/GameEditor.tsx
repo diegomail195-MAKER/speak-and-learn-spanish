@@ -3,7 +3,7 @@
 import { FontPreview } from "./FontPreview";
 import { OptionInput } from "./OptionInput";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select } from "@/components/ui/Field";
@@ -105,6 +105,8 @@ export function GameEditor(props: { initial: EditorGame; template: TemplateDef; 
 
 function GameEditorInner({ initial, template, categories, library }: { initial: EditorGame; template: TemplateDef; categories: Category[]; library?: LibrarySlots }) {
   const router = useRouter();
+  // Opened from Platform Admin (/admin/games/…): "← My Activities" goes back there.
+  const myActivitiesHref = usePathname()?.startsWith("/admin/") ? "/admin/my-activities" : "/teacher/my-activities";
   const { t, lang: uiLang, setLang: setUiLang } = useUi();
   const [game, setGame] = useState<EditorGame>(() => editorState(initial, template));
   const [dragFrom, setDragFrom] = useState<number | null>(null);
@@ -689,7 +691,7 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
       )}
 
       <div className="sticky top-0 z-20 -mx-5 mb-4 flex flex-wrap items-center gap-3 border-b border-line bg-paper/95 px-5 py-3 backdrop-blur">
-        <Link href="/teacher/my-activities" className="text-sm font-bold text-muted hover:text-ink">← My Activities</Link>
+        <Link href={myActivitiesHref} className="text-sm font-bold text-muted hover:text-ink">← My Activities</Link>
         <Badge tone="sky">{template.name}</Badge>
         <Badge tone={game.status === "PUBLISHED" ? "leaf" : "neutral"}>{game.status === "PUBLISHED" ? "Published" : game.status === "ARCHIVED" ? "Archived" : "Draft"}</Badge>
         <span

@@ -56,7 +56,7 @@ export async function CommunityView({ sp, user, teacher, base }: { sp: Community
           <h1 className="flex items-center gap-2 font-display text-3xl font-semibold"><CommunityIcon className="h-7 w-7" /> Community</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <ButtonLink size="sm" href="/teacher/games/new">+ Create activity</ButtonLink>
+          <ButtonLink size="sm" href={`${base.startsWith("/admin") ? "/admin" : "/teacher"}/games/new`}>+ Create activity</ButtonLink>
           <form action={self} className="flex">
             {type && <input type="hidden" name="type" value={type} />}
             {mine && <input type="hidden" name="mine" value="1" />}

@@ -56,6 +56,9 @@ function boardHref(base: MyActivitiesBase, p: Record<string, string | null | und
 
 export function MyActivitiesBoard({ folder, path, folders, activities, tree, sort, view, q, bin, base = "/teacher/my-activities" }: Props) {
   const href = (p: Record<string, string | null | undefined>) => boardHref(base, p);
+  // Editor and "Create activity" stay in the same workspace (Platform Admin or Teacher View).
+  const games = base === "/admin/my-activities" ? "/admin/games" : "/teacher/games";
+  const openHref = (a: { id: string; items: number }) => (a.items > 0 ? `/play/preview/${a.id}` : `${games}/${a.id}/edit`);
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState("");
@@ -172,7 +175,7 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
           {!bin && <Button size="sm" variant="secondary" onClick={() => setDialog({ mode: "new" })}>+ New folder</Button>}
           {!bin && <ButtonLink size="sm" variant="secondary" href={href({ bin: "1", view: keep.view })}><TrashIcon className="h-4 w-4" /> Recycle Bin</ButtonLink>}
           {!bin && <ButtonLink size="sm" variant="secondary" href={`${base}/community`} data-testid="community-button"><CommunityIcon className="h-4 w-4" /> Community</ButtonLink>}
-          {!bin && <ButtonLink size="sm" href="/teacher/games/new" data-testid="create-activity-button">+ Create activity</ButtonLink>}
+          {!bin && <ButtonLink size="sm" href={`${games}/new`} data-testid="create-activity-button">+ Create activity</ButtonLink>}
           <form action={base} className="flex">
             {keep.view && <input type="hidden" name="view" value={keep.view} />}
             <input name="q" defaultValue={q} placeholder="Search my activities…" aria-label="Search my activities" className="h-9 w-48 rounded-l-full border border-line bg-card px-4 text-sm sm:w-56" />
@@ -217,7 +220,7 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
           <div className="grid place-items-center gap-3 py-14 text-center">
             <p className="font-display text-xl font-semibold">{bin ? "The Recycle Bin is empty" : q ? "No activities match your search" : "You haven't created any activities yet"}</p>
             {!bin && !q && <p className="max-w-md text-sm text-muted">Every activity you create is saved here. Make folders to organise them, then drag activities into the folders.</p>}
-            {!bin && !q && <ButtonLink href="/teacher/games/new">+ Create Activity</ButtonLink>}
+            {!bin && !q && <ButtonLink href={`${games}/new`}>+ Create Activity</ButtonLink>}
           </div>
         ) : (folder || shownFolders.length > 0) && (
           <ul className={`grid gap-4 ${grid}`}>
@@ -303,15 +306,16 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
                         </>
                       ) : (
                         <>
-                          <MenuLink href={`/teacher/games/${a.id}/edit`}>Edit</MenuLink>
+                          <MenuLink href={`${games}/${a.id}/edit`}>Edit</MenuLink>
                           <MenuLink href={`/play/preview/${a.id}`}>Play</MenuLink>
                           {a.status === "PUBLISHED" ? (
                             <MenuLink href={`/teacher/assignments/new?gameId=${a.id}`}>Assign</MenuLink>
                           ) : (
-                            <MenuLink href={`/teacher/games/${a.id}/edit`} hint="Publish it in the editor to assign it">Assign…</MenuLink>
+                            <MenuLink href={`${games}/${a.id}/edit`} hint="Publish it in the editor to assign it">Assign…</MenuLink>
                           )}
                           <form action={duplicateGame}>
                             <input type="hidden" name="gameId" value={a.id} />
+                            <input type="hidden" name="workspace" value={base === "/admin/my-activities" ? "admin" : "teacher"} />
                             <MenuItem type="submit">Duplicate</MenuItem>
                           </form>
                           {a.shared ? (
@@ -433,8 +437,6 @@ function MenuItem({ danger, className = "", ...props }: React.ComponentProps<"bu
   return <button type="button" role="menuitem" className={`block w-full rounded-lg px-3 py-2 text-left font-semibold ${danger ? "text-coral-dark hover:bg-coral-soft" : "hover:bg-paper-2"} ${className}`} {...props} />;
 }
 
-/** Clicking an activity plays it; an activity with nothing in it yet opens the editor. */
-const openHref = (a: { id: string; items: number }) => (a.items > 0 ? `/play/preview/${a.id}` : `/teacher/games/${a.id}/edit`);
 
 function MenuLink({ href: to, hint, children }: { href: string; hint?: string; children: ReactNode }) {
   return (

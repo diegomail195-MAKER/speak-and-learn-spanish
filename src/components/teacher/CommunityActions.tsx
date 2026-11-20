@@ -31,7 +31,7 @@ export function CommunityActions({ gameId, title, own, canRemove, from }: { game
       {(own || canRemove) && (
         <div className="flex gap-2">
           {own && (
-            <Link href={`/teacher/games/${gameId}/edit`} className={buttonClass("secondary", "sm", "flex-1")}>
+            <Link href={`/${from}/games/${gameId}/edit`} className={buttonClass("secondary", "sm", "flex-1")}>
               Edit original
             </Link>
           )}

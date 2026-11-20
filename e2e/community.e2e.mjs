@@ -106,12 +106,36 @@ try {
   await a.waitForURL(`${BASE}/admin/my-activities`);
   await a.getByText(adminGame.title).first().waitFor();
   assert((await a.getByTestId("ws-sidebar").getByRole("link", { name: "My Activities" }).getAttribute("aria-current")) === "page", "admin nav: My Activities active");
-  assert((await a.getByTestId("create-activity-button").getAttribute("href")) === "/teacher/games/new", "Create activity button");
+  assert((await a.getByTestId("create-activity-button").getAttribute("href")) === "/admin/games/new", "Create activity button stays in Platform Admin");
+  const side = a.getByTestId("ws-sidebar");
+  assert((await side.getByRole("link", { name: "Activity Log" }).count()) === 0, "Activity Log removed from the admin menu");
+  assert((await side.getByRole("link", { name: "Create activity" }).getAttribute("href")) === "/admin/games/new", "admin menu: Create activity");
+  assert((await side.getByRole("link", { name: "Community" }).getAttribute("href")) === "/admin/my-activities/community", "admin menu: Community");
   assert((await a.getByTestId("community-button").getAttribute("href")) === "/admin/my-activities/community", "Community button (admin)");
   await shot(a, "1-admin-my-activities");
   await a.goto(`${BASE}/teacher/my-activities`);
   await a.getByText(adminGame.title).first().waitFor();
   assert((await a.getByTestId("community-button").getAttribute("href")) === "/teacher/my-activities/community", "Community button (teacher)");
+  assert((await a.getByTestId("create-activity-button").getAttribute("href")) === "/teacher/games/new", "Create activity button (teacher)");
+  assert((await a.getByTestId("ws-sidebar").getByRole("link", { name: "Community" }).getAttribute("href")) === "/teacher/my-activities/community", "teacher menu: Community");
+
+  // Create activity from Platform Admin: gallery and editor stay in Platform Admin
+  await a.goto(`${BASE}/admin/my-activities`);
+  await a.getByTestId("create-activity-button").click();
+  await a.waitForURL(`${BASE}/admin/games/new`);
+  assert((await a.getByTestId("workspace-switcher").textContent()).includes("Platform Admin"), "gallery inside Platform Admin");
+  await shot(a, "1b-admin-create-activity");
+  await a.click("button[value=FLASHCARDS]");
+  await a.waitForURL(/\/admin\/games\/[^/]+\/edit$/);
+  const newId = a.url().split("/").at(-2);
+  assert((await db.game.findUnique({ where: { id: newId } })).teacherId === admin.teacher.id, "new activity is the admin's own");
+  await a.waitForSelector("text=/Frente|Front/");
+  assert((await a.getByTestId("workspace-switcher").textContent()).includes("Platform Admin"), "editor inside Platform Admin");
+  assert((await a.getByTestId("ws-sidebar").getByRole("link", { name: "My Activities" }).getAttribute("aria-current")) === "page", "editor: My Activities active in admin menu");
+  await shot(a, "1c-admin-editor");
+  await a.getByRole("link", { name: "← My Activities" }).click();
+  await a.waitForURL(`${BASE}/admin/my-activities`);
+  await db.game.delete({ where: { id: newId } });
   log("admin: My Activities in Platform Admin and Teacher View, with Create activity + Community");
 
   // Search and folders keep working under /admin
@@ -143,7 +167,7 @@ try {
 
   // Copy & edit
   await card.getByTestId("community-copy").click();
-  await a.waitForURL(/\/teacher\/games\/[^/]+\/edit$/);
+  await a.waitForURL(/\/admin\/games\/[^/]+\/edit$/);
   const copyId = a.url().split("/").at(-2);
   const copy = await db.game.findUnique({ where: { id: copyId }, include: { items: { orderBy: { position: "asc" }, include: { questions: { include: { acceptedAnswers: true } } } } } });
   assert(copy.teacherId === admin.teacher.id && copy.schoolId === school.id, "copy belongs to the admin");

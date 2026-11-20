@@ -8,12 +8,11 @@ import { WorkspaceFrame, type Workspace, type WsLink } from "./WorkspaceFrame";
 const ADMIN_LINKS: WsLink[] = [
   { href: "/admin", label: "Overview", icon: "home", exact: true },
   { href: "/admin/library", label: "Content Library", icon: "book" },
-  { href: "/admin/my-activities", label: "My Activities", icon: "bolt" },
+  { href: "/admin/my-activities", label: "My Activities", icon: "bolt", match: ["/admin/games"], except: ["/admin/my-activities/community", "/admin/games/new"] },
   { href: "/admin/topics", label: "Topics", icon: "layers" },
   { href: "/admin/content", label: "Resources", icon: "file" },
   { href: "/admin/users", label: "Users & Schools", icon: "users" },
   { href: "/admin/settings", label: "Settings", icon: "gear", match: ["/admin/grades"] },
-  { href: "/admin/activity", label: "Activity Log", icon: "clock" },
 ];
 
 const TEACHER_LINKS: WsLink[] = [
@@ -21,7 +20,7 @@ const TEACHER_LINKS: WsLink[] = [
   { href: "/teacher/classes", label: "My Classes", icon: "users" },
   { href: "/teacher/library", label: "Library", icon: "book" },
   { href: "/teacher/assignments", label: "My Assignments", icon: "clipboard", match: ["/teacher/tasks"] },
-  { href: "/teacher/my-activities", label: "My Activities", icon: "bolt", match: ["/teacher/games"] },
+  { href: "/teacher/my-activities", label: "My Activities", icon: "bolt", match: ["/teacher/games"], except: ["/teacher/my-activities/community", "/teacher/games/new"] },
   { href: "/teacher/progress", label: "Progress", icon: "chart" },
   { href: "/teacher/review", label: "Review", icon: "inbox" },
   { href: "/teacher/account", label: "My Account", icon: "user", match: ["/teacher/billing"] },
@@ -30,6 +29,12 @@ const TEACHER_LINKS: WsLink[] = [
 const TEACHER_EXTRA: WsLink[] = [
   { href: "/teacher/videos", label: "Videos", icon: "video" },
   { href: "/teacher/games/new", label: "Create activity", icon: "plus", exact: true },
+  { href: "/teacher/my-activities/community", label: "Community", icon: "users" },
+];
+
+const ADMIN_EXTRA: WsLink[] = [
+  { href: "/admin/games/new", label: "Create activity", icon: "plus", exact: true },
+  { href: "/admin/my-activities/community", label: "Community", icon: "users" },
 ];
 
 export async function WorkspaceShell({
@@ -53,7 +58,7 @@ export async function WorkspaceShell({
       available={available}
       title={workspace === "admin" ? "Platform Admin" : "Teacher Dashboard"}
       links={workspace === "admin" ? ADMIN_LINKS : TEACHER_LINKS}
-      extraLinks={workspace === "teacher" ? TEACHER_EXTRA : []}
+      extraLinks={workspace === "teacher" ? TEACHER_EXTRA : ADMIN_EXTRA}
       user={{ name: user.displayName, email: user.email, school }}
       accountHref={user.teacher ? "/teacher/account" : null}
       signOut={signOut}

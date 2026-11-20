@@ -11,6 +11,11 @@ import { templateByKey, templateOptions } from "@/lib/games/templates";
 import { DEFAULT_SETTINGS } from "@/lib/games/types";
 import { AUDIO_LANGUAGE_CODES } from "@/lib/tts/voices";
 
+/** The editor opens in the workspace the teacher came from: Platform Admin or Teacher View. */
+function editorBase(form: FormData) {
+  return form.get("workspace") === "admin" ? "/admin/games" : "/teacher/games";
+}
+
 export async function createGame(form: FormData) {
   const { user, teacher } = await requireTeacher();
   const t = templateByKey(String(form.get("templateKey")));
@@ -25,7 +30,7 @@ export async function createGame(form: FormData) {
     },
   });
   await audit(user.schoolId, user.id, "game.create", "Game", game.id);
-  redirect(`/teacher/games/${game.id}/edit`);
+  redirect(`${editorBase(form)}/${game.id}/edit`);
 }
 
 export async function setGameStatus(form: FormData) {
@@ -88,7 +93,7 @@ export async function duplicateGame(form: FormData) {
     },
   });
   await audit(user.schoolId, user.id, "game.duplicate", "Game", copy.id, { from: g.id });
-  redirect(`/teacher/games/${copy.id}/edit`);
+  redirect(`${editorBase(form)}/${copy.id}/edit`);
 }
 
 export async function deleteGame(form: FormData) {

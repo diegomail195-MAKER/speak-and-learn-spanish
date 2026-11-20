@@ -33,7 +33,7 @@ export default async function UsersAndSchools({ searchParams }: { searchParams: 
 
   return (
     <>
-      <PageTitle title="Users & Schools" subtitle="Accounts, roles and schools. Every change is recorded in the Activity Log." />
+      <PageTitle title="Users & Schools" subtitle="Accounts, roles and schools. Every change is recorded." />
       <nav aria-label="Sections" className="mb-5 flex gap-2">{tabLink("users", "Users")}{tabLink("schools", "Schools")}</nav>
       {merged && <p role="status" className="mb-4 rounded-xl border border-[#ABEFC6] bg-[#ECFDF3] px-4 py-3 font-bold text-[#067647] [overflow-wrap:anywhere]" data-testid="users-done">The school was merged into {merged.name}: its accounts, classes, activities and assignments are there now.</p>}
       {tab === "users" ? <Users me={me.id} q={q} role={role} school={sp.school} page={page} /> : <Schools q={q} page={page} />}

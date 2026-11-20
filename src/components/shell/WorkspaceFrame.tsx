@@ -10,7 +10,7 @@ import { WsIcon, type WsIconName } from "./WsIcons";
 // Below 1024 px the sidebar becomes a menu opened from the top bar.
 
 export type Workspace = "admin" | "teacher";
-export type WsLink = { href: string; label: string; icon: WsIconName; exact?: boolean; match?: string[] };
+export type WsLink = { href: string; label: string; icon: WsIconName; exact?: boolean; match?: string[]; except?: string[] };
 
 const WORKSPACES: Record<Workspace, { label: string; href: string }> = {
   admin: { label: "Platform Admin", href: "/admin" },
@@ -19,6 +19,7 @@ const WORKSPACES: Record<Workspace, { label: string; href: string }> = {
 
 function isActive(path: string, l: WsLink) {
   if (l.exact) return path === l.href;
+  if (l.except?.some((p) => path === p || path.startsWith(p + "/"))) return false;
   const prefixes = [l.href, ...(l.match ?? [])];
   return prefixes.some((p) => path === p || path.startsWith(p + "/"));
 }

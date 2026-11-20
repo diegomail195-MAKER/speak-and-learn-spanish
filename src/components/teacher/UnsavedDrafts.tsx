@@ -9,7 +9,7 @@ type Backup = { id: string; title: string; items: number };
  * Reminds the teacher of activities with changes that only exist on this device (the editor's
  * local backup, kept until the server confirms a save). Opening the activity offers to restore them.
  */
-export function UnsavedDrafts() {
+export function UnsavedDrafts({ editorBase = "/teacher/games" }: { editorBase?: "/teacher/games" | "/admin/games" }) {
   const [backups, setBackups] = useState<Backup[]>([]);
   useEffect(() => {
     const found: Backup[] = [];
@@ -34,7 +34,7 @@ export function UnsavedDrafts() {
       <ul className="mt-2 flex flex-wrap gap-2">
         {backups.map((b) => (
           <li key={b.id}>
-            <Link href={`/teacher/games/${b.id}/edit`} className="inline-flex items-center gap-1 rounded-full bg-card px-3 py-1.5 font-bold hover:bg-paper-2">
+            <Link href={`${editorBase}/${b.id}/edit`} className="inline-flex items-center gap-1 rounded-full bg-card px-3 py-1.5 font-bold hover:bg-paper-2">
               {b.title} · {b.items} {b.items === 1 ? "card" : "cards"} → Continue
             </Link>
           </li>

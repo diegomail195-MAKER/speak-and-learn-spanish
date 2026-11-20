@@ -48,5 +48,5 @@ export async function copyFromCommunity(form: FormData) {
   const id = await copyGameTo(g.id, { schoolId: user.schoolId, teacherId: teacher.id });
   await audit(user.schoolId, user.id, "game.community.copy", "Game", id, { from: g.id });
   refresh();
-  redirect(`/teacher/games/${id}/edit`);
+  redirect(`${form.get("from") === "admin" ? "/admin" : "/teacher"}/games/${id}/edit`);
 }
