@@ -74,11 +74,12 @@ export function TopicHero({ title, subtitle, art, shapes, data, assignmentId, to
             <div className="relative aspect-video overflow-hidden rounded-[18px] bg-[#2a0634]" data-testid="hero-stage">
               {video ? (
                 playing ? (
-                  <div className="absolute inset-0" data-testid="hero-player">
+                  <div className="absolute inset-0 select-none caret-transparent" data-testid="hero-player">
                     <VideoPlayer
                       key={video.id}
                       bare
                       autoPlay
+                      lockSeek={!!assignmentId}
                       video={{ id: video.id, title: video.title, description: "", source: video.source, url: video.url, youtubeId: video.youtubeId, captionsUrl: null, captionsLanguage: "es", coverUrl: null, durationSec: video.durationSec, practiceGameId: null }}
                       onEnded={onEnded}
                     />

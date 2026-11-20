@@ -2,6 +2,7 @@ import { handle } from "@/lib/api";
 import { HttpError, requireUser } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
+import { isMediaOpenedAsPage } from "@/lib/media/noDownload";
 
 // Streams (or, with remote storage, redirects to) a private media file to signed-in users of the same school, with byte ranges so
 // videos and audio can seek without downloading the whole file.
@@ -10,6 +11,7 @@ export const GET = handle(async (req: Request, ctx: { params: Promise<{ id: stri
   const { id } = await ctx.params;
   const asset = await db.mediaAsset.findFirst({ where: { id, schoolId: user.schoolId } });
   if (!asset) throw new HttpError(404, "Not found");
+  if (isMediaOpenedAsPage(req, asset.mimeType)) throw new HttpError(403, "This video or song can only be played inside LextroSpeak.");
   const store = storage();
   // ?direct=1 on a picture: send the bytes from this site instead of redirecting, so printables
   // can draw it into a PDF (a cross-site redirect would block reading the image).
