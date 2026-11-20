@@ -138,6 +138,13 @@ const ES = {
   practiceAccepted: "Otras respuestas que cuentan (separadas por comas)",
   activitySettings: "Activity settings",
   practiceHelp: "Después de las tarjetas, ¡Vamos a practicar! muestra las mismas tarjetas como preguntas y el estudiante responde con el micrófono.",
+  createActivity: "Crear actividad",
+  chooseActivityType: "Elige un tipo de actividad.",
+  sortBy: "Ordenar por",
+  sortRecommended: "Recomendado",
+  sortAlphabetical: "Alfabético",
+  opening: "Abriendo…",
+  activityTypes: "Tipos de actividad",
 };
 type Dict = typeof ES;
 const EN: Dict = {
@@ -272,6 +279,13 @@ const EN: Dict = {
   practiceAccepted: "Other answers that count (separated by commas)",
   activitySettings: "Activity settings",
   practiceHelp: "After the cards, Let's practice! shows the same cards as questions and the student answers with the microphone.",
+  createActivity: "Create Activity",
+  chooseActivityType: "Choose an activity type.",
+  sortBy: "Sort by",
+  sortRecommended: "Recommended",
+  sortAlphabetical: "Alphabetical",
+  opening: "Opening…",
+  activityTypes: "Activity types",
 };
 
 const Ctx = createContext<{ lang: UiLang; t: Dict; setLang: (l: UiLang) => void }>({ lang: "en", t: EN, setLang: () => undefined });

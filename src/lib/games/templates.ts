@@ -3,6 +3,8 @@
 // (by voice, typing or drag & drop) and checked on the server the same way. A template only
 // chooses the board the student sees, which fields the editor asks for, and its options.
 
+import { canonicalTemplateKey } from "./activityTypes";
+
 export type TemplateKey =
   | "FLASHCARDS"
   | "SPELL_THE_WORD"
@@ -149,7 +151,7 @@ export const TEMPLATES: TemplateDef[] = [
   {
     key: "SPIN_THE_WHEEL",
     name: "Spin the Wheel",
-    nameEs: "La ruleta",
+    nameEs: "Gira la ruleta",
     description: "A wheel picks a word, picture or question; students answer out loud.",
     howItPlays: "Spin, hear the question, answer by voice. Completed slices can leave the wheel.",
     available: true,
@@ -172,7 +174,7 @@ export const TEMPLATES: TemplateDef[] = [
   {
     key: "LABEL_THE_DIAGRAM",
     name: "Label the Diagram",
-    nameEs: "Etiqueta el dibujo",
+    nameEs: "Etiqueta el diagrama",
     description: "One picture with points to label: parts of the body, a house, a map, a clock.",
     howItPlays: "A point lights up: drag its label, type it, or say it. Correct labels appear on the picture.",
     available: true,
@@ -251,7 +253,7 @@ export const TEMPLATES: TemplateDef[] = [
   {
     key: "SPEAK_AND_ANSWER",
     name: "Image & Speak",
-    nameEs: "Mira y responde",
+    nameEs: "Mira y habla",
     description: "A picture and a spoken question. Students answer out loud.",
     howItPlays: "See the picture, hear “¿Qué animal es?”, answer “Es un perro.”",
     available: true,
@@ -286,7 +288,7 @@ export const TEMPLATES: TemplateDef[] = [
   {
     key: "IMAGE_AND_VOCABULARY",
     name: "Picture Words",
-    nameEs: "Imagen y vocabulario",
+    nameEs: "Palabras con imágenes",
     description: "Students look at a picture and say its name in Spanish.",
     howItPlays: "A picture appears; say its name.",
     available: true,
@@ -409,7 +411,8 @@ export const AUTOPLAY_OPTION: OptionDef = {
 };
 for (const t of TEMPLATES) if (t.available && !t.options.some((o) => o.key === AUTOPLAY_OPTION.key)) t.options.push(AUTOPLAY_OPTION);
 
-export const templateByKey = (key: string) => TEMPLATES.find((t) => t.key === key);
+/** The template for a saved key; older key spellings resolve to their current template. */
+export const templateByKey = (key: string) => TEMPLATES.find((t) => t.key === key) ?? TEMPLATES.find((t) => t.key === canonicalTemplateKey(key));
 
 export const FILTERS: Array<{ key: TemplateFilter | "all"; label: string }> = [
   { key: "all", label: "All" },

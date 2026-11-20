@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type DragEvent, type ReactNode } from "react";
-import { PREVIEW_BG, TemplatePreview } from "@/components/editor/TemplatePreview";
+import { ActivityTypeIcon } from "@/components/activity/ActivityTypeIcon";
+import { activityTint } from "@/lib/games/activityTypes";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { duplicateGame } from "@/lib/actions/games";
 import { createFolder, deleteFolder, emptyBin, moveFolder, moveGame, restoreGame, trashGame, updateFolder } from "@/lib/actions/folders";
@@ -257,12 +258,12 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
           <ul className={`grid gap-4 ${grid}`}>
             {shownActivities.map((a) => (
               <li key={a.id} {...dragProps({ kind: "game", id: a.id })} data-testid="activity" className="flex flex-col rounded-xl border border-line bg-card shadow-soft transition-shadow hover:shadow-md">
-                <Link href={bin ? "#" : openHref(a)} data-testid="activity-open" className={`relative block ${view === "small" ? "aspect-[4/3]" : "aspect-[16/11]"} overflow-hidden rounded-t-xl`} style={{ background: PREVIEW_BG[a.templateKey] ?? "#fff1de" }} tabIndex={bin ? -1 : undefined} aria-hidden={bin || undefined} draggable={false}>
+                <Link href={bin ? "#" : openHref(a)} data-testid="activity-open" className={`relative block ${view === "small" ? "aspect-[4/3]" : "aspect-[16/11]"} overflow-hidden rounded-t-xl`} style={{ background: activityTint(a.templateKey) }} tabIndex={bin ? -1 : undefined} aria-hidden={bin || undefined} draggable={false}>
                   {a.thumb ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={a.thumb} alt="" className="h-full w-full object-contain p-2" draggable={false} loading="lazy" />
                   ) : (
-                    <div className="h-full w-full p-3 [&_svg]:h-full [&_svg]:w-full"><TemplatePreview k={a.templateKey} /></div>
+                    <div className="grid h-full w-full place-items-center p-3"><ActivityTypeIcon templateKey={a.templateKey} size={96} className="max-h-full max-w-full" /></div>
                   )}
                   {a.status === "PUBLISHED" && <span className="absolute left-2 top-2 rounded-full bg-leaf px-2 py-0.5 text-[11px] font-bold text-white">Published</span>}
                   {a.status === "DRAFT" && <span className="absolute left-2 top-2 rounded-full bg-card/90 px-2 py-0.5 text-[11px] font-bold text-ink-2">Draft</span>}
@@ -279,7 +280,7 @@ export function MyActivitiesBoard({ folder, path, folders, activities, tree, sor
                     ) : (
                       <Link href={openHref(a)} className="block truncate font-display font-semibold hover:text-coral" draggable={false}>{a.title || "Untitled activity"}</Link>
                     )}
-                    <span className="block truncate text-xs text-muted">{a.template}{view === "large" ? ` · ${a.items} ${a.items === 1 ? "card" : "cards"}` : ""}</span>
+                    <span className="flex items-center gap-1 text-xs text-muted" data-testid="activity-type-label"><ActivityTypeIcon templateKey={a.templateKey} size={18} /><span className="truncate">{a.template}{view === "large" ? ` · ${a.items} ${a.items === 1 ? "card" : "cards"}` : ""}</span></span>
                     {a.folderName && <span className="block truncate text-xs text-muted">📁 {a.folderName}</span>}
                   </div>
                   <Menu label={`Options for ${a.title || "Untitled activity"}`}>

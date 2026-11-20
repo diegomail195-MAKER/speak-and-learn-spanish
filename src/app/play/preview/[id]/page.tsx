@@ -5,7 +5,7 @@ import { requireTeacherPage } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { buildPlayGame, readSettings } from "@/lib/games/service";
 import type { SettingsData } from "@/components/player/flashcards/ActivitySettings";
-import { templateByKey } from "@/lib/games/templates";
+import { activityName } from "@/lib/games/activityTypes";
 
 export const metadata = { title: "Preview" };
 
@@ -68,7 +68,8 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
       key="strip"
       game={game}
       role={user.role === "ADMIN" ? "ADMIN" : "TEACHER"}
-      typeName={templateByKey(game.templateKey)?.name ?? "Activity"}
+      typeName={activityName(game.templateKey)}
+      typeKey={game.templateKey}
       status={row?.status as "DRAFT" | "PUBLISHED" | "ARCHIVED" | undefined}
       assignments={assignments}
       settings={settings}

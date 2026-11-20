@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { PREVIEW_BG, TemplatePreview } from "@/components/editor/TemplatePreview";
+import { ActivityTypeIcon } from "@/components/activity/ActivityTypeIcon";
+import { activityName, activityTint } from "@/lib/games/activityTypes";
 import { CommunityActions } from "@/components/teacher/CommunityActions";
 import { CommunityIcon, type MyActivitiesBase } from "@/components/teacher/MyActivitiesBoard";
 import { ButtonLink } from "@/components/ui/Button";
 import { communityWhere } from "@/lib/community";
 import { db } from "@/lib/db";
-import { TEMPLATES, templateByKey } from "@/lib/games/templates";
+import { TEMPLATES } from "@/lib/games/templates";
 import { mediaUrl } from "@/lib/media/save";
 
 // Community: every activity that teachers (and the platform admin) create, for everyone on LextroSpeak.
@@ -100,21 +101,24 @@ export async function CommunityView({ sp, teacher, base }: { sp: CommunitySearch
               const n = copiesOf.get(g.id) ?? 0;
               return (
                 <li key={g.id} data-testid="community-activity" className="flex flex-col rounded-xl border border-line bg-card shadow-soft">
-                  <div className="relative aspect-[16/11] overflow-hidden rounded-t-xl" style={{ background: PREVIEW_BG[g.templateKey] ?? "#fff1de" }}>
+                  <div className="relative aspect-[16/11] overflow-hidden rounded-t-xl" style={{ background: activityTint(g.templateKey) }}>
                     {thumb ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={thumb} alt="" className="h-full w-full object-contain p-2" loading="lazy" />
                     ) : (
-                      <div className="h-full w-full p-3 [&_svg]:h-full [&_svg]:w-full"><TemplatePreview k={g.templateKey} /></div>
+                      <div className="grid h-full w-full place-items-center p-3"><ActivityTypeIcon templateKey={g.templateKey} size={96} className="max-h-full max-w-full" /></div>
                     )}
                     {own && <span className="absolute left-2 top-2 rounded-full bg-sky px-2 py-0.5 text-[11px] font-bold text-white">Yours</span>}
                   </div>
                   <div className="flex flex-1 flex-col gap-3 border-t border-line px-3 py-3">
                     <div className="min-w-0 flex-1">
                       <h2 className="truncate font-display font-semibold" title={g.title}>{g.title || "Untitled activity"}</h2>
-                      <p className="truncate text-xs text-muted">
-                        {templateByKey(g.templateKey)?.name ?? g.templateKey} · {g._count.items} {g._count.items === 1 ? "card" : "cards"}
-                        {g.level ? ` · ${g.level}` : ""}
+                      <p className="flex items-center gap-1 text-xs text-muted">
+                        <ActivityTypeIcon templateKey={g.templateKey} size={18} />
+                        <span className="truncate">
+                          {activityName(g.templateKey)} · {g._count.items} {g._count.items === 1 ? "card" : "cards"}
+                          {g.level ? ` · ${g.level}` : ""}
+                        </span>
                       </p>
                       {g.topic && <p className="truncate text-xs text-muted">{g.topic}</p>}
                       <p className="mt-1 truncate text-xs text-ink-2">

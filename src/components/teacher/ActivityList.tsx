@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/Panel";
 import { deleteGame, duplicateGame, setGameStatus } from "@/lib/actions/games";
 import { db } from "@/lib/db";
-import { templateByKey } from "@/lib/games/templates";
+import { ActivityTypeIcon } from "@/components/activity/ActivityTypeIcon";
+import { activityName } from "@/lib/games/activityTypes";
 
 export type ActivitySearch = { q?: string; status?: string; category?: string; sort?: string };
 
@@ -58,10 +59,11 @@ export function ActivityList({ games, empty }: { games: Loaded["games"]; empty: 
     <ul className="divide-y divide-line overflow-hidden rounded-xl2 border border-line bg-card">
       {games.map((g) => (
         <li key={g.id} className="flex flex-wrap items-center gap-3 px-5 py-4">
+          <ActivityTypeIcon templateKey={g.templateKey} size={48} />
           <Link href={`/teacher/games/${g.id}/edit`} className="min-w-60 flex-1">
             <span className="block font-display text-lg font-semibold hover:text-coral">{g.title || "Untitled activity"}</span>
             <span className="text-sm text-muted">
-              {templateByKey(g.templateKey)?.name} · {g._count.items} questions{g.category ? ` · ${g.category.nameEn}` : ""} · {g._count.assignments} assignments · edited {g.updatedAt.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
+              {activityName(g.templateKey)} · {g._count.items} questions{g.category ? ` · ${g.category.nameEn}` : ""} · {g._count.assignments} assignments · edited {g.updatedAt.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
             </span>
           </Link>
           <Badge tone={g.status === "PUBLISHED" ? "leaf" : g.status === "ARCHIVED" ? "coral" : "neutral"}>{g.status.toLowerCase()}</Badge>

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { MyActivitiesBoard, type BoardActivity, type BoardFolder, type BoardSort, type MyActivitiesBase } from "@/components/teacher/MyActivitiesBoard";
 import { UnsavedDrafts } from "@/components/teacher/UnsavedDrafts";
 import { db } from "@/lib/db";
-import { templateByKey } from "@/lib/games/templates";
+import { activityName } from "@/lib/games/activityTypes";
 import { mediaUrl } from "@/lib/media/save";
 
 // My Activities, shared by Teacher View (/teacher/my-activities) and Platform Admin
@@ -49,7 +49,7 @@ export async function MyActivitiesView({ sp, teacher, base }: { sp: MyActivities
     id: g.id,
     title: g.title,
     templateKey: g.templateKey,
-    template: templateByKey(g.templateKey)?.name ?? g.templateKey,
+    template: activityName(g.templateKey),
     status: g.status,
     items: g._count.items,
     assignments: g._count.assignments,

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useTransition } from "react";
+import { ActivityTypeIcon } from "@/components/activity/ActivityTypeIcon";
 import { PrintablesViewer } from "@/components/printables/PrintablesViewer";
 import { renameGame } from "@/lib/actions/games";
 import type { PlayGame } from "@/lib/games/types";
@@ -26,7 +27,7 @@ export interface StripAssignment {
  * sheet), Set Assignment and Rename, plus the list of this activity's assignments. Students only
  * see the title.
  */
-export function ActivityStrip({ game, role, typeName, status, author, assignments, settings }: { game: PlayGame; role: StripRole; typeName: string; status?: "DRAFT" | "PUBLISHED" | "ARCHIVED"; author?: string; assignments?: StripAssignment[]; settings?: SettingsData }) {
+export function ActivityStrip({ game, role, typeName, typeKey, status, author, assignments, settings }: { game: PlayGame; role: StripRole; typeName: string; typeKey?: string; status?: "DRAFT" | "PUBLISHED" | "ARCHIVED"; author?: string; assignments?: StripAssignment[]; settings?: SettingsData }) {
   const router = useRouter();
   const [printing, setPrinting] = useState(false);
   const [title, setTitle] = useState(game.title);
@@ -123,7 +124,8 @@ export function ActivityStrip({ game, role, typeName, status, author, assignment
               {title || "Untitled"}
             </h2>
           )}
-          <p className="text-xs font-bold text-muted">
+          <p className="flex flex-wrap items-center gap-x-1 text-xs font-bold text-muted">
+            {typeKey && <ActivityTypeIcon templateKey={typeKey} size={22} />}
             {typeName} · {game.questions.length} {isCards ? (game.questions.length === 1 ? "card" : "cards") : game.questions.length === 1 ? "item" : "items"}
             {author ? ` · by ${author}` : ""}
             {status && status !== "PUBLISHED" && <span className="ml-2 rounded-full bg-paper-2 px-2 py-0.5 text-ink-2">{status === "DRAFT" ? "Draft" : "Archived"}</span>}
