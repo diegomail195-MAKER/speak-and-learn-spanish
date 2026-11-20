@@ -45,7 +45,7 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
           <Link href={`/play/${a.id}/materials`} data-testid="materials-link" className="inline-flex items-center gap-2 rounded-full bg-card px-4 py-2 font-bold shadow-pop">📚 Materials ({materials})</Link>
         </div>
       )}
-      <StudentPlay game={game} assignmentId={a.id} videoId={videoId ?? null} done={done} exitHref={exitHref} below={game.board === "flashcards" ? <ActivityStrip key="strip" game={game} role="STUDENT" typeName="Flashcards" /> : undefined} />
+      <StudentPlay game={game} assignmentId={a.id} videoId={videoId ?? null} done={done} exitHref={exitHref} below={game.board === "flashcards" ? <ActivityStrip key="strip" game={game} role="STUDENT" typeName="Flashcards" typeKey="FLASHCARDS" /> : undefined} />
     </>
   );
 }

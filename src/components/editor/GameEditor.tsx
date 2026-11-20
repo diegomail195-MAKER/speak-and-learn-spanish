@@ -18,6 +18,8 @@ import { DiagramPoints } from "./DiagramPoints";
 import { CardPhotoForm } from "./CardPhotoForm";
 import { FaceEditor, FlashcardPreview, RowControls, swapItem } from "./FlashcardParts";
 import { UiLangProvider, useUi } from "./i18n";
+import { ActivityTypeIcon } from "@/components/activity/ActivityTypeIcon";
+import { activityName } from "@/lib/games/activityTypes";
 import { ImageField, mediaSrc } from "./ImageField";
 import { SpanishField } from "./SpanishField";
 import { CorrectionNote, useAutocorrect } from "./useAutocorrect";
@@ -692,7 +694,10 @@ function GameEditorInner({ initial, template, categories, library }: { initial: 
 
       <div className="sticky top-0 z-20 -mx-5 mb-4 flex flex-wrap items-center gap-3 border-b border-line bg-paper/95 px-5 py-3 backdrop-blur">
         <Link href={myActivitiesHref} className="text-sm font-bold text-muted hover:text-ink">← My Activities</Link>
-        <Badge tone="sky">{template.name}</Badge>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E2E6EC] bg-card py-0.5 pl-1 pr-3 text-xs font-bold text-ink" data-testid="editor-activity-type">
+          <ActivityTypeIcon templateKey={template.key} size={28} />
+          {activityName(template.key, uiLang)}
+        </span>
         <Badge tone={game.status === "PUBLISHED" ? "leaf" : "neutral"}>{game.status === "PUBLISHED" ? "Published" : game.status === "ARCHIVED" ? "Archived" : "Draft"}</Badge>
         <span
           data-testid="save-status"

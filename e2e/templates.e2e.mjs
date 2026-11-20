@@ -121,24 +121,23 @@ try {
   const pin = await addStudent(page, classUrl, "Lucía", { initial: "R", group: "LE3 · Group A" });
   log("class", code, "student PIN", pin);
 
-  // ── Test 1: dashboard button → template gallery with filters and oral indicator ────
+  // ── Test 1: dashboard button → Create Activity: eleven 3D cards, Recommended / Alphabetical ──
   await page.goto(`${BASE}/teacher`);
   await page.click("a:text-is('+ Create Activity')");
-  await page.waitForSelector("h1:text-is('Choose an Activity Template')");
-  const cards = page.locator("article");
-  assert((await cards.count()) === 8, `gallery shows ${await cards.count()} templates, expected 8`);
-  for (const name of ["Flashcards", "Spell the Word", "Spin the Wheel", "Label the Diagram", "Open the Box", "Listen & Repeat", "Image & Speak", "Match & Speak"]) {
-    assert(await page.locator(`article h2:has-text("${name}")`).count(), `gallery is missing ${name}`);
-  }
-  assert((await page.locator("article svg").count()) >= 8, "each template card has an illustrated preview");
-  assert(await page.locator("article:has-text('Spell the Word') >> text=Out loud or typed — you choose").count(), "Spell the Word oral indicator");
-  assert(await page.locator("article:has-text('Match & Speak') >> text=Speaking optional — you choose").count(), "Match & Speak oral indicator");
+  await page.waitForSelector("h1:text-is('Create Activity'), h1:text-is('Crear actividad')");
+  const RECOMMENDED = ["FLASHCARDS", "SPIN_THE_WHEEL", "MATCH_AND_SPEAK", "SPELL_THE_WORD", "SPEAK_AND_ANSWER", "LISTEN_AND_SPEAK", "OPEN_THE_BOX", "LABEL_THE_DIAGRAM", "SPELL_YOUR_NAME", "QUESTION_AND_ANSWER", "IMAGE_AND_VOCABULARY"];
+  const cards = page.getByTestId("activity-type");
+  const order = () => cards.evaluateAll((els) => els.map((e) => e.getAttribute("value")));
+  assert(JSON.stringify(await order()) === JSON.stringify(RECOMMENDED), `recommended order: ${await order()}`);
+  await page.waitForFunction(() => [...document.querySelectorAll("[data-testid=activity-type] img")].every((i) => i.complete && i.naturalWidth > 0));
+  assert((await page.locator("[data-testid=activity-type] img[src*='/activity-icons/']").count()) === 11, "each card has its 3D icon");
   await shot(page, "t01-gallery");
-  await page.click("button[aria-pressed]:text-is('Spelling')");
-  const spellingNames = await page.locator("article h2").allTextContents();
-  assert(spellingNames.some((n) => n.includes("Spell the Word")) && !spellingNames.some((n) => n.includes("Flashcards")), `Spelling filter shows: ${spellingNames.join(", ")}`);
-  await page.click("button[aria-pressed]:text-is('All')");
-  log("Test 1 gallery: 8 illustrated templates, filters and oral indicators work");
+  await page.getByTestId("sort-alphabetical").click();
+  const alpha = await cards.evaluateAll((els) => els.map((e) => e.querySelector(".activity-type-card__name").textContent));
+  assert(JSON.stringify(alpha) === JSON.stringify([...alpha].sort((x, y) => x.localeCompare(y))), `alphabetical: ${alpha}`);
+  assert((await order()).length === 11 && new Set(await order()).size === 11, "same eleven keys after sorting");
+  await page.getByTestId("sort-recommended").click();
+  log("Test 1 Create Activity: 11 cards with 3D icons, Recommended and Alphabetical");
 
   // ── Tests 2, 6, 7, 8, 9, 12: Flashcards with a multilingual prompt, assigned and played ─
   const fcId = await newActivity("FLASHCARDS", "El amor y las frutas");
