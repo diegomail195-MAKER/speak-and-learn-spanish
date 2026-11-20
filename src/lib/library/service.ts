@@ -64,12 +64,12 @@ export async function activityForStudent(student: { id: string; classroomId: str
     include: { version: true, resource: { select: { kind: true } }, game: { select: { id: true, title: true, templateKey: true } }, assignment: { select: { id: true, title: true } } },
   });
   if (!act) throw new HttpError(404, "Not found");
-  await assertStepOpen(student, assignmentId, act.id);
+  const step = await assertStepOpen(student, assignmentId, act.id);
   // The next activity of the same task, for "Continue" (student focus mode).
   const next = await db.assignmentActivity.findFirst({ where: { assignmentId, position: { gt: act.position } }, orderBy: { position: "asc" }, select: { id: true } });
   const title = act.version?.title ?? act.game?.title ?? "Activity";
-  if (!act.resource || !act.version) return { act, title, nextActivityId: next?.id ?? null, kind: null, content: null };
-  return { act, title, nextActivityId: next?.id ?? null, kind: act.resource.kind as Kind, content: safeContent(act.resource.kind as Kind, act.version.content) as AnyContent };
+  if (!act.resource || !act.version) return { act, step, title, nextActivityId: next?.id ?? null, kind: null, content: null };
+  return { act, step, title, nextActivityId: next?.id ?? null, kind: act.resource.kind as Kind, content: safeContent(act.resource.kind as Kind, act.version.content) as AnyContent };
 }
 
 /** Resources an administrator can pick with "Add from Library" (everything except archived). */

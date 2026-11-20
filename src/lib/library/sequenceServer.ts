@@ -19,6 +19,9 @@ export async function assertStepOpen(student: { id: string; schoolId: string }, 
       progress: { where: { studentId: student.id, completedAt: { not: null } }, select: { id: true }, take: 1 },
     },
   });
-  const open = openSteps(acts.map((a) => ({ id: a.id, done: a.progress.length > 0, skip: !!a.gameId && a.game?.schoolId !== student.schoolId })));
+  const steps = acts.map((a) => ({ id: a.id, done: a.progress.length > 0, skip: !!a.gameId && a.game?.schoolId !== student.schoolId }));
+  const open = openSteps(steps);
   if (!open.has(activityId)) throw new HttpError(403, "Finish the earlier steps of this task first.");
+  const live = steps.filter((s) => !s.skip);
+  return { done: !!live.find((s) => s.id === activityId)?.done, topicCompleted: live.length > 0 && live.every((s) => s.done) };
 }

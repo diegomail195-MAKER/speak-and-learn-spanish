@@ -1,8 +1,9 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { VideoPlayer as PlatformVideoPlayer } from "@/components/video/VideoPlayer";
+import { protectedMediaProps, useNoSeekAhead, watchedToEnd } from "@/components/video/protect";
 import { Art, Icon, Pinita } from "@/components/ui/Art";
 import type { PlayVideo } from "@/lib/videos";
 import { DOCX_MIME, GAME_TYPE_LABEL, embedFor, libraryFileUrl, publicUrl, type AnyContent, type ContentFor, type ImageRef, type Kind, type Pair, type SpeakingResult } from "@/lib/library/types";
@@ -348,14 +349,26 @@ export function GamePlayer({ content, onDone }: { content: ContentFor<"GAME">; o
   );
 }
 
+// ---------- Protected audio ----------
+/** Songs and listening: no download; with `lockSeek` (students) no skipping past what was heard. */
+function ProtectedAudio({ src, onEnded, testId, lockSeek, children }: { src: string; onEnded: () => void; testId: string; lockSeek: boolean; children: ReactNode }) {
+  const ref = useRef<HTMLAudioElement>(null);
+  const furthest = useNoSeekAhead(ref, lockSeek);
+  return (
+    <audio ref={ref} controls {...protectedMediaProps(lockSeek)} src={src} onEnded={(e) => watchedToEnd(furthest.current, e.currentTarget.duration, lockSeek) && onEnded()} className="mb-5 w-full" data-testid={testId}>
+      {children}
+    </audio>
+  );
+}
+
 // ---------- Listening ----------
-export function ListeningPlayer({ content, onDone }: { content: ContentFor<"LISTENING">; onDone?: Done }) {
+export function ListeningPlayer({ content, onDone, lockSeek = false }: { content: ContentFor<"LISTENING">; onDone?: Done; lockSeek?: boolean }) {
   return (
     <div className="mx-auto max-w-2xl">
       {content.file && (
-        <audio controls src={libraryFileUrl(content.file.fileId)} onEnded={() => onDone?.(1, 1)} className="mb-5 w-full" data-testid="listening-audio">
+        <ProtectedAudio src={libraryFileUrl(content.file.fileId)} onEnded={() => onDone?.(1, 1)} testId="listening-audio" lockSeek={lockSeek}>
           Your browser can’t play this audio.
-        </audio>
+        </ProtectedAudio>
       )}
       {content.transcript && <p className="whitespace-pre-line rounded-[22px] bg-card p-5 text-lg leading-relaxed" data-testid="listening-transcript">{content.transcript}</p>}
     </div>
@@ -363,7 +376,7 @@ export function ListeningPlayer({ content, onDone }: { content: ContentFor<"LIST
 }
 
 // ---------- Song ----------
-export function SongPlayer({ content, onDone }: { content: ContentFor<"SONG">; onDone?: Done }) {
+export function SongPlayer({ content, onDone, lockSeek = false }: { content: ContentFor<"SONG">; onDone?: Done; lockSeek?: boolean }) {
   const [line, setLine] = useState(-1);
   const playing = useRef(false);
   const sing = (i: number) => {
@@ -375,9 +388,9 @@ export function SongPlayer({ content, onDone }: { content: ContentFor<"SONG">; o
   return (
     <div className="mx-auto max-w-2xl">
       {content.file && (
-        <audio controls src={libraryFileUrl(content.file.fileId)} onEnded={() => onDone?.(1, 1)} className="mb-5 w-full" data-testid="song-audio">
+        <ProtectedAudio src={libraryFileUrl(content.file.fileId)} onEnded={() => onDone?.(1, 1)} testId="song-audio" lockSeek={lockSeek}>
           Your browser can’t play this song.
-        </audio>
+        </ProtectedAudio>
       )}
       {content.lyrics.length > 0 && (
         <>
@@ -413,7 +426,7 @@ export function SongPlayer({ content, onDone }: { content: ContentFor<"SONG">; o
  *   pause, volume, fullscreen), with no links to other sites.
  * `continueHref` (student focus mode) shows "Continue" when the video ends.
  */
-export function VideoPlayer({ content, title = "Video", onDone, continueHref }: { content: ContentFor<"VIDEO">; title?: string; onDone?: Done; continueHref?: string }) {
+export function VideoPlayer({ content, title = "Video", onDone, continueHref, lockSeek = false, autoPlay = false }: { content: ContentFor<"VIDEO">; title?: string; onDone?: Done; continueHref?: string; lockSeek?: boolean; autoPlay?: boolean }) {
   const [ended, setEnded] = useState(false);
   const video = useMemo<PlayVideo | null>(() => {
     const base = { id: "library", title, description: "", captionsUrl: null, captionsLanguage: "es", durationSec: null, practiceGameId: null };
@@ -427,7 +440,7 @@ export function VideoPlayer({ content, title = "Video", onDone, continueHref }: 
       {video ? (
         <>
           <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted" data-testid="video-mode">{video.source === "HOSTED" ? "LextroSpeak Hosted Video" : "YouTube Educational Video"}</p>
-          <PlatformVideoPlayer video={video} onEnded={finish} />
+          <PlatformVideoPlayer video={video} onEnded={finish} lockSeek={lockSeek} autoPlay={autoPlay} />
         </>
       ) : (
         <p className="rounded-[28px] bg-ink p-10 text-center text-white">No video yet.</p>
@@ -441,8 +454,41 @@ export function VideoPlayer({ content, title = "Video", onDone, continueHref }: 
 }
 
 // ---------- Printables / worksheets ----------
+/**
+ * "I finished" for activities done outside the screen (worksheets, links): opening them doesn't
+ * count, the student says they finished. Only shown where completion is tracked (`onDone`).
+ */
+function FinishedButton({ onDone, label = "Terminé la hoja · I finished the worksheet" }: { onDone?: Done; label?: string }) {
+  const [done, setDone] = useState(false);
+  if (!onDone) return null;
+  return (
+    <div className="no-print mt-4 flex justify-center">
+      <button
+        type="button"
+        disabled={done}
+        onClick={() => {
+          setDone(true);
+          onDone(1, 1);
+        }}
+        data-testid="activity-finished"
+        className="inline-flex h-12 items-center gap-2 rounded-full bg-leaf px-6 font-extrabold text-white shadow-[0_3px_0_rgba(0,0,0,.2)] disabled:opacity-60"
+      >
+        {done ? "✓ Listo · Done" : `✓ ${label}`}
+      </button>
+    </div>
+  );
+}
+
 export function PrintablePlayer({ content, title, onDone }: { content: ContentFor<"PRINTABLE">; title: string; onDone?: Done }) {
-  useEffect(() => { onDone?.(1, 1); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <>
+      <PrintableView content={content} title={title} />
+      {(content.file || content.sheet) && <FinishedButton onDone={onDone} />}
+    </>
+  );
+}
+
+function PrintableView({ content, title }: { content: ContentFor<"PRINTABLE">; title: string }) {
   if (content.file) {
     const url = libraryFileUrl(content.file.fileId);
     const isPdf = content.file.mime === "application/pdf" || content.file.name.toLowerCase().endsWith(".pdf");
@@ -528,11 +574,11 @@ function ConnectSheet({ words }: { words: Pair[] }) {
  * In student focus mode LextroSpeak adds no buttons to other sites: non-embeddable links show a note.
  */
 export function LinkPlayer({ url, title, onDone, focus = false }: { url: string; title: string; onDone?: Done; focus?: boolean }) {
-  useEffect(() => { onDone?.(1, 1); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const safe = publicUrl(url);
-  if (!safe) return <p className="text-muted">This link isn&apos;t available.</p>;
+  // A link that can't be shown can't be finished here either: the student confirms and continues.
+  if (!safe) return <><p className="text-muted">This link isn&apos;t available.</p><FinishedButton onDone={onDone} label="Continuar · Continue" /></>;
   const embed = embedFor(safe);
-  if (focus && !embed) return <p className="rounded-[22px] bg-card p-5 text-ink-2" data-testid="link-unavailable">This material lives on another website, so it can&apos;t be shown here. Ask your teacher about it.</p>;
+  if (focus && !embed) return <><p className="rounded-[22px] bg-card p-5 text-ink-2" data-testid="link-unavailable">This material lives on another website, so it can&apos;t be shown here. Ask your teacher about it.</p><FinishedButton onDone={onDone} label="Continuar · Continue" /></>;
   return (
     <div className="mx-auto max-w-3xl space-y-3">
       {embed && (
@@ -541,6 +587,7 @@ export function LinkPlayer({ url, title, onDone, focus = false }: { url: string;
         </div>
       )}
       {!focus && <a href={safe} target="_blank" rel="noopener noreferrer" data-testid="open-link" className={embed ? "inline-flex text-sm font-bold text-sky hover:underline" : "inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3 font-bold text-white"}>Open Link ↗</a>}
+      <FinishedButton onDone={onDone} label="Terminé · I finished" />
     </div>
   );
 }
@@ -551,8 +598,11 @@ export function LinkPlayer({ url, title, onDone, focus = false }: { url: string;
 const noop = () => () => {};
 const useInBrowser = () => useSyncExternalStore(noop, () => true, () => false);
 
-/** `focus`: student focus mode (no LextroSpeak buttons to other sites). `continueHref`: where "Continue" goes after a video. */
-export function ResourcePlayer({ kind, content, title, onDone, focus = false, continueHref }: { kind: Kind; content: AnyContent; title: string; onDone?: Done; focus?: boolean; continueHref?: string }) {
+/**
+ * `focus`: student focus mode (no LextroSpeak buttons to other sites). `continueHref`: where "Continue" goes after a video.
+ * `lockSeek`: a student doing the activity can rewind videos and songs but not skip ahead. Teachers keep every control.
+ */
+export function ResourcePlayer({ kind, content, title, onDone, focus = false, continueHref, lockSeek = false, autoPlay = false }: { kind: Kind; content: AnyContent; title: string; onDone?: Done; focus?: boolean; continueHref?: string; lockSeek?: boolean; /** Videos start at once (the person just pressed Start or Play). */ autoPlay?: boolean }) {
   const inBrowser = useInBrowser();
   if (!inBrowser && (kind === "GAME" || kind === "PRINTABLE" || kind === "WORKSHEET")) {
     return <div className="mx-auto grid h-64 max-w-3xl place-items-center rounded-[28px] bg-card shadow-pop"><Pinita mood="happy" className="h-24 w-24 animate-wiggle" /></div>;
@@ -569,11 +619,11 @@ export function ResourcePlayer({ kind, content, title, onDone, focus = false, co
   switch (kind) {
     case "FLASHCARDS": return <FlashcardsPlayer content={content as ContentFor<"FLASHCARDS">} onDone={onDone} />;
     case "GAME": return <GamePlayer content={content as ContentFor<"GAME">} onDone={onDone} />;
-    case "SONG": return <SongPlayer content={content as ContentFor<"SONG">} onDone={onDone} />;
-    case "VIDEO": return <VideoPlayer content={content as ContentFor<"VIDEO">} title={title} onDone={onDone} continueHref={continueHref} />;
+    case "SONG": return <SongPlayer content={content as ContentFor<"SONG">} onDone={onDone} lockSeek={lockSeek} />;
+    case "VIDEO": return <VideoPlayer content={content as ContentFor<"VIDEO">} title={title} onDone={onDone} continueHref={continueHref} lockSeek={lockSeek} autoPlay={autoPlay} />;
     case "PRINTABLE":
     case "WORKSHEET": return <PrintablePlayer content={content as ContentFor<"PRINTABLE">} title={title} onDone={onDone} />;
-    case "LISTENING": return <ListeningPlayer content={content as ContentFor<"LISTENING">} onDone={onDone} />;
+    case "LISTENING": return <ListeningPlayer content={content as ContentFor<"LISTENING">} onDone={onDone} lockSeek={lockSeek} />;
     case "SPEAKING": return <SpeakingPlayer content={content as ContentFor<"SPEAKING">} onDone={onDone} />;
   }
 }

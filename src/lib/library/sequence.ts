@@ -21,3 +21,22 @@ export function openSteps(steps: SequenceStep[]): Set<string> {
   }
   return open;
 }
+
+/**
+ * Where a student lands when they open a Topic lesson, possibly with ?step=N (1-based) on the URL.
+ * Before the topic is completed the lesson always opens the current step (the first one not
+ * finished); a link to another step shows why it didn't open. Once every step is finished, a step
+ * on the URL opens as a repeat.
+ */
+export function lessonEntry(steps: Array<{ done: boolean }>, stepParam: string | undefined): { startAt: number | null; notice: string | null } {
+  if (stepParam === undefined || stepParam === "") return { startAt: null, notice: null };
+  const n = Number(stepParam);
+  if (!Number.isInteger(n) || n < 1 || n > steps.length) return { startAt: null, notice: null };
+  const want = n - 1;
+  const current = steps.findIndex((s) => !s.done);
+  if (current < 0) return { startAt: want, notice: null };
+  if (want === current) return { startAt: null, notice: null };
+  if (want > current)
+    return { startAt: null, notice: `Esa actividad todavía está bloqueada: termina primero esta. · That activity is still locked: finish this one first.` };
+  return { startAt: null, notice: `Podrás repetir esa actividad cuando termines el Topic. · You can repeat that activity once you finish the Topic.` };
+}

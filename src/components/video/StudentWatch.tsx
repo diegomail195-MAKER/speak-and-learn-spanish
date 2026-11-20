@@ -26,7 +26,7 @@ export function StudentWatch({ video, startAt, practiceHref, practiceTitle, next
 
   return (
     <div className="max-w-4xl">
-      <VideoPlayer video={video} startAt={startAt} onProgress={onProgress} onEnded={() => setEnded(true)} />
+      <VideoPlayer video={video} lockSeek startAt={startAt} onProgress={onProgress} onEnded={() => setEnded(true)} />
       {saveError && <p className="mt-2 text-sm font-bold text-coral" role="status">We couldn&apos;t save your place. Check the internet connection.</p>}
       {(ended || practiceHref || nextHref) && (
         <div className={`mt-4 flex flex-wrap items-center gap-3 rounded-xl2 border p-4 ${ended ? "border-teal bg-teal-soft" : "border-line bg-card"}`}>
